@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use rand::Rng;
 
 const NODE_NETWORK: u64 = 0x01;
-const LOCAL_HOST: [u8; 16] = 127.0.0.1;
+const LOCAL_HOST: [u8; 16] = [0; 10] + [0xff, 0xff, 127, 0, 0, 1];
 const LOCAL_PORT: u16 = 1001;
 
 /// Contains all necessary fields, for sending a version message needed for doing a handshake among nodes
@@ -27,7 +27,7 @@ impl VersionMessage {
     /// Constructor for the struct VersionMessage, receives a version and a reciever address (which
     /// includes both the ip and port) and returns an instance of a VersionMessage with all its 
     /// necesary attributes initialized, the optional ones are left in blank
-    pub fn new(version: i32, receiver_address :SocketAddr) -> VersionMessage {
+    pub fn new(version: i32, receiver_address: SocketAddr) -> VersionMessage {
         VersionMessage {
             version,
             services: NODE_NETWORK,
@@ -43,6 +43,33 @@ impl VersionMessage {
             //user_agent,   no ponemos el user agent,porque entendemos que nadie nos conoce, a nadie le va a interesar saber en que version esta papas rusticas 0.0.1
             start_height: 0,
             relay: true,
+        }
+    }
+}
+
+struct HeaderMessage {
+    start: [u8; 4],
+    command_name: [u8; 12],
+    payload_size: u32,
+    checksum: [u8; 4], 
+}
+
+/// Message used to acknoledge 2 nodes have sent Version Messages.
+struct VerACKMessage{
+    header: HeaderMessagem,
+}
+
+impl VerACKMessage {
+    pub fn new() -> VerACKMessage {
+        header = HeaderMessage {
+            sender_address: LOCAL_HOST,
+            command_name: "verack\0\0\0\0\0\0",
+            payload_size: 0,
+            checksum: 0x5df6e0e2, //(SHA256(SHA256(<empty string>)))
+        };
+        
+        VerACKMessage{
+            header,
         }
     }
 }
