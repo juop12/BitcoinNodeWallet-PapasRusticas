@@ -1,4 +1,5 @@
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::{SocketAddr, ToSocketAddrs, TcpStream};
+use messages;
 
 const DNS_PORT: u16 = 53; //DNS PORT
 
@@ -27,13 +28,27 @@ impl Node {
         }
         socket_address_vector
     }
-}
-/*
- fn connect_user_to_server(dns: String) {
-     let addrs_iter = (dns, DNS_PORT).to_socket_addrs().unwrap();
+    
+    pub fn handshake(&self, receiving_addrs: SocketAddr) -> Result<TcpStream>{
+        let tcp_stream = TcpStream::connect(&receiving_addrs)?;
+        let vm = VersionMessage::new(self.version, receiving_addrs);
+        vm.send_to(tcp_stream);
 
-     TcpStream::connect(&addrs[..])
-}*/
+
+
+        //mandar Vm:-mandar header
+        //          -mandar Vm
+        //recibirVm:-recibir header?
+        //          -recibir Vm
+        //Mandar y recibir ACK
+    }
+}
+
+ fn connect_user_to_server(dns: String) {
+    let addrs_iter = (dns, DNS_PORT).to_socket_addrs().unwrap();
+
+    
+}
 
 #[cfg(test)]
 mod tests {
