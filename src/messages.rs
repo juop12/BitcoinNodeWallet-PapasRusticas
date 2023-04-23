@@ -1,17 +1,21 @@
-use chrono::{DateTime, Utc};
+use chrono::{Utc};
 use rand::prelude::*;
 use std::net::{SocketAddr, TcpStream};
 use std::io::prelude::*;
-use std::path::Component;
 use bitcoin_hashes::{sha256d, Hash};
 
 const NODE_NETWORK: u64 = 0x01;
 const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
 const LOCAL_PORT: u16 = 1001;
+const START_STRING_TEST_NET : [u8; 4] = [0xd9,0xb4,0xeb,0xf9];
 
 
 pub enum MessageError{
-    ErrorCreatingMessage
+    ErrorCreatingMessage,
+    ErrorSendingMessage,
+    ErrorCreatingHeaderMessage,
+    ErrorSendingHeaderMessage,
+
 }
 /// Contains all necessary fields, for sending a version message needed for doing a handshake among nodes
 pub struct VersionMessage {
@@ -28,16 +32,39 @@ pub struct VersionMessage {
     user_agent_length: u8,
     //user_agent: String,
     start_height: i32,
-    relay: bool,
+    relay: u8,
 }
 
 impl Message for VersionMessage{
-    fn send_to(&self, tcp_stream: TcpStream)-> Result<usize, ()>{
+    fn send_to(&self, tcp_stream: &mut TcpStream)-> Result<(), MessageError> {
         let payload_size = std::mem::size_of_val(self) as u32;
-        let version = "version\0\0\0\0\0";
-        let header_message = HeaderMessage::new(version, payload_size);
+        let command_name = "version\0\0\0\0\0";
+        let header_message = HeaderMessage::new(command_name, payload_size)?;
         header_message.send_to(tcp_stream)?;
-        tcp_stream.write_all(self.to_bytes().into_boxed_slice().into())
+
+        match tcp_stream.write(self.to_bytes().as_slice()){
+            Ok(_) => Ok(()),
+            Err(_) => return Err(MessageError::ErrorSendingMessage),
+        }
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes_vector = Vec::new();
+        bytes_vector.extend_from_slice(&self.version.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.services.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.timestamp.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.addr_recv_services.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.receiver_address);
+        bytes_vector.extend_from_slice(&self.receiver_port.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.addr_sender_services.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.sender_address);
+        bytes_vector.extend_from_slice(&self.sender_port.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.nonce.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.user_agent_length.to_le_bytes());
+        //bytes_vector.extend_from_slice(&self.user_agent);
+        bytes_vector.extend_from_slice(&self.start_height.to_le_bytes());
+        bytes_vector.push(self.relay);
+        bytes_vector
     }
 }
 
@@ -65,39 +92,59 @@ impl VersionMessage {
             user_agent_length: 0,
             //user_agent,   no ponemos el user agent,porque entendemos que nadie nos conoce, a nadie le va a interesar saber en que version esta papas rusticas 0.0.1
             start_height: 0,
-            relay: true,
+            relay: 0x01,
         };
         Ok(version_message)
     }
 }
 
 struct HeaderMessage {
-    sender_address: [u8; 4],
+    start_string: [u8; 4],
     command_name: [u8; 12],
     payload_size: u32,
-    checksum: [u8; 4], 
+    checksum: [u8; 4],
 }
 
 impl Message for HeaderMessage{
-    fn send_to(&self, tcp_stream: TcpStream)-> Result<usize, ()>{
-        tcp_stream.write(self)
+    ///Sends a header message trough the tcp_stream
+    fn send_to(&self, tcp_stream: &mut TcpStream)-> Result<(), MessageError>{
+        match tcp_stream.write(self.to_bytes().as_slice()){
+            Ok(_) => Ok(()),
+            Err(_) => return Err(MessageError::ErrorSendingHeaderMessage),
+        }
+    }
+    /// Returns an array of bytes with the header message in the format specified in the bitcoin protocol
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes_vector = Vec::new();
+        bytes_vector.extend_from_slice(&self.start_string);
+        bytes_vector.extend_from_slice(&self.command_name);
+        bytes_vector.extend_from_slice(&self.payload_size.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.checksum);
+        bytes_vector
     }
 }
-
+/// Constructor for the struct HeaderMessage, receives a command name and a payload size and returns
+/// an instance of a HeaderMessage with all its necesary attributes initialized.
+/// The checksum is calculated using the first 4 bytes of the hash of the payload size.
+/// The sender address is set to the local host address.
+/// The command name is set to the first 12 bytes of the command name received as a parameter,
+/// if the command name is shorter than 12 bytes, the remaining bytes are filled with 0s.
+/// The payload size is set to the payload size received as a parameter.
 impl HeaderMessage{
     fn new(command_name: &str , payload_size: u32) -> Result<HeaderMessage,MessageError>{
         let command_bytes = command_name.as_bytes();
-        let mut command_bytes_fixed_size :[u8; 12];
+        let mut command_bytes_fixed_size =[0u8; 12] ;
         command_bytes_fixed_size.copy_from_slice(command_bytes);
 
-        let hash_value = sha256d::Hash::hash(&payload_size.to_le_bytes()).as_byte_array();
+        let hash = sha256d::Hash::hash(&payload_size.to_le_bytes());
+        let hash_value = hash.as_byte_array();
         let checksum: [u8; 4] = match hash_value[..4].try_into(){
             Ok(array) => array,
-            Err(_) => return Err(MessageError::ErrorCreatingMessage),
+            Err(_) => return Err(MessageError::ErrorCreatingHeaderMessage),
         };
         
         let header_message = HeaderMessage {
-            sender_address: LOCAL_HOST,
+            start_string: START_STRING_TEST_NET,
             command_name: command_bytes_fixed_size,
             payload_size,
             checksum, //(SHA256(SHA256(<empty string>)))
@@ -113,16 +160,15 @@ struct VerACKMessage{
 
 impl VerACKMessage {
     pub fn new() -> Result<VerACKMessage,MessageError> {
-        let header = HeaderMessage::new("verack\0\0\0\0\0\0", 0)?;
-        let verack_message = VerACKMessage{
-            header,
-        };
-        Ok(verack_message)
+        match HeaderMessage::new("verack\0\0\0\0\0\0", 0){
+            Ok(header) => Ok(VerACKMessage{header}),
+            Err(_) => Err(MessageError::ErrorCreatingMessage),
+        }
     }
 }
 
 trait Message{
     //pub fn new(version: i32, receiver_address: SocketAddr) -> VersionMessage;
-    fn send_to(&self, tcp_stream: TcpStream)-> Result<usize, ()>;
+    fn send_to(&self, tcp_stream: &mut TcpStream)-> Result<(), MessageError>;
     fn to_bytes(&self) -> Vec<u8>;
 }
