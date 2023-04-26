@@ -9,13 +9,12 @@ const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
 const LOCAL_PORT: u16 = 1001;
 const START_STRING_TEST_NET : [u8; 4] = [0xd9,0xb4,0xeb,0xf9];
 
-
+#[derive(Debug)]
 pub enum MessageError{
     ErrorCreatingMessage,
     ErrorSendingMessage,
     ErrorCreatingHeaderMessage,
     ErrorSendingHeaderMessage,
-
 }
 /// Contains all necessary fields, for sending a version message needed for doing a handshake among nodes
 pub struct VersionMessage {
@@ -37,14 +36,15 @@ pub struct VersionMessage {
 
 impl Message for VersionMessage{
     fn send_to(&self, tcp_stream: &mut TcpStream)-> Result<(), MessageError> {
-        let payload_size = std::mem::size_of_val(self) as u32;
+        let payload = self.to_bytes();
+        let payload_size = std::mem::size_of_val(payload.as_slice()) as u32;  
         let command_name = "version\0\0\0\0\0";
         let header_message = HeaderMessage::new(command_name, payload_size)?;
         header_message.send_to(tcp_stream)?;
 
-        match tcp_stream.write(self.to_bytes().as_slice()){
+        match tcp_stream.write(payload.as_slice()){
             Ok(_) => Ok(()),
-            Err(_) => return Err(MessageError::ErrorSendingMessage),
+            Err(_) => Err(MessageError::ErrorSendingMessage),
         }
     }
 
@@ -55,12 +55,12 @@ impl Message for VersionMessage{
         bytes_vector.extend_from_slice(&self.timestamp.to_le_bytes());
         bytes_vector.extend_from_slice(&self.addr_recv_services.to_le_bytes());
         bytes_vector.extend_from_slice(&self.receiver_address);
-        bytes_vector.extend_from_slice(&self.receiver_port.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.receiver_port.to_be_bytes()); 
         bytes_vector.extend_from_slice(&self.addr_sender_services.to_le_bytes());
         bytes_vector.extend_from_slice(&self.sender_address);
-        bytes_vector.extend_from_slice(&self.sender_port.to_le_bytes());
+        bytes_vector.extend_from_slice(&self.sender_port.to_be_bytes());
         bytes_vector.extend_from_slice(&self.nonce.to_le_bytes());
-        bytes_vector.extend_from_slice(&self.user_agent_length.to_le_bytes());
+        bytes_vector.push(self.user_agent_length);
         //bytes_vector.extend_from_slice(&self.user_agent);
         bytes_vector.extend_from_slice(&self.start_height.to_le_bytes());
         bytes_vector.push(self.relay);
@@ -81,7 +81,7 @@ impl VersionMessage {
             receiver_address: {
                 match receiver_address.ip(){
                     std::net::IpAddr::V4(ipv4) => ipv4.to_ipv6_mapped().octets(),
-                    std::net::IpAddr::V6(ipv6) => ipv6.octets(), //deberiamos tirar error si es ipv6?
+                    std::net::IpAddr::V6(ipv6) => ipv6.octets(),
                 }
             },
             receiver_port: receiver_address.port(),
@@ -171,4 +171,58 @@ trait Message{
     //pub fn new(version: i32, receiver_address: SocketAddr) -> VersionMessage;
     fn send_to(&self, tcp_stream: &mut TcpStream)-> Result<(), MessageError>;
     fn to_bytes(&self) -> Vec<u8>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn version_message_expected_bytes(timestamp: i64, socket: SocketAddr, rand: u64)->Vec<u8>{
+        let mut bytes_vector = Vec::new();
+        bytes_vector.extend_from_slice(&(70015 as i32).to_le_bytes());
+        bytes_vector.extend_from_slice(&NODE_NETWORK.to_le_bytes());
+        bytes_vector.extend_from_slice(&timestamp.to_le_bytes());
+        bytes_vector.extend_from_slice(&(0 as u64).to_le_bytes());
+        bytes_vector.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 127, 0, 0, 2]);
+        bytes_vector.extend_from_slice(&(8080 as u16).to_be_bytes()); 
+        bytes_vector.extend_from_slice(&(NODE_NETWORK as u64).to_le_bytes());
+        bytes_vector.extend_from_slice(&std::net::Ipv4Addr::from(LOCAL_HOST).to_ipv6_mapped().octets());
+        bytes_vector.extend_from_slice(&(8080 as u16).to_be_bytes());
+        bytes_vector.extend_from_slice(&rand.to_le_bytes());
+        bytes_vector.push(0 as u8);
+        //bytes_vector.extend_from_slice(&self.user_agent);
+        bytes_vector.extend_from_slice(&(0 as i32).to_le_bytes());
+        bytes_vector.push(0x01);
+        bytes_vector
+    }
+
+    fn header_message_expected_bytes()->Vec<u8>{
+        let mut bytes_vector = Vec::new();
+        bytes_vector.extend_from_slice(&START_STRING_TEST_NET);
+        bytes_vector.extend_from_slice(&"version\0\0\0\0\0".as_bytes());
+        bytes_vector.extend_from_slice(&(0 as u32).to_le_bytes());
+        bytes_vector.extend_from_slice([0x5d,0xf6,0xe0,0xe2].as_slice());
+        bytes_vector
+    }
+
+    #[test]
+    fn test_to_bytes_version_message()-> Result<(), MessageError>{
+        let socket = std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 2)), 8080);
+        let version_message = VersionMessage::new(70015, socket)?;
+
+        let version_message_bytes = version_message.to_bytes();
+        
+        assert_eq!(version_message_bytes, version_message_expected_bytes(version_message.timestamp, socket, version_message.nonce));
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_bytes_header_message()-> Result<(), MessageError>{
+        let header_message = HeaderMessage::new("version\0\0\0\0\0", 0)?;
+
+        let header_message_bytes = header_message.to_bytes();
+        
+        assert_eq!(header_message_bytes, header_message_expected_bytes());
+        Ok(())
+    }
 }
