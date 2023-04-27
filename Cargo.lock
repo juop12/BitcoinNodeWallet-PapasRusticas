@@ -3,15 +3,6 @@
 version = 3
 
 [[package]]
-name = "Proyecto"
-version = "0.1.0"
-dependencies = [
- "bitcoin_hashes",
- "chrono",
- "rand",
-]
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -240,6 +231,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b63bdb0cd06f1f4dedf69b254734f9b45af66e4a031e42a7480257d9898b435"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "proyecto"
+version = "0.1.0"
+dependencies = [
+ "bitcoin_hashes",
+ "chrono",
+ "rand",
 ]
 
 [[package]]
