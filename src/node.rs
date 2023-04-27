@@ -1,18 +1,29 @@
 use std::net::{SocketAddr, ToSocketAddrs, TcpStream};
-//use proyecto::messages;
+use proyecto::messages::*;
 
 // use messages::VersionMessage;
 
 const DNS_PORT: u16 = 53; //DNS PORT
+const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
+const LOCAL_PORT: u16 = 1001;
+
+/// Struct that represents the errors that can occur in the Node
+enum NodeError{
+    ErrorHandshake
+}
 
 /// Struct that represents the bitcoin node
 struct Node {
     version: i32,
+    sender_address: SocketAddr,
 }
 
 impl Node {
     pub fn new() -> Node {
-        Node { version: 70015 }
+        Node { 
+            version: 70015,
+            sender_address: SocketAddr::from((LOCAL_HOST, LOCAL_PORT)),
+        }
     }
     /// Receives a dns address as a String and returns a Vector that contains all the addresses
     /// returned by the dns. If an error occured (for example, the dns address is not valid), it
@@ -30,17 +41,27 @@ impl Node {
         }
         socket_address_vector
     }
-    
-    // pub fn handshake(&self, receiving_addrs: SocketAddr) -> Result<TcpStream>{
-    //     let tcp_stream = TcpStream::connect(&receiving_addrs)?;
-    //     let vm = VersionMessage::new(self.version, receiving_addrs);
-    //     vm.send_to(tcp_stream);
-        //mandar Vm:-mandar header
-          //       -mandar Vm
+     
+    pub fn handshake(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError>{
+        let mut tcp_stream = match TcpStream::connect(&receiving_addrs){
+            Ok(stream) => stream,
+            Err(_) => return Err(NodeError::ErrorHandshake),
+        };
+        let vm = match VersionMessage::new(self.version, receiving_addrs, self.sender_address){
+            Ok(version_message) => version_message,
+            Err(_) => return Err(NodeError::ErrorHandshake),
+        };
+        match vm.send_to(&mut tcp_stream){
+            Ok(_) => Ok(tcp_stream),
+            Err(_) => return Err(NodeError::ErrorHandshake),
+        }
+
+        //VersionMessage::from(leido);
+
         //recibirVm:-recibir header?
-          //       -recibir Vm
+          //       -recibir Vms
         //Mandar y recibir ACK
-    //}
+    }
 }
 
 #[cfg(test)]

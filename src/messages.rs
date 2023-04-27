@@ -1,23 +1,21 @@
-use chrono::{Utc};
+use chrono::Utc;
 use rand::prelude::*;
 use std::{
-    net::{SocketAddr, TcpStream, IpAddr, Ipv4Addr, Ipv6Addr},
-    io::{self, BufRead, BufReader, Read, Write},
+    io::{Read, Write},
     mem::size_of_val,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream},
 };
 
 use bitcoin_hashes::{sha256d, Hash};
 
 const NODE_NETWORK: u64 = 0x01;
-const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
-const LOCAL_PORT: u16 = 1001;
-const START_STRING_TEST_NET : [u8; 4] = [0xd9,0xb4,0xeb,0xf9];
+const START_STRING_TEST_NET: [u8; 4] = [0xd9, 0xb4, 0xeb, 0xf9];
 
 #[derive(Debug)]
-/// Error Struct for messages, contains customized errors for each type of message (excluding 
-/// VerACKMessage) and to diferenciate whether the error occured while instanciation or in 
+/// Error Struct for messages, contains customized errors for each type of message (excluding
+/// VerACKMessage) and to diferenciate whether the error occured while instanciation or in
 /// message sending
-pub enum MessageError{
+pub enum MessageError {
     ErrorCreatingMessage,
     ErrorSendingMessage,
     ErrorCreatingHeaderMessage,
@@ -41,18 +39,18 @@ pub struct VersionMessage {
     relay: u8,
 }
 
-impl Message for VersionMessage{
-    /// Implementation of the trait send_to for VersionMessage, recieves a TcpStream and 
+impl Message for VersionMessage {
+    /// Implementation of the trait send_to for VersionMessage, recieves a TcpStream and
     /// returns a Result with either () if everything went Ok or a MessageError if either the
     /// message creation or sending failed
     /// For now, the command name is hardcoded, it's value should be set in the config file
-    fn send_to<T: Read + Write>(&self, tcp_stream: &mut  T)-> Result<(), MessageError> {
+    fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError> {
         let payload = self.to_bytes();
         let command_name = "version\0\0\0\0\0";
         let header_message = HeaderMessage::new(command_name, &payload)?;
-        header_message.send_to(tcp_stream)?;
+        header_message.send_to(reciever_stream)?;
 
-        match tcp_stream.write(payload.as_slice()){
+        match reciever_stream.write(payload.as_slice()) {
             Ok(_) => Ok(()),
             Err(_) => Err(MessageError::ErrorSendingMessage),
         }
@@ -68,7 +66,7 @@ impl Message for VersionMessage{
         bytes_vector.extend_from_slice(&self.timestamp.to_le_bytes());
         bytes_vector.extend_from_slice(&self.addr_recv_services.to_le_bytes());
         bytes_vector.extend_from_slice(&self.receiver_address);
-        bytes_vector.extend_from_slice(&self.receiver_port.to_be_bytes()); 
+        bytes_vector.extend_from_slice(&self.receiver_port.to_be_bytes());
         bytes_vector.extend_from_slice(&self.addr_sender_services.to_le_bytes());
         bytes_vector.extend_from_slice(&self.sender_address);
         bytes_vector.extend_from_slice(&self.sender_port.to_be_bytes());
@@ -83,24 +81,30 @@ impl Message for VersionMessage{
 
 impl VersionMessage {
     /// Constructor for the struct VersionMessage, receives a version and a reciever address (which
-    /// includes both the ip and port) and returns an instance of a VersionMessage with all its 
+    /// includes both the ip and port) and returns an instance of a VersionMessage with all its
     /// necesary attributes initialized, the optional ones are left in blank
-    pub fn new(version: i32, receiver_address: SocketAddr) -> Result<VersionMessage, MessageError> {
+    pub fn new(version: i32, receiver_address: SocketAddr, sender_address: SocketAddr) -> Result<VersionMessage, MessageError> {
         let version_message = VersionMessage {
             version,
             services: NODE_NETWORK,
             timestamp: Utc::now().timestamp(),
             addr_recv_services: 0, //Como no sabemos que servicios admite el nodo asumimos que no admite ningun servicio
             receiver_address: {
-                match receiver_address.ip(){
-                    std::net::IpAddr::V4(ipv4) => ipv4.to_ipv6_mapped().octets(),
-                    std::net::IpAddr::V6(ipv6) => ipv6.octets(),
+                match receiver_address.ip() {
+                    IpAddr::V4(ipv4) => ipv4.to_ipv6_mapped().octets(),
+                    IpAddr::V6(ipv6) => ipv6.octets(),
                 }
             },
             receiver_port: receiver_address.port(),
             addr_sender_services: NODE_NETWORK,
-            sender_address:  std::net::Ipv4Addr::from(LOCAL_HOST).to_ipv6_mapped().octets(),
-            sender_port: LOCAL_PORT,
+            //sender_address: Ipv4Addr::from(LOCAL_HOST).to_ipv6_mapped().octets(),
+            sender_address: {
+                match sender_address.ip() {
+                    IpAddr::V4(ipv4) => ipv4.to_ipv6_mapped().octets(),
+                    IpAddr::V6(ipv6) => ipv6.octets(),
+                }
+            },
+            sender_port: sender_address.port(),
             nonce: rand::thread_rng().gen(),
             user_agent_length: 0,
             //user_agent,   no ponemos el user agent,porque entendemos que nadie nos conoce, a nadie le va a interesar saber en que version esta papas rusticas 0.0.1
@@ -119,10 +123,10 @@ struct HeaderMessage {
     checksum: [u8; 4],
 }
 
-impl Message for HeaderMessage{
+impl Message for HeaderMessage {
     /// Sends a header message trough the tcp_stream
-    fn send_to<T: Read + Write>(&self, tcp_stream: &mut T)-> Result<(), MessageError>{
-        match tcp_stream.write(self.to_bytes().as_slice()){
+    fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError> {
+        match reciever_stream.write(self.to_bytes().as_slice()) {
             Ok(_) => Ok(()),
             Err(_) => return Err(MessageError::ErrorSendingHeaderMessage),
         }
@@ -144,20 +148,20 @@ impl Message for HeaderMessage{
 /// The command name is set to the first 12 bytes of the command name received as a parameter,
 /// if the command name is shorter than 12 bytes, the remaining bytes are filled with 0s.
 /// The payload size is set to the payload size received as a parameter.
-impl HeaderMessage{
-    fn new(command_name: &str , payload: &Vec<u8>) -> Result<HeaderMessage,MessageError>{
+impl HeaderMessage {
+    fn new(command_name: &str, payload: &Vec<u8>) -> Result<HeaderMessage, MessageError> {
         let command_bytes = command_name.as_bytes();
-        let mut command_bytes_fixed_size =[0u8; 12] ;
+        let mut command_bytes_fixed_size = [0u8; 12];
         command_bytes_fixed_size.copy_from_slice(command_bytes);
-        let payload_size = size_of_val(payload.as_slice()) as u32;  
+        let payload_size = size_of_val(payload.as_slice()) as u32;
 
         let hash = sha256d::Hash::hash(payload.as_slice());
         let hash_value = hash.as_byte_array();
-        let checksum: [u8; 4] = match hash_value[..4].try_into(){
+        let checksum: [u8; 4] = match hash_value[..4].try_into() {
             Ok(array) => array,
             Err(_) => return Err(MessageError::ErrorCreatingHeaderMessage),
         };
-        
+
         let header_message = HeaderMessage {
             start_string: START_STRING_TEST_NET,
             command_name: command_bytes_fixed_size,
@@ -169,53 +173,59 @@ impl HeaderMessage{
 }
 
 /// Message used to acknoledge 2 nodes have sent Version Messages.
-struct VerACKMessage{
+struct VerACKMessage {}
 
-}
-
-impl Message for VerACKMessage{
+impl Message for VerACKMessage {
     /// Implements the trait send_to for VerACKMessage, sends a VerACKMessage trough the tcp_stream,
     /// returns an error if the message could not be sent.
-    fn send_to<T: Read + Write>(&self, tcp_stream: &mut T)-> Result<(), MessageError>{
+    fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError> {
         let payload = self.to_bytes();
         let command_name = "verack\0\0\0\0\0\0";
         let header_message = HeaderMessage::new(command_name, &payload)?;
-        header_message.send_to(tcp_stream)
+        header_message.send_to(reciever_stream)
     }
     /// Returns an empty vector of bytes, since the VerACKMessage has no payload.
-    fn to_bytes(&self) -> Vec<u8>{
+    fn to_bytes(&self) -> Vec<u8> {
         Vec::new()
     }
 }
 
 impl VerACKMessage {
     /// Constructor for the struct VerACKMessage, returns an instance of a VerACKMessage
-    pub fn new() -> Result<VerACKMessage,MessageError> {
-        Ok(VerACKMessage {  })
+    pub fn new() -> Result<VerACKMessage, MessageError> {
+        Ok(VerACKMessage {})
     }
 }
 
 //Hacer un wrapper para send to,cosa de que solo se pueda mandar un tcpStream?
-trait Message{
+pub trait Message {
     //pub fn new(version: i32, receiver_address: SocketAddr) -> VersionMessage;
-    fn send_to<T: Read + Write>(&self, tcp_stream: &mut T)-> Result<(), MessageError>;
+    fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError>;
     fn to_bytes(&self) -> Vec<u8>;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{self};
 
-    fn version_message_expected_bytes(timestamp: i64, socket: SocketAddr, rand: u64)->Vec<u8>{
+    const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
+    const LOCAL_PORT: u16 = 1001;
+
+    fn version_message_expected_bytes(timestamp: i64, rand: u64) -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&(70015 as i32).to_le_bytes());
         bytes_vector.extend_from_slice(&NODE_NETWORK.to_le_bytes());
         bytes_vector.extend_from_slice(&timestamp.to_le_bytes());
         bytes_vector.extend_from_slice(&(0 as u64).to_le_bytes());
         bytes_vector.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 127, 0, 0, 2]);
-        bytes_vector.extend_from_slice(&(8080 as u16).to_be_bytes()); 
+        bytes_vector.extend_from_slice(&(8080 as u16).to_be_bytes());
         bytes_vector.extend_from_slice(&(NODE_NETWORK as u64).to_le_bytes());
-        bytes_vector.extend_from_slice(&std::net::Ipv4Addr::from(LOCAL_HOST).to_ipv6_mapped().octets());
+        bytes_vector.extend_from_slice(
+            &Ipv4Addr::from(LOCAL_HOST)
+                .to_ipv6_mapped()
+                .octets(),
+        );
         bytes_vector.extend_from_slice(&LOCAL_PORT.to_be_bytes());
         bytes_vector.extend_from_slice(&rand.to_le_bytes());
         bytes_vector.push(0 as u8);
@@ -225,16 +235,16 @@ mod tests {
         bytes_vector
     }
 
-    fn empty_header_message_expected_bytes()->Vec<u8>{
+    fn empty_header_message_expected_bytes() -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&START_STRING_TEST_NET);
         bytes_vector.extend_from_slice(&"verack\0\0\0\0\0\0".as_bytes());
         bytes_vector.extend_from_slice(&(0 as u32).to_le_bytes());
-        bytes_vector.extend_from_slice([0x5d,0xf6,0xe0,0xe2].as_slice());
+        bytes_vector.extend_from_slice([0x5d, 0xf6, 0xe0, 0xe2].as_slice());
         bytes_vector
     }
 
-    fn non_empty_header_message_expected_bytes()->Vec<u8>{
+    fn non_empty_header_message_expected_bytes() -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&START_STRING_TEST_NET);
         bytes_vector.extend_from_slice(&"n_empty\0\0\0\0\0".as_bytes());
@@ -244,35 +254,44 @@ mod tests {
     }
 
     #[test]
-    fn test_to_bytes_1_version_message()-> Result<(), MessageError>{
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 8080);
-        let version_message = VersionMessage::new(70015, socket)?;
+    fn test_to_bytes_1_version_message() -> Result<(), MessageError> {
+        let receiver_socket = SocketAddr::from(([127,0,0,2], 8080));
+        let sender_socket = SocketAddr::from((LOCAL_HOST, LOCAL_PORT));
+        let version_message = VersionMessage::new(70015, receiver_socket, sender_socket)?;
 
         let version_message_bytes = version_message.to_bytes();
-        
-        assert_eq!(version_message_bytes, version_message_expected_bytes(version_message.timestamp, socket, version_message.nonce));
+
+        assert_eq!(
+            version_message_bytes,
+            version_message_expected_bytes(
+                version_message.timestamp,
+                version_message.nonce
+            )
+        );
         Ok(())
     }
 
     #[test]
-    fn test_to_bytes_2_empty_header_message()-> Result<(), MessageError>{
+    fn test_to_bytes_2_empty_header_message() -> Result<(), MessageError> {
         let header_message = HeaderMessage::new("verack\0\0\0\0\0\0", &Vec::new())?;
 
         let header_message_bytes = header_message.to_bytes();
-        
+
         assert_eq!(header_message_bytes, empty_header_message_expected_bytes());
         Ok(())
     }
 
     #[test]
 
-    fn test_to_bytes_3_non_empty_header_message()-> Result<(), MessageError>{
-        
-        let header_message = HeaderMessage::new("n_empty\0\0\0\0\0", &vec![1,2,3,4])?;
+    fn test_to_bytes_3_non_empty_header_message() -> Result<(), MessageError> {
+        let header_message = HeaderMessage::new("n_empty\0\0\0\0\0", &vec![1, 2, 3, 4])?;
 
         let header_message_bytes = header_message.to_bytes();
-        
-        assert_eq!(header_message_bytes, non_empty_header_message_expected_bytes());
+
+        assert_eq!(
+            header_message_bytes,
+            non_empty_header_message_expected_bytes()
+        );
         Ok(())
     }
     #[test]
@@ -286,9 +305,9 @@ mod tests {
     }
 
     /// Has both read and write buffers to test if the messages are correctly sent
-    struct MockTcpStream{
-        read_buffer : Vec<u8>,
-        write_buffer : Vec<u8>
+    struct MockTcpStream {
+        read_buffer: Vec<u8>,
+        write_buffer: Vec<u8>,
     }
 
     impl MockTcpStream {
@@ -299,8 +318,8 @@ mod tests {
                 write_buffer: Vec::new(),
             }
         }
-    }    
-    
+    }
+
     impl Read for MockTcpStream {
         /// Reads bytes from the stream until completing the buffer and returns how many bytes were read
         fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -320,38 +339,39 @@ mod tests {
     }
 
     #[test]
-    fn test_send_to_1_header_message()-> Result<(), MessageError> {
+    fn test_send_to_1_header_message() -> Result<(), MessageError> {
         let header_message = HeaderMessage::new("verack\0\0\0\0\0\0", &Vec::new())?;
         let mut stream = MockTcpStream::new();
 
         header_message.send_to(&mut stream);
-        
+
         assert_eq!(stream.write_buffer, header_message.to_bytes());
         Ok(())
     }
-    
+
     #[test]
-    fn test_send_to_2_version_message()-> Result<(), MessageError> {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2)), 8080);
-        let version_message = VersionMessage::new(70015, socket)?;
+    fn test_send_to_2_version_message() -> Result<(), MessageError> {
+        let receiver_socket = SocketAddr::from(([127,0,0,2], 8080));
+        let sender_socket = SocketAddr::from((LOCAL_HOST, LOCAL_PORT));
+        let version_message = VersionMessage::new(70015, receiver_socket, sender_socket)?;
         let header_message = HeaderMessage::new("version\0\0\0\0\0", &version_message.to_bytes())?;
         let mut stream = MockTcpStream::new();
         let mut expected_result = header_message.to_bytes();
         expected_result.extend(version_message.to_bytes());
-        
+
         version_message.send_to(&mut stream);
-        
+
         assert_eq!(stream.write_buffer, expected_result);
         Ok(())
     }
 
     #[test]
-    fn test_send_to_3_version_message()-> Result<(), MessageError> {
+    fn test_send_to_3_version_message() -> Result<(), MessageError> {
         let ver_ack_message = VerACKMessage::new()?;
         let mut stream = MockTcpStream::new();
 
         ver_ack_message.send_to(&mut stream);
-        
+
         assert_eq!(stream.write_buffer, empty_header_message_expected_bytes());
         Ok(())
     }
