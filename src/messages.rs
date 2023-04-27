@@ -37,9 +37,8 @@ pub struct VersionMessage {
 impl Message for VersionMessage{
     fn send_to(&self, tcp_stream: &mut TcpStream)-> Result<(), MessageError> {
         let payload = self.to_bytes();
-        let payload_size = std::mem::size_of_val(payload.as_slice()) as u32;  
         let command_name = "version\0\0\0\0\0";
-        let header_message = HeaderMessage::new(command_name, payload_size)?;
+        let header_message = HeaderMessage::new(command_name, &payload)?;
         header_message.send_to(tcp_stream)?;
 
         match tcp_stream.write(payload.as_slice()){
@@ -131,12 +130,13 @@ impl Message for HeaderMessage{
 /// if the command name is shorter than 12 bytes, the remaining bytes are filled with 0s.
 /// The payload size is set to the payload size received as a parameter.
 impl HeaderMessage{
-    fn new(command_name: &str , payload_size: u32) -> Result<HeaderMessage,MessageError>{
+    fn new(command_name: &str , payload: &Vec<u8>) -> Result<HeaderMessage,MessageError>{
         let command_bytes = command_name.as_bytes();
         let mut command_bytes_fixed_size =[0u8; 12] ;
         command_bytes_fixed_size.copy_from_slice(command_bytes);
+        let payload_size = std::mem::size_of_val(payload.as_slice()) as u32;  
 
-        let hash = sha256d::Hash::hash(&payload_size.to_le_bytes());
+        let hash = sha256d::Hash::hash(payload.as_slice());
         let hash_value = hash.as_byte_array();
         let checksum: [u8; 4] = match hash_value[..4].try_into(){
             Ok(array) => array,
@@ -155,15 +155,24 @@ impl HeaderMessage{
 
 /// Message used to acknoledge 2 nodes have sent Version Messages.
 struct VerACKMessage{
-    header: HeaderMessage,
+
+}
+
+impl Message for VerACKMessage{
+    fn send_to(&self, tcp_stream: &mut TcpStream)-> Result<(), MessageError>{
+        let payload = self.to_bytes();
+        let command_name = "verack\0\0\0\0\0\0";
+        let header_message = HeaderMessage::new(command_name, &payload)?;
+        header_message.send_to(tcp_stream)
+    }
+    fn to_bytes(&self) -> Vec<u8>{
+        Vec::new()
+    }
 }
 
 impl VerACKMessage {
     pub fn new() -> Result<VerACKMessage,MessageError> {
-        match HeaderMessage::new("verack\0\0\0\0\0\0", 0){
-            Ok(header) => Ok(VerACKMessage{header}),
-            Err(_) => Err(MessageError::ErrorCreatingMessage),
-        }
+        Ok(VerACKMessage {  })
     }
 }
 
@@ -187,7 +196,7 @@ mod tests {
         bytes_vector.extend_from_slice(&(8080 as u16).to_be_bytes()); 
         bytes_vector.extend_from_slice(&(NODE_NETWORK as u64).to_le_bytes());
         bytes_vector.extend_from_slice(&std::net::Ipv4Addr::from(LOCAL_HOST).to_ipv6_mapped().octets());
-        bytes_vector.extend_from_slice(&(8080 as u16).to_be_bytes());
+        bytes_vector.extend_from_slice(&LOCAL_PORT.to_be_bytes());
         bytes_vector.extend_from_slice(&rand.to_le_bytes());
         bytes_vector.push(0 as u8);
         //bytes_vector.extend_from_slice(&self.user_agent);
@@ -206,7 +215,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_bytes_version_message()-> Result<(), MessageError>{
+    fn test_1_to_bytes_version_message()-> Result<(), MessageError>{
         let socket = std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 2)), 8080);
         let version_message = VersionMessage::new(70015, socket)?;
 
@@ -217,12 +226,22 @@ mod tests {
     }
 
     #[test]
-    fn test_to_bytes_header_message()-> Result<(), MessageError>{
-        let header_message = HeaderMessage::new("version\0\0\0\0\0", 0)?;
+    fn test_2_to_bytes_header_message()-> Result<(), MessageError>{
+        let header_message = HeaderMessage::new("version\0\0\0\0\0", &Vec::new())?;
 
         let header_message_bytes = header_message.to_bytes();
         
         assert_eq!(header_message_bytes, header_message_expected_bytes());
+        Ok(())
+    }
+
+    #[test]
+    fn test_3_to_bytes_verack_message() -> Result<(), MessageError> {
+        let verack_message = VerACKMessage::new()?;
+
+        let verack_message_bytes = verack_message.to_bytes();
+
+        assert_eq!(verack_message_bytes, Vec::new());
         Ok(())
     }
 }
