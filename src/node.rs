@@ -1,4 +1,4 @@
-use std::net::{SocketAddr, ToSocketAddrs, TcpStream};
+use std::{net::{SocketAddr, ToSocketAddrs, TcpStream}, io::Read};
 use proyecto::messages::*;
 
 // use messages::VersionMessage;
@@ -6,10 +6,14 @@ use proyecto::messages::*;
 const DNS_PORT: u16 = 53; //DNS PORT
 const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
 const LOCAL_PORT: u16 = 1001;
+const MESAGE_HEADER_SIZE: usize = 24;
 
 /// Struct that represents the errors that can occur in the Node
 enum NodeError{
-    ErrorHandshake
+    ErrorConnectingToPeer,
+    ErrorCreatingVersionMessageInHandshake,
+    ErrorSendingVersionMessageInHandshake,
+    ErrorReadingVersionMessageInHandshake,
 }
 
 /// Struct that represents the bitcoin node
@@ -42,26 +46,34 @@ impl Node {
         socket_address_vector
     }
      
-    pub fn handshake(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError>{
-        let mut tcp_stream = match TcpStream::connect(&receiving_addrs){
-            Ok(stream) => stream,
-            Err(_) => return Err(NodeError::ErrorHandshake),
-        };
-        let vm = match VersionMessage::new(self.version, receiving_addrs, self.sender_address){
-            Ok(version_message) => version_message,
-            Err(_) => return Err(NodeError::ErrorHandshake),
-        };
-        match vm.send_to(&mut tcp_stream){
-            Ok(_) => Ok(tcp_stream),
-            Err(_) => return Err(NodeError::ErrorHandshake),
-        }
+    // pub fn handshake(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError>{
+    //     let mut tcp_stream = match TcpStream::connect(&receiving_addrs){
+    //         Ok(stream) => stream,
+    //         Err(_) => return Err(NodeError::ErrorConnectingToPeer),
+    //     };
+    //     let vm = match VersionMessage::new(self.version, receiving_addrs, self.sender_address){
+    //         Ok(version_message) => version_message,
+    //         Err(_) => return Err(NodeError::ErrorCreatingVersionMessageInHandshake),
+    //     };
+    //     match vm.send_to(&mut tcp_stream){
+    //         Ok(_) => {},
+    //         Err(_) => return Err(NodeError::ErrorSendingVersionMessageInHandshake),
+    //     }
+    //     let mut header_bytes = [0;MESAGE_HEADER_SIZE];
+    //     match tcp_stream.read(&mut header_bytes) {
+    //         Ok(amount) => {},
+    //         Err(_) => return Err(NodeError::ErrorReadingVersionMessageInHandshake),
+    //     }
+    //     HeaderMessage::from(&mut header_bytes);
+        
+        //armar header
+        //leer tanto como indique header
+        //armar version message
 
         //VersionMessage::from(leido);
-
-        //recibirVm:-recibir header?
           //       -recibir Vms
         //Mandar y recibir ACK
-    }
+    //}
 }
 
 #[cfg(test)]

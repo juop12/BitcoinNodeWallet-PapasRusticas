@@ -10,6 +10,7 @@ use bitcoin_hashes::{sha256d, Hash};
 
 const NODE_NETWORK: u64 = 0x01;
 const START_STRING_TEST_NET: [u8; 4] = [0xd9, 0xb4, 0xeb, 0xf9];
+const MESAGE_HEADER_SIZE: usize = 24;
 
 #[derive(Debug)]
 /// Error Struct for messages, contains customized errors for each type of message (excluding
@@ -33,24 +34,45 @@ pub struct VersionMessage {
     sender_address: [u8; 16],
     sender_port: u16,
     nonce: u64,
-    user_agent_length: u8,
-    //user_agent: String,
+    user_agent_length: Vec<u8>,
+    user_agent: Vec<u8>,
     start_height: i32,
     relay: u8,
 }
 
-impl Message for VersionMessage {
+fn get_user_agent_length(slice: &[u8]) -> (Vec<u8>, usize) {
+    let mut user_agent_length  = Vec::new();
+    let mut amount_of_bytes= 1;
+    if slice[0] == 0xfd{
+        amount_of_bytes = 3;
+    }
+    if slice[0] == 0xfe {
+        amount_of_bytes = 5;
+    }
+    if slice[0] == 0xff {
+        amount_of_bytes = 9;
+    }
+    for i in 0..amount_of_bytes{
+        user_agent_length.push(slice[i]);
+    }
+    (user_agent_length, amount_of_bytes)
+}
+
+
+impl Message for VersionMessage{
+
+    type MessageType = VersionMessage;
     /// Implementation of the trait send_to for VersionMessage, recieves a TcpStream and
     /// returns a Result with either () if everything went Ok or a MessageError if either the
     /// message creation or sending failed
     /// For now, the command name is hardcoded, it's value should be set in the config file
-    fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError> {
+    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
         let payload = self.to_bytes();
         let command_name = "version\0\0\0\0\0";
         let header_message = HeaderMessage::new(command_name, &payload)?;
-        header_message.send_to(reciever_stream)?;
+        header_message.send_to(receiver_stream)?;
 
-        match reciever_stream.write(payload.as_slice()) {
+        match receiver_stream.write(payload.as_slice()) {
             Ok(_) => Ok(()),
             Err(_) => Err(MessageError::ErrorSendingMessage),
         }
@@ -71,11 +93,46 @@ impl Message for VersionMessage {
         bytes_vector.extend_from_slice(&self.sender_address);
         bytes_vector.extend_from_slice(&self.sender_port.to_be_bytes());
         bytes_vector.extend_from_slice(&self.nonce.to_le_bytes());
-        bytes_vector.push(self.user_agent_length);
-        //bytes_vector.extend_from_slice(&self.user_agent);
+        bytes_vector.extend(&self.user_agent_length);
+        if self.user_agent_length[0] > 0 {
+            bytes_vector.extend(&self.user_agent);
+        }
         bytes_vector.extend_from_slice(&self.start_height.to_le_bytes());
         bytes_vector.push(self.relay);
-        bytes_vector
+        bytes_vector 
+    }
+
+    fn _from(&self, slice: &mut [u8]) -> Option<Self::MessageType>{
+        
+        let (user_agent_length, cant_bytes) = get_user_agent_length(&slice[80..]);
+
+        let version_message = VersionMessage {
+            version: i32::from_le_bytes(slice[0..4].try_into().ok()?),
+            services: u64::from_le_bytes(slice[4..12].try_into().ok()?),
+            timestamp: i64::from_le_bytes(slice[12..20].try_into().ok()?),
+            addr_recv_services: u64::from_le_bytes(slice[20..28].try_into().ok()?),
+            receiver_address: slice[28..44].try_into().ok()?,
+            receiver_port: u16::from_be_bytes(slice[44..46].try_into().ok()?),
+            addr_sender_services: u64::from_le_bytes(slice[46..54].try_into().ok()?),
+            sender_address: slice[54..70].try_into().ok()?,
+            sender_port: u16::from_be_bytes(slice[70..72].try_into().ok()?),
+            nonce: u64::from_le_bytes(slice[72..80].try_into().ok()?),
+            user_agent_length,
+            user_agent: Vec::from(&slice[(80 + cant_bytes)..(slice.len()-5)]),
+            start_height: i32::from_le_bytes(slice[(slice.len()-5)..(slice.len()-1)].try_into().ok()?),
+            relay: slice[slice.len() - 1],
+        };
+        Some(version_message)
+    }
+
+    fn from(&self, slice: &mut [u8])-> Result<Self::MessageType, MessageError>{
+        if slice.len() < 86 {
+            return Err(MessageError::ErrorCreatingMessage);
+        }
+        match self._from(slice){
+            Some(version_message) => Ok(version_message),
+            None => Err(MessageError::ErrorCreatingMessage),
+        }
     }
 }
 
@@ -84,6 +141,8 @@ impl VersionMessage {
     /// includes both the ip and port) and returns an instance of a VersionMessage with all its
     /// necesary attributes initialized, the optional ones are left in blank
     pub fn new(version: i32, receiver_address: SocketAddr, sender_address: SocketAddr) -> Result<VersionMessage, MessageError> {
+        let mut user_agent_length = Vec::new();
+        user_agent_length.push(0);
         let version_message = VersionMessage {
             version,
             services: NODE_NETWORK,
@@ -106,8 +165,8 @@ impl VersionMessage {
             },
             sender_port: sender_address.port(),
             nonce: rand::thread_rng().gen(),
-            user_agent_length: 0,
-            //user_agent,   no ponemos el user agent,porque entendemos que nadie nos conoce, a nadie le va a interesar saber en que version esta papas rusticas 0.0.1
+            user_agent_length,
+            user_agent: Vec::new(),   //no ponemos el user agent,porque entendemos que nadie nos conoce, a nadie le va a interesar saber en que version esta papas rusticas 0.0.1
             start_height: 0,
             relay: 0x01,
         };
@@ -116,7 +175,7 @@ impl VersionMessage {
 }
 
 /// Contains all necessary fields for the HeaderMessage to work properly
-struct HeaderMessage {
+pub struct HeaderMessage {
     start_string: [u8; 4],
     command_name: [u8; 12],
     payload_size: u32,
@@ -124,6 +183,8 @@ struct HeaderMessage {
 }
 
 impl Message for HeaderMessage {
+    
+    type MessageType = HeaderMessage;
     /// Sends a header message trough the tcp_stream
     fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError> {
         match reciever_stream.write(self.to_bytes().as_slice()) {
@@ -131,6 +192,7 @@ impl Message for HeaderMessage {
             Err(_) => return Err(MessageError::ErrorSendingHeaderMessage),
         }
     }
+
     /// Returns an array of bytes with the header message in the format specified in the bitcoin protocol
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = Vec::new();
@@ -139,6 +201,14 @@ impl Message for HeaderMessage {
         bytes_vector.extend_from_slice(&self.payload_size.to_le_bytes());
         bytes_vector.extend_from_slice(&self.checksum);
         bytes_vector
+    }
+
+    fn from(&self, slice: &mut [u8])-> Result<Self::MessageType, MessageError>{
+        todo!()
+    }
+    
+    fn _from(&self, slice: &mut [u8]) -> Option<Self::MessageType>{   
+        todo!()
     }
 }
 /// Constructor for the struct HeaderMessage, receives a command name and a payload size and returns
@@ -176,6 +246,8 @@ impl HeaderMessage {
 struct VerACKMessage {}
 
 impl Message for VerACKMessage {
+
+    type MessageType = VerACKMessage;
     /// Implements the trait send_to for VerACKMessage, sends a VerACKMessage trough the tcp_stream,
     /// returns an error if the message could not be sent.
     fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError> {
@@ -188,6 +260,14 @@ impl Message for VerACKMessage {
     fn to_bytes(&self) -> Vec<u8> {
         Vec::new()
     }
+
+    fn from(&self, slice: &mut [u8])-> Result<Self::MessageType, MessageError>{
+        todo!()
+    }
+    
+    fn _from(&self, slice: &mut [u8]) -> Option<Self::MessageType>{   
+        todo!()
+    }
 }
 
 impl VerACKMessage {
@@ -199,9 +279,13 @@ impl VerACKMessage {
 
 //Hacer un wrapper para send to,cosa de que solo se pueda mandar un tcpStream?
 pub trait Message {
+
+    type MessageType;
     //pub fn new(version: i32, receiver_address: SocketAddr) -> VersionMessage;
     fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError>;
     fn to_bytes(&self) -> Vec<u8>;
+    fn from(&self, slice: &mut [u8])-> Result<Self::MessageType, MessageError>;
+    fn _from(&self, slice: &mut [u8]) -> Option<Self::MessageType>;
 }
 
 #[cfg(test)]
