@@ -40,6 +40,18 @@ pub struct VersionMessage {
     relay: u8,
 }
 
+/// Gets the user agent lenght based on the bytes of the slice. The size depends on waht the 
+/// position 0 of the slice is, based on that it can be 1, 3, 5 or 9 bytes long.
+/// Returns a tuple with the user agent length and the amount of bytes that it has
+/// # Arguments
+/// * `slice` - A slice of bytes
+/// # Example
+/// ```
+/// let slice = [0xfd, 0x00, 0x00];
+/// let (user_agent_length, amount_of_bytes) = get_user_agent_length(&slice);
+/// assert_eq!(user_agent_length, [0x00, 0x00]);
+/// assert_eq!(amount_of_bytes, 3);
+/// ```
 fn get_user_agent_length(slice: &[u8]) -> (Vec<u8>, usize) {
     let mut user_agent_length  = Vec::new();
     let mut amount_of_bytes= 1;
@@ -102,6 +114,9 @@ impl Message for VersionMessage{
         bytes_vector 
     }
 
+    /// Implementation of the trait _from for VersionMessage. Recieves a slice of bytes and
+    /// returns an Option with either a VersionMessage if everything went Ok or None if any step
+    /// in the middle of the conversion from bytes to VersionMessage fields failed.
     fn _from(&self, slice: &mut [u8]) -> Option<Self::MessageType>{
         
         let (user_agent_length, cant_bytes) = get_user_agent_length(&slice[80..]);
@@ -125,6 +140,10 @@ impl Message for VersionMessage{
         Some(version_message)
     }
 
+    /// Functions as a wrapper of _from for VersionMessage, recieves a slice of bytes and
+    /// returns a Result with either a VersionMessage if everything went Ok or a MessageError
+    /// if the call to _from failed. The slice must be at least 86 bytes long (the minimum
+    /// length of a VersionMessage)
     fn from(&self, slice: &mut [u8])-> Result<Self::MessageType, MessageError>{
         if slice.len() < 86 {
             return Err(MessageError::ErrorCreatingMessage);
