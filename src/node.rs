@@ -16,6 +16,7 @@ enum NodeError{
     ErrorReceivingMessageInHandshake,
 }
 
+
 /// Struct that represents the bitcoin node
 struct Node {
     version: i32,
@@ -53,12 +54,14 @@ impl Node {
         }
     }
 
+
     fn handshake_receive_header_message<T: Read + Write>(&self, mut stream :T) -> Result<HeaderMessage, NodeError>{
-        let mut header_bytes = [0;MESAGE_HEADER_SIZE];
+        let mut header_bytes = [0; MESAGE_HEADER_SIZE];
         match stream.read(&mut header_bytes) {
             Ok(_) => {},
             Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
-        }
+        };
+        
         match HeaderMessage::from_bytes(&mut header_bytes) {
             Ok(header_message) => Ok(header_message),
             Err(_) => Err(NodeError::ErrorReceivingMessageInHandshake),
@@ -70,6 +73,7 @@ impl Node {
             Ok(version_message) => version_message,
             Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
         };
+
         match vm.send_to(&mut stream){
             Ok(_) => Ok(()),
             Err(_) => Err(NodeError::ErrorSendingMessageInHandshake),
@@ -80,11 +84,13 @@ impl Node {
         let hm = self.handshake_receive_header_message(&mut stream)?;
         
         //armar vm recibido
-        let mut received_vm_bytes = vec![0;hm.get_payload_size() as usize];
-        match stream.read_exact(&mut received_vm_bytes){
+        let mut received_vm_bytes = vec![0; hm.get_payload_size() as usize];
+        // read_exact???
+        match stream.read(&mut received_vm_bytes){
             Ok(_) => {},
             Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
         };
+        
         match VersionMessage::from_bytes(&mut received_vm_bytes){
             Ok(version_message) => Ok(version_message),
             Err(_) => Err(NodeError::ErrorReceivingMessageInHandshake),
@@ -93,13 +99,14 @@ impl Node {
         //guardar datos que haga falta del vm
     }
 
-    fn handshake_send_verack_message<T: Read + Write>(&self, mut stream : T) -> Result<VerACKMessage, NodeError>{
+    fn handshake_send_verack_message<T: Read + Write>(&self, mut stream : T) -> Result<(), NodeError>{
         let verack = match VerACKMessage::new(){
             Ok(version_message) => version_message,
             Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
         };
+        
         match verack.send_to(&mut stream){
-            Ok(_) => Ok(verack),
+            Ok(_) => Ok(()),
             Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
         }
     }
@@ -107,17 +114,20 @@ impl Node {
     fn handshake_receive_verack_message<T: Read + Write>(&self, stream :T) -> Result<VerACKMessage, NodeError>{
         let hm = self.handshake_receive_header_message(stream)?;
 
-        if hm.get_payload_size() == 0 &&  hm.get_command_name() == "verack\0\0\0\0\0\0".as_bytes(){
+        if hm.get_payload_size() == 0 &&  hm.get_command_name() == "verack\0\0\0\0\0\0".as_bytes(){ //no se si falta hacer el segundo chequeo
             match VerACKMessage::new() {
                 Ok(message) => return Ok(message),
                 Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
             }
         }
+
         Err(NodeError::ErrorSendingMessageInHandshake)
     }
 
+
     fn handshake(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError>{
         let mut tcp_stream = self.connect_to_peer(receiving_addrs)?;
+
         //enviar versionmessage
         self.handshake_send_version_message(receiving_addrs, &tcp_stream)?;
         //recibir version_message
@@ -126,15 +136,15 @@ impl Node {
         self.handshake_send_verack_message(&tcp_stream)?;
         //recibimos verack
         self.handshake_receive_verack_message(&tcp_stream)?;
+
         Ok(tcp_stream)
-        
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{self};
+    use proyecto::mock_tcp_stream::*;
     use bitcoin_hashes::{sha256d, Hash};
 
     //test peer_discovery
@@ -156,43 +166,6 @@ mod tests {
 
     //test handshake
     //para testear handshake es lo mismo que testear las funciones que lo conforman
-
-    /// Has both read and write buffers to test if the messages are correctly sent
-    struct MockTcpStream {
-        read_buffer: Vec<u8>,
-        write_buffer: Vec<u8>,
-    }
-
-    impl MockTcpStream {
-        /// Constructor for MockTcpStream
-        fn new() -> MockTcpStream {
-            MockTcpStream {
-                read_buffer: Vec::new(),
-                write_buffer: Vec::new(),
-            }
-        }
-    }
-
-    impl Read for MockTcpStream {
-        /// Reads bytes from the stream until completing the buffer and returns how many bytes were read
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            let quantity_read = self.read_buffer.as_slice().read(buf)?;
-            
-            self.read_buffer = self.read_buffer.split_off(quantity_read);
-            Ok(quantity_read)
-        }
-    }
-
-    impl Write for MockTcpStream {
-        /// Writes the buffer value on the stream and returns how many bytes were written
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.write_buffer.write(buf)
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            self.write_buffer.flush()
-        }
-    }
 
     #[test]
     fn test_handshake_1_send_version_message() -> Result<(), NodeError>{

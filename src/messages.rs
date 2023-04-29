@@ -3,7 +3,7 @@ use rand::prelude::*;
 use std::{
     io::{Read, Write},
     mem::size_of_val,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream},
+    net::{IpAddr, SocketAddr},
 };
 
 use bitcoin_hashes::{sha256d, Hash};
@@ -75,11 +75,10 @@ impl Message for VersionMessage{
     /// message creation or sending failed
     /// For now, the command name is hardcoded, it's value should be set in the config file
     fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
-        let payload = self.to_bytes();
         let header_message = self.get_header_message()?;
         header_message.send_to(receiver_stream)?;
 
-        match receiver_stream.write(payload.as_slice()) {
+        match receiver_stream.write(self.to_bytes().as_slice()) {
             Ok(_) => Ok(()),
             Err(_) => Err(MessageError::ErrorSendingVersionMessage),
         }
@@ -148,7 +147,6 @@ impl VersionMessage {
             },
             receiver_port: receiver_address.port(),
             addr_sender_services: NODE_NETWORK,
-            //sender_address: Ipv4Addr::from(LOCAL_HOST).to_ipv6_mapped().octets(),
             sender_address: {
                 match sender_address.ip() {
                     IpAddr::V4(ipv4) => ipv4.to_ipv6_mapped().octets(),
@@ -158,10 +156,11 @@ impl VersionMessage {
             sender_port: sender_address.port(),
             nonce: rand::thread_rng().gen(),
             user_agent_length,
-            user_agent: Vec::new(),   //no ponemos el user agent,porque entendemos que nadie nos conoce, a nadie le va a interesar saber en que version esta papas rusticas 0.0.1
+            user_agent: Vec::new(),   
             start_height: 0,
             relay: 0x01,
         };
+        
         Ok(version_message)
     }
 
@@ -271,7 +270,7 @@ impl HeaderMessage {
         Ok(header_message)
     }
 
-    pub fn get_payload_size(&self) ->  u32 {
+    pub fn get_payload_size(&self) -> u32 {
         self.payload_size
     }
 
@@ -351,10 +350,12 @@ pub trait Message {
     fn get_header_message(&self)->Result<HeaderMessage, MessageError>;
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{self};
+    use crate::mock_tcp_stream::*;
+    use std::net::Ipv4Addr;
 
     const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
     const LOCAL_PORT: u16 = 1001;
@@ -487,46 +488,12 @@ mod tests {
         Ok(())
     }
 
-    /// Has both read and write buffers to test if the messages are correctly sent
-    struct MockTcpStream {
-        read_buffer: Vec<u8>,
-        write_buffer: Vec<u8>,
-    }
-
-    impl MockTcpStream {
-        /// Constructor for MockTcpStream
-        fn new() -> MockTcpStream {
-            MockTcpStream {
-                read_buffer: Vec::new(),
-                write_buffer: Vec::new(),
-            }
-        }
-    }
-
-    impl Read for MockTcpStream {
-        /// Reads bytes from the stream until completing the buffer and returns how many bytes were read
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            self.read_buffer.as_slice().read(buf)
-        }
-    }
-
-    impl Write for MockTcpStream {
-        /// Writes the buffer value on the stream and returns how many bytes were written
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.write_buffer.write(buf)
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            self.write_buffer.flush()
-        }
-    }
-
     #[test]
     fn test_send_to_1_header_message() -> Result<(), MessageError> {
         let header_message = HeaderMessage::new("verack\0\0\0\0\0\0", &Vec::new())?;
         let mut stream = MockTcpStream::new();
 
-        header_message.send_to(&mut stream);
+        header_message.send_to(&mut stream)?;
 
         assert_eq!(stream.write_buffer, header_message.to_bytes());
         Ok(())
