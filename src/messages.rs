@@ -76,8 +76,7 @@ impl Message for VersionMessage{
     /// For now, the command name is hardcoded, it's value should be set in the config file
     fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
         let payload = self.to_bytes();
-        let command_name = "version\0\0\0\0\0";
-        let header_message = HeaderMessage::new(command_name, &payload)?;
+        let header_message = self.get_header_message()?;
         header_message.send_to(receiver_stream)?;
 
         match receiver_stream.write(payload.as_slice()) {
@@ -122,6 +121,10 @@ impl Message for VersionMessage{
             Some(version_message) => Ok(version_message),
             None => Err(MessageError::ErrorCreatingVersionMessage),
         }
+    }
+
+    fn get_header_message(&self)->Result<HeaderMessage, MessageError>{
+        HeaderMessage::new("version\0\0\0\0\0", &self.to_bytes())
     }
 }
 
@@ -190,7 +193,7 @@ impl VersionMessage {
 }
 
 /// Contains all necessary fields for the HeaderMessage to work properly
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct HeaderMessage {
     start_string: [u8; 4],
     command_name: [u8; 12],
@@ -230,6 +233,10 @@ impl Message for HeaderMessage {
             None => Err(MessageError::ErrorCreatingHeaderMessage),
         }
     }
+
+    fn get_header_message(&self) -> Result<HeaderMessage, MessageError> {
+        Ok(self.clone())
+    }
 }
 /// Constructor for the struct HeaderMessage, receives a command name and a payload size and returns
 /// an instance of a HeaderMessage with all its necesary attributes initialized, according to the
@@ -257,6 +264,14 @@ impl HeaderMessage {
         Ok(header_message)
     }
 
+    pub fn get_payload_size(&self) ->  u32 {
+        self.payload_size
+    }
+
+    pub fn get_command_name(&self) -> [u8; 12] {
+        self.command_name
+    }
+
     /// Receives a slice of bytes and returns an Option<HeaderMessage>, initialices the fields of
     /// the HeaderMessage with the values in the slice, if any step in the middle of the conversion
     /// fails, returns None.
@@ -277,7 +292,7 @@ impl HeaderMessage {
 
 /// Message used to acknoledge 2 nodes have sent Version Messages.
 #[derive(Debug, PartialEq)]
-struct VerACKMessage {}
+pub struct VerACKMessage {}
 
 impl Message for VerACKMessage {
 
@@ -285,9 +300,7 @@ impl Message for VerACKMessage {
     /// Implements the trait send_to for VerACKMessage, sends a VerACKMessage trough the tcp_stream,
     /// returns an error if the message could not be sent.
     fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError> {
-        let payload = self.to_bytes();
-        let command_name = "verack\0\0\0\0\0\0";
-        let header_message = HeaderMessage::new(command_name, &payload)?;
+        let header_message = self.get_header_message()?;
         header_message.send_to(reciever_stream)
     }
     /// Returns an empty vector of bytes, since the VerACKMessage has no payload.
@@ -301,6 +314,10 @@ impl Message for VerACKMessage {
             return Err(MessageError::ErrorCreatingVerAckMessage);
         }
         Ok(VerACKMessage{})
+    }
+
+    fn get_header_message(&self)->Result<HeaderMessage, MessageError>{
+        HeaderMessage::new("verack\0\0\0\0\0\0", &self.to_bytes())
     }
 }
 
@@ -323,6 +340,8 @@ pub trait Message {
     
     //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &mut [u8])-> Result<Self::MessageType, MessageError>;
+
+    fn get_header_message(&self)->Result<HeaderMessage, MessageError>;
 }
 
 #[cfg(test)]
@@ -511,7 +530,7 @@ mod tests {
         let receiver_socket = SocketAddr::from(([127,0,0,2], 8080));
         let sender_socket = SocketAddr::from((LOCAL_HOST, LOCAL_PORT));
         let version_message = VersionMessage::new(70015, receiver_socket, sender_socket)?;
-        let header_message = HeaderMessage::new("version\0\0\0\0\0", &version_message.to_bytes())?;
+        let header_message = version_message.get_header_message()?;
         let mut stream = MockTcpStream::new();
         let mut expected_result = header_message.to_bytes();
         expected_result.extend(version_message.to_bytes());
@@ -600,4 +619,5 @@ mod tests {
         assert_eq!(verack_message, MessageError::ErrorCreatingVerAckMessage);
         Ok(())
     }
+
 }
