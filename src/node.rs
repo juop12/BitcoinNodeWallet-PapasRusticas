@@ -12,10 +12,8 @@ const MESAGE_HEADER_SIZE: usize = 24;
 #[derive(Debug)]
 enum NodeError{
     ErrorConnectingToPeer,
-    ErrorSendingVersionMessageInHandshake,
-    ErrorSendingVerAckMessageInHandshake,
-    ErrorReceivingVersionMessageInHandshake,
-    ErrorReceivingVerAckMessageInHandshake,
+    ErrorSendingMessageInHandshake,
+    ErrorReceivingMessageInHandshake,
 }
 
 /// Struct that represents the bitcoin node
@@ -55,37 +53,41 @@ impl Node {
         }
     }
 
-    fn handshake_send_version_message<T: Read + Write>(&self,receiving_addrs: SocketAddr, mut stream : T) -> Result<VersionMessage, NodeError>{
-        let vm = match VersionMessage::new(self.version, receiving_addrs, self.sender_address){
-            Ok(version_message) => version_message,
-            Err(_) => return Err(NodeError::ErrorSendingVersionMessageInHandshake),
-        };
-        match vm.send_to(&mut stream){
-            Ok(_) => Ok(vm),
-            Err(_) => Err(NodeError::ErrorSendingVersionMessageInHandshake),
-        }
-    }
-
-    fn handshake_receive_version_message<T: Read + Write>(&self, mut stream :T) -> Result<(HeaderMessage, VersionMessage), NodeError>{
+    fn handshake_receive_header_message<T: Read + Write>(&self, mut stream :T) -> Result<HeaderMessage, NodeError>{
         let mut header_bytes = [0;MESAGE_HEADER_SIZE];
         match stream.read(&mut header_bytes) {
             Ok(_) => {},
-            Err(_) => return Err(NodeError::ErrorReceivingVersionMessageInHandshake),
+            Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
         }
-        let received_vm_header = match HeaderMessage::from_bytes(&mut header_bytes) {
-            Ok(header_message) => header_message,
-            Err(_) => return Err(NodeError::ErrorReceivingVersionMessageInHandshake),
+        match HeaderMessage::from_bytes(&mut header_bytes) {
+            Ok(header_message) => Ok(header_message),
+            Err(_) => Err(NodeError::ErrorReceivingMessageInHandshake),
+        }
+    }
+
+    fn handshake_send_version_message<T: Read + Write>(&self,receiving_addrs: SocketAddr, mut stream : T) -> Result<(), NodeError>{
+        let vm = match VersionMessage::new(self.version, receiving_addrs, self.sender_address){
+            Ok(version_message) => version_message,
+            Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
         };
+        match vm.send_to(&mut stream){
+            Ok(_) => Ok(()),
+            Err(_) => Err(NodeError::ErrorSendingMessageInHandshake),
+        }
+    }
+
+    fn handshake_receive_version_message<T: Read + Write>(&self, mut stream :T) -> Result< VersionMessage, NodeError>{
+        let hm = self.handshake_receive_header_message(&mut stream)?;
         
         //armar vm recibido
-        let mut received_vm_bytes = Vec::with_capacity(received_vm_header.get_payload_size() as usize);
-        match stream.read(&mut received_vm_bytes){
+        let mut received_vm_bytes = vec![0;hm.get_payload_size() as usize];
+        match stream.read_exact(&mut received_vm_bytes){
             Ok(_) => {},
-            Err(_) => return Err(NodeError::ErrorReceivingVersionMessageInHandshake),
+            Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
         };
         match VersionMessage::from_bytes(&mut received_vm_bytes){
-            Ok(version_message) => Ok((received_vm_header, version_message)),
-            Err(_) => Err(NodeError::ErrorReceivingVersionMessageInHandshake),
+            Ok(version_message) => Ok(version_message),
+            Err(_) => Err(NodeError::ErrorReceivingMessageInHandshake),
         }
         
         //guardar datos que haga falta del vm
@@ -94,28 +96,24 @@ impl Node {
     fn handshake_send_verack_message<T: Read + Write>(&self, mut stream : T) -> Result<VerACKMessage, NodeError>{
         let verack = match VerACKMessage::new(){
             Ok(version_message) => version_message,
-            Err(_) => return Err(NodeError::ErrorSendingVerAckMessageInHandshake),
+            Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
         };
         match verack.send_to(&mut stream){
             Ok(_) => Ok(verack),
-            Err(_) => return Err(NodeError::ErrorSendingVerAckMessageInHandshake),
+            Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
         }
     }
 
-    fn handshake_receive_verack_message<T: Read + Write>(&self, mut stream :T) -> Result<HeaderMessage, NodeError>{
-        let mut header_bytes = [0;MESAGE_HEADER_SIZE];
-        match stream.read(&mut header_bytes) {
-            Ok(_) => {},
-            Err(_) => return Err(NodeError::ErrorReceivingVerAckMessageInHandshake),
+    fn handshake_receive_verack_message<T: Read + Write>(&self, stream :T) -> Result<VerACKMessage, NodeError>{
+        let hm = self.handshake_receive_header_message(stream)?;
+
+        if hm.get_payload_size() == 0 &&  hm.get_command_name() == "verack\0\0\0\0\0\0".as_bytes(){
+            match VerACKMessage::new() {
+                Ok(message) => return Ok(message),
+                Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
+            }
         }
-        let received_verack_header = match HeaderMessage::from_bytes(&mut header_bytes) {
-            Ok(header_message) => header_message,
-            Err(_) => return Err(NodeError::ErrorReceivingVerAckMessageInHandshake),
-        };
-        if received_verack_header.get_payload_size() == 0 &&  received_verack_header.get_command_name() == "verack\0\0\0\0\0\0".as_bytes(){
-            return Ok(received_verack_header);
-        }
-        Err(NodeError::ErrorSendingVerAckMessageInHandshake)
+        Err(NodeError::ErrorSendingMessageInHandshake)
     }
 
     fn handshake(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError>{
@@ -178,7 +176,10 @@ mod tests {
     impl Read for MockTcpStream {
         /// Reads bytes from the stream until completing the buffer and returns how many bytes were read
         fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            self.read_buffer.as_slice().read(buf)
+            let quantity_read = self.read_buffer.as_slice().read(buf)?;
+            
+            self.read_buffer = self.read_buffer.split_off(quantity_read);
+            Ok(quantity_read)
         }
     }
 
@@ -192,9 +193,9 @@ mod tests {
             self.write_buffer.flush()
         }
     }
-    
+
     #[test]
-    fn test_hanshake_1_send_version_message() -> Result<(), NodeError>{
+    fn test_handshake_1_send_version_message() -> Result<(), NodeError>{
         let node = Node::new();
         let mut stream = MockTcpStream::new();
         let receiver_socket = SocketAddr::from(([127,0,0,2], 8080));
@@ -226,15 +227,56 @@ mod tests {
     }
 
     #[test]
-    fn test_hanshake_2_receive_version_message() -> Result<(), NodeError>{
+    fn test_handshake_2_receive_header_message() -> Result<(), NodeError>{
+        let node = Node::new();
+        let mut stream = MockTcpStream::new();
+        let expected_hm = HeaderMessage::new("test message", &Vec::from("test".as_bytes())).unwrap();
+        stream.read_buffer = expected_hm.to_bytes();
+
+        let received_hm = node.handshake_receive_header_message(&mut stream)?;
+        assert_eq!(received_hm, expected_hm);
+        Ok(())
+    }
+
+    #[test]
+    fn test_handshake_3_receive_version_message() -> Result<(), NodeError>{
         let node = Node::new();
         let mut stream = MockTcpStream::new();
         let receiver_socket = SocketAddr::from(([127,0,0,2], 8080));
         let expected_vm = VersionMessage::new(node.version, receiver_socket ,node.sender_address).unwrap();
-        stream.read_buffer = expected_vm.to_bytes();
+        let expected_hm = expected_vm.get_header_message().unwrap(); 
+        stream.read_buffer = expected_hm.to_bytes();
+        stream.read_buffer.extend(expected_vm.to_bytes());
 
-        node.handshake_receive_verack_message(&mut stream)?;
-        let read_buffer_len = stream.read_buffer.len();
+        let received_vm = node.handshake_receive_version_message(&mut stream)?;
+        assert_eq!(received_vm.to_bytes(), expected_vm.to_bytes());
+        Ok(())
+    }
+
+    #[test]
+    fn test_handshake_4_send_verack_message() -> Result<(), NodeError>{
+        let node = Node::new();
+        let mut stream = MockTcpStream::new();
+        let expected_ver_ack_message = VerACKMessage::new().unwrap();
+        let ver_ack_header = expected_ver_ack_message.get_header_message().unwrap();
+        let expected_bytes = ver_ack_header.to_bytes();
+        
+        node.handshake_send_verack_message(&mut stream)?;
+
+        assert_eq!(stream.write_buffer, expected_bytes);
+        Ok(())
+    }
+
+    #[test]
+    fn test_handshake_5_receive_verack_message() -> Result<(), NodeError>{
+        let node = Node::new();
+        let mut stream = MockTcpStream::new();
+        let expected_ver_ack_message = VerACKMessage::new().unwrap();
+        let ver_ack_header = expected_ver_ack_message.get_header_message().unwrap();
+        stream.read_buffer = ver_ack_header.to_bytes();
+
+        let received_ver_ack_message = node.handshake_receive_verack_message(&mut stream)?;
+        assert_eq!(received_ver_ack_message, expected_ver_ack_message);
         Ok(())
     }
 }

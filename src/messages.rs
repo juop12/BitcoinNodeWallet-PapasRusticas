@@ -242,10 +242,17 @@ impl Message for HeaderMessage {
 /// an instance of a HeaderMessage with all its necesary attributes initialized, according to the
 /// p2p bitcoing protocol
 impl HeaderMessage {
-    fn new(command_name: &str, payload: &Vec<u8>) -> Result<HeaderMessage, MessageError> {
-        let command_bytes = command_name.as_bytes();
+    pub fn new(command_name: &str, payload: &Vec<u8>) -> Result<HeaderMessage, MessageError> {
+        if command_name.len() > 12{
+            return Err(MessageError::ErrorCreatingHeaderMessage);
+        }
+        
+        let mut command_bytes = Vec::from(command_name.as_bytes());
+        while command_bytes.len() < 12{
+            command_bytes.push(0);
+        }
         let mut command_bytes_fixed_size = [0u8; 12];
-        command_bytes_fixed_size.copy_from_slice(command_bytes);
+        command_bytes_fixed_size.copy_from_slice(command_bytes.as_slice());
         let payload_size = size_of_val(payload.as_slice()) as u32;
 
         let hash = sha256d::Hash::hash(payload.as_slice());
