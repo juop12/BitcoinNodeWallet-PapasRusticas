@@ -1,5 +1,5 @@
 [package]
-name = "Proyecto"
+name = "proyecto"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.19"
 rand = "0.8.5"
+bitcoin_hashes = "0.12.0"
+
