@@ -20,7 +20,7 @@ impl Read for MockTcpStream {
     /// Reads bytes from the stream until completing the buffer and returns how many bytes were read
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let quantity_read = self.read_buffer.as_slice().read(buf)?;
-        
+
         self.read_buffer = self.read_buffer.split_off(quantity_read);
         Ok(quantity_read)
     }
