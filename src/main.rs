@@ -1,6 +1,17 @@
-pub mod node;
+
 
 fn main() {
-    //let listener = connect_user_to_server(String::from("testnet-seed.bitcoin.jonasschnelli.ch"));
-    println!("Hello, world!");
+    /*
+    let path: Vec<String> = env::args().collect();
+    if !path.contains("nodo.conf") {
+        return; //error
+    }
+
+    let config: Config = read_config_file(path);
+    */
 }
+
+
+
+
+

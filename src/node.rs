@@ -5,7 +5,7 @@ use std::{
 };
 
 // use messages::VersionMessage;
-
+const VERSION: i32 = 70015;
 const DNS_PORT: u16 = 53; //DNS PORT
 const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
 const LOCAL_PORT: u16 = 1001;
@@ -28,7 +28,7 @@ struct Node {
 impl Node {
     pub fn new() -> Node {
         Node {
-            version: 70015,
+            version: VERSION,
             sender_address: SocketAddr::from((LOCAL_HOST, LOCAL_PORT)),
         }
     }
