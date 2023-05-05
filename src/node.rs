@@ -36,7 +36,7 @@ impl Node {
     /// It creates and returns a Node with the default values
     fn _new() -> Node {
         Node {
-            version: 70015,
+            version: VERSION,
             sender_address: SocketAddr::from((LOCAL_HOST, LOCAL_PORT)),
             tcp_streams: Vec::new(),
         }
