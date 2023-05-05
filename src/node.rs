@@ -5,7 +5,7 @@ use std::{
 };
 
 // use messages::VersionMessage;
-
+const VERSION: i32 = 70015;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
 const DNS_PORT: u16 = 18333;
 const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
