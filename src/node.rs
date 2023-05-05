@@ -1,4 +1,4 @@
-use proyecto::messages::*;
+use crate::messages::*;
 use std::{
     io::{Read, Write},
     net::{SocketAddr, TcpStream, ToSocketAddrs},
@@ -6,37 +6,65 @@ use std::{
 
 // use messages::VersionMessage;
 
-const DNS_PORT: u16 = 53; //DNS PORT
+const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
+const DNS_PORT: u16 = 18333;
 const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
 const LOCAL_PORT: u16 = 1001;
 const MESAGE_HEADER_SIZE: usize = 24;
 
+//const VERSION_COMMAND_NAME: [u8;12] = [b'v',b'e',b'r',b's',b'i',b'o',b'n',0,0,0,0,0];
+
 /// Struct that represents the errors that can occur in the Node
 #[derive(Debug)]
-enum NodeError {
+pub enum NodeError {
     ErrorConnectingToPeer,
     ErrorSendingMessageInHandshake,
     ErrorReceivingMessageInHandshake,
+    ErrorReceivedUnknownMessage,
+    ErrorInterpretingMessageCommandName,
+    ErrorUnknownCommandName,
 }
 
 /// Struct that represents the bitcoin node
-struct Node {
+pub struct Node {
     version: i32,
     sender_address: SocketAddr,
+    tcp_streams: Vec<TcpStream>,
 }
 
 impl Node {
-    pub fn new() -> Node {
+    /// It creates and returns a Node with the default values
+    fn _new() -> Node {
         Node {
             version: 70015,
             sender_address: SocketAddr::from((LOCAL_HOST, LOCAL_PORT)),
+            tcp_streams: Vec::new(),
         }
     }
+    /// Node constructor, it creates a new node and performs the handshake with the sockets obtained
+    /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
+    /// tcp_streams vector. Returns the node
+    pub fn new() -> Node {
+        let mut node = Node::_new();
+        let address_vector = node.peer_discovery(DNS_ADDRESS);
+        for addr in address_vector {
+            if let Ok(tcp_stream) = node.handshake(addr) {
+                node.tcp_streams.push(tcp_stream)
+            }
+        }
+        node
+    }
+
+    /// Returns a reference to the tcp_streams vector
+    pub fn get_tcp_streams(&self) -> &Vec<TcpStream> {
+        &self.tcp_streams
+    }
+
     /// Receives a dns address as a String and returns a Vector that contains all the addresses
     /// returned by the dns. If an error occured (for example, the dns address is not valid), it
     /// returns an empty Vector.
     /// The socket address requires a dns and a DNS_PORT, which is set to 53 by default
-    fn peer_discovery(&self, dns: String) -> Vec<SocketAddr> {
+    fn peer_discovery(&self, dns: &str) -> Vec<SocketAddr> {
         let mut socket_address_vector = Vec::new();
         if let Ok(address_iter) = (dns, DNS_PORT).to_socket_addrs() {
             for address in address_iter {
@@ -53,6 +81,40 @@ impl Node {
             Err(_) => Err(NodeError::ErrorConnectingToPeer),
         }
     }
+    /*
+        fn handle_received_verack_message(&self, message_bytes: Vec<u8>)-> Result<(), NodeError>{
+            let vm = match VersionMessage::from_bytes(message_bytes) {
+                Ok(version_message) => version_message,
+                Err(_) => return Err(NodeError::ErrorReceiving)
+            }
+        }
+
+        fn handle_received_version_message(&self, message_bytes: Vec<u8>)-> Result<(), NodeError> {
+
+        }
+
+        fn receive_message(&self, mut stream: TcpStream)-> Result<(), NodeError>{
+            let hm = self.handshake_receive_header_message(&stream)?;
+
+            let mut message_bytes = Vec::with_capacity(hm.get_payload_size() as usize);
+            match stream.read_exact(&mut message_bytes) {
+                Ok(_) => {}
+                Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
+            };
+
+            let command_name = match hm.get_command_name(){
+                Ok(string) => string.as_str(),
+                Err(_) => return Err(NodeError::ErrorUnknownCommandName),
+            };
+            //handle
+            match command_name {
+                "version\0\0\0\0\0" => self.handle_received_version_message(message_bytes),
+                "verack\0\0\0\0\0\0" => self.handle_received_verack_message(message_bytes),
+                _ => return Err(NodeError::ErrorUnknownCommandName),
+            };
+            Ok(())
+        }
+    */
 
     ///Reads from the stream MESAGE_HEADER_SIZE and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
     /// On error returns ErrorReceivingMessageInHandshake
@@ -61,7 +123,7 @@ impl Node {
         mut stream: T,
     ) -> Result<HeaderMessage, NodeError> {
         let mut header_bytes = [0; MESAGE_HEADER_SIZE];
-        match stream.read(&mut header_bytes) {
+        match stream.read_exact(&mut header_bytes) {
             Ok(_) => {}
             Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
         };
@@ -97,9 +159,13 @@ impl Node {
     ) -> Result<VersionMessage, NodeError> {
         let hm = self.handshake_receive_header_message(&mut stream)?;
 
+        if hm.get_command_name() != "version\0\0\0\0\0" {
+            return Err(NodeError::ErrorReceivingMessageInHandshake);
+        }
+
         let mut received_vm_bytes = vec![0; hm.get_payload_size() as usize];
-        // read_exact???
-        match stream.read(&mut received_vm_bytes) {
+
+        match stream.read_exact(&mut received_vm_bytes) {
             Ok(_) => {}
             Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
         };
@@ -134,7 +200,7 @@ impl Node {
     ) -> Result<VerACKMessage, NodeError> {
         let hm = self.handshake_receive_header_message(stream)?;
 
-        if hm.get_payload_size() == 0 && hm.get_command_name() == "verack\0\0\0\0\0\0".as_bytes() {
+        if hm.get_payload_size() == 0 && hm.get_command_name() == "verack\0\0\0\0\0\0" {
             //no se si falta hacer el segundo chequeo
             match VerACKMessage::new() {
                 Ok(message) => return Ok(message),
@@ -153,7 +219,6 @@ impl Node {
         self.handshake_send_version_message(receiving_addrs, &tcp_stream)?;
 
         self.handshake_receive_version_message(&tcp_stream)?;
-        //guardar datos que haga falta del vm
 
         self.handshake_send_verack_message(&tcp_stream)?;
 
@@ -166,23 +231,22 @@ impl Node {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mock_tcp_stream::*;
     use bitcoin_hashes::{sha256d, Hash};
-    use proyecto::mock_tcp_stream::*;
 
     //test peer_discovery
 
     #[test]
     fn test_1_peer_discovery_fails_when_receiving_invalid_dns() {
-        let node = Node::new();
-        let address_vector = node.peer_discovery(String::from("does_not_exist"));
+        let node = Node::_new();
+        let address_vector = node.peer_discovery("does_not_exist");
         assert!(address_vector.is_empty());
     }
 
     #[test]
     fn test_2_peer_discovery_returns_ip_vector_when_receiving_valid_dns() {
-        let node = Node::new();
-        let address_vector =
-            node.peer_discovery(String::from("testnet-seed.bitcoin.jonasschnelli.ch"));
+        let node = Node::_new();
+        let address_vector = node.peer_discovery(DNS_ADDRESS);
         assert!(!address_vector.is_empty());
     }
 
@@ -191,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_handshake_1_send_version_message() -> Result<(), NodeError> {
-        let node = Node::new();
+        let node = Node::_new();
         let mut stream = MockTcpStream::new();
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
         let expected_vm =
@@ -228,7 +292,7 @@ mod tests {
 
     #[test]
     fn test_handshake_2_receive_header_message() -> Result<(), NodeError> {
-        let node = Node::new();
+        let node = Node::_new();
         let mut stream = MockTcpStream::new();
         let expected_hm =
             HeaderMessage::new("test message", &Vec::from("test".as_bytes())).unwrap();
@@ -241,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_handshake_3_receive_version_message() -> Result<(), NodeError> {
-        let node = Node::new();
+        let node = Node::_new();
         let mut stream = MockTcpStream::new();
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
         let expected_vm =
@@ -257,7 +321,7 @@ mod tests {
 
     #[test]
     fn test_handshake_4_send_verack_message() -> Result<(), NodeError> {
-        let node = Node::new();
+        let node = Node::_new();
         let mut stream = MockTcpStream::new();
         let expected_ver_ack_message = VerACKMessage::new().unwrap();
         let ver_ack_header = expected_ver_ack_message.get_header_message().unwrap();
@@ -271,7 +335,7 @@ mod tests {
 
     #[test]
     fn test_handshake_5_receive_verack_message() -> Result<(), NodeError> {
-        let node = Node::new();
+        let node = Node::_new();
         let mut stream = MockTcpStream::new();
         let expected_ver_ack_message = VerACKMessage::new().unwrap();
         let ver_ack_header = expected_ver_ack_message.get_header_message().unwrap();

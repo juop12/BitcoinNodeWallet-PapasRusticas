@@ -2,16 +2,16 @@ use chrono::Utc;
 use rand::prelude::*;
 use std::{
     io::{Read, Write},
-    mem::size_of_val,
     net::{IpAddr, SocketAddr},
 };
 
 use bitcoin_hashes::{sha256d, Hash};
 
 const NODE_NETWORK: u64 = 0x01;
-const START_STRING_TEST_NET: [u8; 4] = [0xd9, 0xb4, 0xeb, 0xf9];
+const START_STRING_TEST_NET: [u8; 4] = [0x0b, 0x11, 0x09, 0x07];
 const MESAGE_HEADER_SIZE: usize = 24;
 const MINIMAL_VERSION_MESSAGE_SIZE: usize = 86;
+const COMMAND_NAME_ERROR: &str = "\0\0\0\0\0\0\0\0\0\0\0\0";
 
 #[derive(Debug, PartialEq)]
 /// Error Struct for messages, contains customized errors for each type of message (excluding
@@ -60,8 +60,8 @@ fn get_user_agent_length(slice: &[u8]) -> (Vec<u8>, usize) {
     if slice[0] == 0xff {
         amount_of_bytes = 9;
     }
-    for i in 0..amount_of_bytes {
-        user_agent_length.push(slice[i]);
+    for i in slice.iter().take(amount_of_bytes) {
+        user_agent_length.push(*i);
     }
     (user_agent_length, amount_of_bytes)
 }
@@ -256,7 +256,9 @@ impl HeaderMessage {
         }
         let mut command_bytes_fixed_size = [0u8; 12];
         command_bytes_fixed_size.copy_from_slice(command_bytes.as_slice());
-        let payload_size = size_of_val(payload.as_slice()) as u32;
+        //let payload_size = size_of_val(payload.as_slice()) as u32;
+
+        let payload_size: u32 = payload.len() as u32;
 
         let hash = sha256d::Hash::hash(payload.as_slice());
         let hash_value = hash.as_byte_array();
@@ -278,8 +280,11 @@ impl HeaderMessage {
         self.payload_size
     }
 
-    pub fn get_command_name(&self) -> [u8; 12] {
-        self.command_name
+    pub fn get_command_name(&self) -> String {
+        match String::from_utf8(Vec::from(self.command_name)) {
+            Ok(string) => string,
+            Err(_) => String::from(COMMAND_NAME_ERROR),
+        }
     }
 
     /// Receives a slice of bytes and returns an Option<HeaderMessage>, initialices the fields of
