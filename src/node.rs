@@ -47,7 +47,7 @@ impl Node {
 
         let mut node = Node::_new(config.version, config.local_host, config.local_port);
         let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
-
+        
         for addr in address_vector {
             if let Ok(tcp_stream) = node.handshake(addr) {
                 node.tcp_streams.push(tcp_stream)
