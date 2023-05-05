@@ -1,19 +1,10 @@
-use std::{io::{BufRead, BufReader}, fs::File};
+use std::{io::{BufRead, BufReader}, fs::File, path::Path};
 
 const CONFIG_FILENAME : &str = "nodo.conf";
 const PARAMETER_AMOUNT : usize = 5;
 //const CURRENT_VERSION : i32 = 70015;
 
-/*
-// nodo.conf
-
-    version=70015
-    dns_port=53
-    local_host=127,0,0,1
-    local_port=1001
-    log_file_path=path/to/log_file
-*/
-
+/// Struct that represents errors that can occur with the config setup.
 #[derive(Debug)]
 pub enum ConfigError{
     ErrorReadingFile,
@@ -23,41 +14,51 @@ pub enum ConfigError{
     ErrorMismatchedParameters,
 }
 
+
+/// Struct that represents a node's configuration parameters.
 #[derive(Debug)]
 pub struct Config {
-    version: i32,
-    dns_port: u16,
-    local_host: [u8; 4],
-    local_port: u16,
-    log_file_path: String,
+    pub version: i32,
+    pub dns_port: u16,
+    pub local_host: [u8; 4],
+    pub local_port: u16,
+    pub log_path: String,
 }
 
 impl Config{
+    /// It validates the parameters sent as a String array to see if they can be used for a node's configuration.
+    /// On error returns ErrorMismatchedQuantityOfParameters or ErrorMismatchedParameters depending on the circumstances.
     fn _validate_parameters(config_fields: &Vec<String>) -> Result<(), ConfigError>{
         if config_fields.len() != PARAMETER_AMOUNT {
             return Err(ConfigError::ErrorMismatchedQuantityOfParameters);        
         }
-        
+
+        let path = Path::new(config_fields[4].as_str());
+        if !path.is_file() {
+            return Err(ConfigError::ErrorMismatchedParameters);
+        }
+
         /*  
         if let Some(version) = config_fields[0].parse::<i32>().ok(){
             if version != CURRENT_VERSION {
                 return Err(ConfigError::ErrorMismatchedParameters);
             }
         }
+
+        match config_fields[0].parse::<i32>().ok() {
+            Some(version) => {
+                if version != CURRENT_VERSION {
+                    return Err(ConfigError::ErrorMismatchedParameters);
+                }
+            },
+            None => return Err(ConfigError::ErrorMismatchedParameters),
+        };
         */
 
-        // match config_fields[0].parse::<i32>().ok() {
-        //     Some(version) => {
-        //         if version != CURRENT_VERSION {
-        //             return Err(ConfigError::ErrorMismatchedParameters);
-        //         }
-        //     },
-        //     None => return Err(ConfigError::ErrorMismatchedParameters),
-        // };
-        
         Ok(())
     }
     
+    /// It receives the fields for the configuration and returns a config with those values. In case of error returns None.
     fn _initialize(config_fields: &Vec<String>)->Option<Config>{
         let mut local_host: [u8; 4] = [0; 4];
         let splitter = (*config_fields)[2].split(',');
@@ -72,10 +73,12 @@ impl Config{
             dns_port: config_fields[1].parse::<u16>().ok()?,
             local_host, 
             local_port: config_fields[3].parse::<u16>().ok()? ,
-            log_file_path: config_fields[4].to_string(),
+            log_path: config_fields[4].to_string(),
         })
     }
 
+    /// It receives the fields for the configuration, validates them and returns a Config if they were valid.
+    /// On Error returns ErrorMismatchedQuantityOfParameters, ErrorMismatchedParameters or ErrorFillingAttributes depending on the circumstances.
     fn _from(config_fields: Vec<String>) -> Result<Config, ConfigError>{
 
         Config::_validate_parameters(&config_fields)?;
@@ -86,6 +89,9 @@ impl Config{
         }
     }
 
+    /// It receives a path to a file containing the fields for the configuration and returns a Config if both the path 
+    /// and the parameters were valid.
+    /// On Error, it returns an error in the ConfigError enum.
     pub fn from_path(path: &str) -> Result<Config, ConfigError>{
         if !path.ends_with(CONFIG_FILENAME){
             return Err(ConfigError::ErrorMismatchedFileName)
@@ -110,6 +116,7 @@ impl Config{
     }
 }
 
+/// A handler for opening the file containing the config's attributes, on error returns ErrorReadingFile
 fn _open_config_handler(path: &str) -> Result<File, ConfigError> {
     match File::open(path){
         Ok(file)=> Ok(file),
@@ -135,19 +142,19 @@ mod tests {
     fn test_config_3_saves_parameters_correctly(){
         let parameters = vec![
             "70015".to_string(),
-            "53".to_string(),
+            "18333".to_string(),
             "127,0,0,1".to_string(),
             "1001".to_string(),
-            "path/to/log_file".to_string(),
+            "src/node_log.txt".to_string(),
         ];
         
         let config = Config::_from(parameters).expect("Could not create config from valid parameters.");
         
         assert_eq!(config.version, 70015);
-        assert_eq!(config.dns_port, 53);
+        assert_eq!(config.dns_port, 18333);
         assert_eq!(config.local_host, [127,0,0,1]);
         assert_eq!(config.local_port, 1001);
-        assert_eq!(config.log_file_path, "path/to/log_file".to_string());
+        assert_eq!(config.log_path, "src/node_log.txt".to_string());
     }
 
     #[test]
@@ -163,16 +170,29 @@ mod tests {
     }
     
     #[test]
-    fn test_config_5_invalid_type_of_parameters_cannot_create_config(){
+    fn test_config_5_invalid_type_for_local_port_parameter_cannot_create_config(){
         let parameters = vec![
             "70015".to_string(),
             "53".to_string(),
             "34".to_string(),
             "this should be a u16".to_string(),
-            "path/to/log_file".to_string(),
+            "src/node_log.txt".to_string(),
         ];
         
         assert!(Config::_from(parameters).is_err());
-    }        
+    }
+
+    #[test]
+    fn test_config_6_log_file_not_found_from_log_path_parameter_cannot_create_config(){
+        let parameters = vec![
+            "70015".to_string(),
+            "53".to_string(),
+            "34".to_string(),
+            "this should be a u16".to_string(),
+            "src/node_log.txt".to_string(),
+        ];
+        
+        assert!(Config::_from(parameters).is_err());
+    }      
 }
 
