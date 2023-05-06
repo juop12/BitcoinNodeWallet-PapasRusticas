@@ -2,7 +2,6 @@ use std::{io::{BufRead, BufReader}, fs::File, path::Path};
 
 const CONFIG_FILENAME : &str = "nodo.conf";
 const PARAMETER_AMOUNT : usize = 5;
-//const CURRENT_VERSION : i32 = 70015;
 
 /// Struct that represents errors that can occur with the config setup.
 #[derive(Debug)]
@@ -38,23 +37,6 @@ impl Config{
             return Err(ConfigError::ErrorMismatchedParameters);
         }
 
-        /*  
-        if let Some(version) = config_fields[0].parse::<i32>().ok(){
-            if version != CURRENT_VERSION {
-                return Err(ConfigError::ErrorMismatchedParameters);
-            }
-        }
-
-        match config_fields[0].parse::<i32>().ok() {
-            Some(version) => {
-                if version != CURRENT_VERSION {
-                    return Err(ConfigError::ErrorMismatchedParameters);
-                }
-            },
-            None => return Err(ConfigError::ErrorMismatchedParameters),
-        };
-        */
-
         Ok(())
     }
     
@@ -67,7 +49,6 @@ impl Config{
             local_host[i] = number.parse::<u8>().ok()?;
         }
         
-
         Some(Config {
             version: config_fields[0].parse::<i32>().ok()?,
             dns_port: config_fields[1].parse::<u16>().ok()?,
@@ -99,7 +80,7 @@ impl Config{
 
         let file = _open_config_handler(path)?;
         let reader: BufReader<File> = BufReader::new(file);
-
+        
         let mut config_fields = Vec::new();
                 
         for line in reader.lines() {
