@@ -11,6 +11,8 @@ const DNS_PORT: u16 = 18333;
 const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
 const LOCAL_PORT: u16 = 1001;
 const MESAGE_HEADER_SIZE: usize = 24;
+const HashedGenesisBlock: &str = "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943";// 0x64b 
+// [u8; 32] 
 
 //const VERSION_COMMAND_NAME: [u8;12] = [b'v',b'e',b'r',b's',b'i',b'o',b'n',0,0,0,0,0];
 
@@ -219,6 +221,26 @@ impl Node {
         self.handshake_send_version_message(receiving_addrs, &tcp_stream)?;
 
         self.handshake_receive_version_message(&tcp_stream)?;
+
+        self.handshake_send_verack_message(&tcp_stream)?;
+
+        self.handshake_receive_verack_message(&tcp_stream)?;
+
+        Ok(tcp_stream)
+    }
+
+    fn initial_block_download(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> {
+        let block_header_hashes= Vec::from([]);
+
+        let get_header_messege = GetBlockHeadersMessage::new(self.version as u32, block_header_hashes, HashedGenesisBlock.as_bytes());
+
+        get_header_messege.send_to(receiver_stream);
+
+        let tcp_stream = self.connect_to_peer(receiving_addrs)?;
+
+        self.IBD_send_get_headers_message(receiving_addrs, &tcp_stream)?;
+
+        self.IBD_receive_headers_message(&tcp_stream)?;
 
         self.handshake_send_verack_message(&tcp_stream)?;
 
