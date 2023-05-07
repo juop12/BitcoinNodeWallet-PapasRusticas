@@ -1,9 +1,11 @@
 use chrono::Utc;
 use rand::prelude::*;
+use crate::blockchain::*;
 use std::{
     io::{Read, Write},
     net::{IpAddr, SocketAddr},
 }; 
+
 
 use bitcoin_hashes::{sha256d, Hash};
 
@@ -29,6 +31,7 @@ pub enum MessageError {
     ErrorSendingVerAckMessage,
 
     ErrorSendingGetBlockHeadersMessage,
+    ErrorHeadersBlockMessage,
 }
 
 //====================================================================================
@@ -53,11 +56,11 @@ pub struct VersionMessage {
     relay: u8,
 }
 
-/// Gets the user agent lenght based on the bytes of the slice. The size depends on waht the
+/// Gets the variable lenght based on the bytes of the slice. The size depends on what the
 /// position 0 of the slice is, based on that it can be 1, 3, 5 or 9 bytes long.
-/// Returns a tuple with the user agent length and the amount of bytes that it has
-fn get_user_agent_length(slice: &[u8]) -> (Vec<u8>, usize) {
-    let mut user_agent_length = Vec::new();
+/// Returns a tuple with the variable length and the amount of bytes that it has
+fn calculate_variable_length_integer(slice: &[u8]) -> (Vec<u8>, usize) {
+    let mut length = Vec::new();
     let mut amount_of_bytes = 1;
     if slice[0] == 0xfd {
         amount_of_bytes = 3;
@@ -69,9 +72,9 @@ fn get_user_agent_length(slice: &[u8]) -> (Vec<u8>, usize) {
         amount_of_bytes = 9;
     }
     for i in slice.iter().take(amount_of_bytes) {
-        user_agent_length.push(*i);
+        length.push(*i);
     }
-    (user_agent_length, amount_of_bytes)
+    (length, amount_of_bytes)
 }
 
 impl Message for VersionMessage {
@@ -178,7 +181,7 @@ impl VersionMessage {
     /// returns an Option with either a VersionMessage if everything went Ok or None if any step
     /// in the middle of the conversion from bytes to VersionMessage fields failed.
     fn _from_bytes(slice: &mut [u8]) -> Option<VersionMessage> {
-        let (user_agent_length, cant_bytes) = get_user_agent_length(&slice[80..]);
+        let (user_agent_length, cant_bytes) = calculate_variable_length_integer(&slice[80..]);
 
         let version_message = VersionMessage {
             version: i32::from_le_bytes(slice[0..4].try_into().ok()?),
@@ -206,6 +209,7 @@ impl VersionMessage {
 
 //====================================================================================
 //====================================================================================
+
 
 /// Contains all necessary fields for the HeaderMessage to work properly
 #[derive(Debug, PartialEq, Clone)]
@@ -366,7 +370,7 @@ impl VerACKMessage {
 const MAX_HASH_COUNT_SIZE: u64 = 0x02000000;
 pub struct GetBlockHeadersMessage {
     version: u32,
-    hash_count: usize, //Que pasa si es 0?
+    hash_count: Vec<u8>, //Que pasa si es 0?
     block_header_hashes: Vec<[u8; 32]>, //Que pasa si su cantidad es distinta de hash_count?
     stopping_hash: [u8; 32],
 }
@@ -389,23 +393,23 @@ impl Message for GetBlockHeadersMessage{
     fn to_bytes(&self) -> Vec<u8>{
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.version.to_le_bytes());
-        bytes_vector.extend_from_slice(&self.hash_count.to_le_bytes());
-        for i in 0..self.hash_count{
-            bytes_vector.extend(&self.block_header_hashes[i]);
+
+        bytes_vector.extend(&self.hash_count);
+        for i in 0..self.hash_count[0]{
+            bytes_vector.extend(&self.block_header_hashes[i as usize]);
         }
+
         bytes_vector.extend_from_slice(&self.stopping_hash);
         bytes_vector
     }
 
     //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
-        /*
+        //checkear el tamaño max de la tira de bytes.
         match Self::_from_bytes(slice) {
             Some(get_header_message) => Ok(get_header_message),
             None => Err(MessageError::ErrorCreatingVersionMessage),
         }
-        */
-        todo!();
     }
     
     //Gets the header message corresponding to the corresponding message
@@ -416,30 +420,123 @@ impl Message for GetBlockHeadersMessage{
 
 impl GetBlockHeadersMessage{
 
-    pub fn new(version: u32, block_header_hashes: Vec<[u8;32]>, stopping_hash: [u8;32]) -> GetBlockHeadersMessage{
+    pub fn new(version: u32, block_header_hashes: Vec<[u8;32]>, stopping_hash: [u8; 32]) -> GetBlockHeadersMessage{
         GetBlockHeadersMessage{
             version,
-            hash_count: block_header_hashes.len(),
+            hash_count: block_header_hashes.len().to_le_bytes().to_vec(),
             block_header_hashes,
             stopping_hash,
         }
     }
 
     fn _from_bytes(slice: &mut [u8]) -> Option<GetBlockHeadersMessage> {
-        /*
-        let (block_header_hashes, hash_count) = get_block_header_hashes(&slice[4..]);
-
+        
+        let (hash_count, cant_bytes) = calculate_variable_length_integer(&slice[4..]);
+        let stopping_hash_lenght = slice.len() - 32;
+        
         let version = u32::from_le_bytes(slice[0..4].try_into().ok()?);
-        //let hash_count = u32::from_le_bytes(slice[4..5].try_into().ok()?);
+        let block_header_hashes_bytes = Vec::from(&slice[(4 + cant_bytes)..stopping_hash_lenght]);
+        let block_header_hashes = block_header_hashes_bytes
+                .chunks_exact(32)
+                .map(|byte| byte.try_into().ok())
+                .collect::<Option<Vec<[u8; 32]>>>()?;
+                    
+        let stopping_hash = slice[stopping_hash_lenght..].try_into().ok()?;
 
-        Some(GetHeadersMessage{
+        Some(GetBlockHeadersMessage{
             version,
             hash_count,
             block_header_hashes,
-            stopping_hash: slice[(slice.len()-32)..].try_into().ok()?,
+            stopping_hash,
         })
+    }
+}
+
+//====================================================================================
+//====================================================================================
+
+const BLOCKHEADERSIZE: usize = 80;
+
+pub struct BlockHeadersMessage {
+    count: usize,
+    headers: Vec<[u8; BLOCKHEADERSIZE]>,
+}
+
+impl Message for BlockHeadersMessage{
+
+    type MessageType = BlockHeadersMessage;
+    
+    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
+        todo!()
+    }
+    
+    //transforms the message to bytes, usig the p2p bitcoin protocol
+    fn to_bytes(&self) -> Vec<u8>{
+        todo!()
+    }
+
+    //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
+    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
+        /*
+            match Self::_from_bytes(slice) {
+                Some(get_header_message) => Ok(get_header_message),
+                None => Err(MessageError::ErrorCreatingVersionMessage),
+            }
         */
         todo!();
+    }
+    
+    //Gets the header message corresponding to the corresponding message
+    fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
+        HeaderMessage::new("headers\0\0", &self.to_bytes())
+    }
+} 
+
+impl BlockHeadersMessage{
+
+    pub fn new(headers: Vec<[u8; BLOCKHEADERSIZE]>) -> BlockHeadersMessage{
+        BlockHeadersMessage{
+            count: headers.len(),
+            headers,
+        }
+    }
+
+    fn _from_bytes(slice: &mut [u8]) -> Option<BlockHeadersMessage> {
+        /*
+            let (block_header_hashes, hash_count) = get_block_header_hashes(&slice[4..]);
+
+            let version = u32::from_le_bytes(slice[0..4].try_into().ok()?);
+            //let hash_count = u32::from_le_bytes(slice[4..5].try_into().ok()?);
+
+            Some(GetHeadersMessage{
+                version,
+                hash_count,
+                block_header_hashes,
+                stopping_hash: slice[(slice.len()-32)..].try_into().ok()?,
+            })
+        */
+        todo!();
+    }
+
+
+    pub fn collect_in_vector(&self, blocks_headers: &Vec<BlockHeader>) -> Result<(), MessageError> {
+        todo!();
+        /*
+        self.headers.iter().for_each( |block_header| {
+            let bh = match BlockHeader::from_bytes(block_header.as_mut_slice()) {
+                Ok(bh) => bh,
+                Err(_) => return (),
+            };
+
+            blocks_headers.push(bh);
+        });
+        
+        Ok(());
+        */
+    }
+
+    pub fn get_count(&self) -> usize {
+        self.count
     }
 }
 
@@ -532,6 +629,14 @@ mod tests {
         bytes_vector
     }
 
+    fn get_block_headers_message_expected_bytes() -> Vec <u8> {
+        let mut bytes_vector = Vec::new();
+        bytes_vector.extend_from_slice(&(70015 as i32).to_le_bytes());
+        bytes_vector.extend_from_slice(sha256d::Hash::hash(b"test").as_byte_array());
+        bytes_vector.extend_from_slice(sha256d::Hash::hash(b"test").as_byte_array());
+        bytes_vector
+    }
+   
     #[test]
     fn test_to_bytes_1_version_message_without_user_agent() -> Result<(), MessageError> {
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
@@ -592,6 +697,17 @@ mod tests {
         let version_message_bytes = version_message.to_bytes();
 
         assert_eq!(version_message_bytes, expected_bytes);
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_bytes_6_get_headers_message() -> Result<(), MessageError> {
+        let mut expected_bytes = get_block_headers_message_expected_bytes();
+        let get_block_headers_message = GetBlockHeadersMessage::from_bytes(&mut expected_bytes.as_mut_slice())?;
+
+        let get_block_headers_message = get_block_headers_message.to_bytes();
+
+        assert_eq!(get_block_headers_message, expected_bytes);
         Ok(())
     }
 
@@ -707,4 +823,6 @@ mod tests {
         assert_eq!(verack_message, MessageError::ErrorCreatingVerAckMessage);
         Ok(())
     }
+
+
 }

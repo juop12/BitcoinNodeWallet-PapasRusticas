@@ -1,4 +1,4 @@
-use chrono::Utc;
+//use chrono::Utc;
 
 const BLOCKHEADER_SIZE: usize = 80; 
 
@@ -39,7 +39,7 @@ impl BlockHeader{
         bytes_vector
     }
 
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::BlockHeader, BlockChainError> {
+    pub fn from_bytes(slice: &mut [u8]) -> Result<BlockHeader, BlockChainError> {
         if slice.len() != BLOCKHEADER_SIZE {
             return Err(BlockChainError::ErrorCreatingBlockHeader);
         }
@@ -83,7 +83,7 @@ impl Block{
     }
     */
 
-    fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.header.to_bytes());
         //bytes_vector.extend_from_slice(&self.transaction_count.to_le_bytes());
@@ -91,27 +91,30 @@ impl Block{
         bytes_vector
     }
 
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::Block, BlockChainError> {
-        //if slice.len() < MINIMAL_VERSION_MESSAGE_SIZE {
-        //    return Err(MessageError::ErrorCreatingVersionMessage);
-        //}
+    fn from_bytes(slice: &mut [u8]) -> Result<Block, BlockChainError> {
+        if slice.len() < BLOCKHEADER_SIZE {
+            return Err(BlockChainError::ErrorCreatingBlock);
+        }
 
         match Self::_from_bytes(slice) {
             Some(version_message) => Ok(version_message),
-            None => Err(Err(BlockChainError::ErrorCreatingBlock)),
+            None => Err(BlockChainError::ErrorCreatingBlock),
         }
     }
 
-    fn _from_bytes(slice: &mut [u8]) -> Option<HeaderMessage> {
+    fn _from_bytes(slice: &mut [u8]) -> Option<Block> {
 
-        let header = BlockHeader::from_bytes(slice[0..80].try_into().ok()?);
+        let mut header = match BlockHeader::from_bytes(&mut slice[..BLOCKHEADER_SIZE]){
+            Ok(header) => header,
+            Err(_) => return None,
+        };
 
         //let transaction_count = slice[80..??].try_into().ok()?;
         //let transactions = slice[??..].try_into().ok()?;
         Some(Block {
-            header: BlockHeader,
+            header,
             //transaction_count: usize, // 0 for now.
             //transactions: Vec<Transaction>,
         })
-    }    
+    } 
 }
