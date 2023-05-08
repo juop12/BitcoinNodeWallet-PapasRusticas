@@ -340,6 +340,7 @@ impl Node {
         let mut quantity_received = 2000;
 
         while quantity_received == 2000 {
+            //p vos no queres cambiar de sinc node cada 2000 mensajes
             let mut sync_node = match iter_tcp_stream.next(){
                 Some(node) => node,
                 None => return Err(NodeError::ErrorIteratingStreams),

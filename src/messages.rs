@@ -395,7 +395,8 @@ impl Message for GetBlockHeadersMessage{
         bytes_vector.extend_from_slice(&self.version.to_le_bytes());
 
         bytes_vector.extend(&self.hash_count);
-        for i in 0..self.hash_count[0]{
+
+        for i in 0..self.block_header_hashes.len(){
             bytes_vector.extend(&self.block_header_hashes[i as usize]);
         }
 
@@ -436,11 +437,15 @@ impl GetBlockHeadersMessage{
         
         let version = u32::from_le_bytes(slice[0..4].try_into().ok()?);
         let block_header_hashes_bytes = Vec::from(&slice[(4 + cant_bytes)..stopping_hash_lenght]);
-        let block_header_hashes = block_header_hashes_bytes
-                .chunks_exact(32)
-                .map(|byte| byte.try_into().ok())
-                .collect::<Option<Vec<[u8; 32]>>>()?;
-                    
+        
+        let mut aux = 4 + cant_bytes;
+        let mut block_header_hashes :Vec<[u8;32]> = Vec::new();
+        while (aux < stopping_hash_lenght){
+            let a :[u8;32] = slice[aux..(aux+32)].try_into().ok()?;
+            block_header_hashes.push(a);
+        }
+        
+        //p no hay que chequear que sea 0?
         let stopping_hash = slice[stopping_hash_lenght..].try_into().ok()?;
 
         Some(GetBlockHeadersMessage{
