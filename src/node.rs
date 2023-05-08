@@ -319,7 +319,7 @@ impl Node {
         
         block_headers_msg.collect_in_vector(blocks_headers);
 
-        Ok(block_headers_msg.get_count() as i32)
+        Ok(2) //block_headers_msg.get_count() as i32
     }
 
     fn create_get_block_header_message(&self, hash: [u8; 32]) -> GetBlockHeadersMessage {
