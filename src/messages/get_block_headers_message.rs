@@ -1,4 +1,4 @@
-use super::util::*;
+use super::utils::*;
 
 
 //const MAX_HASH_COUNT_SIZE: u64 = 0x02000000;
@@ -131,7 +131,7 @@ mod tests {
     //=================================================================
 
     #[test]
-    fn test_to_bytes_6_get_block_headers_message() -> Result<(), MessageError> {
+    fn get_block_headers_message_test_1_to_bytes() -> Result<(), MessageError> {
         let expected_bytes = get_block_headers_message_expected_bytes();
 
         let mut vec_hash = Vec::new();
@@ -147,7 +147,7 @@ mod tests {
     } 
 
     #[test]
-    fn test_send_to_4_get_block_headers_message()-> Result<(), MessageError> {
+    fn get_block_headers_message_test_2_send_to()-> Result<(), MessageError> {
         let mut stream = MockTcpStream::new();
 
         let mut vec_hash = Vec::new();
@@ -166,7 +166,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_bytes_7_get_block_headers_message() -> Result<(), MessageError> {
+    fn get_block_headers_message_test_3_from_bytes() -> Result<(), MessageError> {
         let mut vec_hash = Vec::new();
         let hash: [u8; 32] = *sha256d::Hash::hash(b"test").as_byte_array();
         vec_hash.push(hash);

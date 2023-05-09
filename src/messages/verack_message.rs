@@ -1,4 +1,4 @@
-use super::util::*;
+use super::utils::*;
 
 
 const VERACK_MSG_NAME: &str = "verack\0\0\0\0\0\0";
@@ -67,7 +67,7 @@ mod tests {
     //=================================================================
 
     #[test]
-    fn test_send_to_3_verack_message() -> Result<(), MessageError> {
+    fn verack_message_test_1_send_to() -> Result<(), MessageError> {
         let verack_msg = VerACKMessage::new()?;
         let mut stream = MockTcpStream::new();
 
@@ -78,7 +78,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_bytes_4_verack_message() -> Result<(), MessageError> {
+    fn verack_message_test_2_to_bytes() -> Result<(), MessageError> {
         let verack_msg= VerACKMessage::new()?;
 
         let verack_msg_bytes = verack_msg.to_bytes();
@@ -88,7 +88,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_bytes_5_verack_message_from_empty_slice() -> Result<(), MessageError> {
+    fn verack_message_test_3_from_bytes_from_empty_slice() -> Result<(), MessageError> {
         let expected_verack_msg = VerACKMessage::new()?;
 
         let verack_msg =
@@ -99,7 +99,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_bytes_6_verack_message_from_non_empty_slice() -> Result<(), MessageError> {
+    fn verack_message_test_4_from_bytes_from_non_empty_slice() -> Result<(), MessageError> {
         let expected_verack_msg = VerACKMessage::new()?;
         let mut expected_bytes = expected_verack_msg.to_bytes();
         expected_bytes.extend(vec![1, 2, 3, 4]);

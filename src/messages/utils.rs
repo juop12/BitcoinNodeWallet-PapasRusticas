@@ -1,10 +1,10 @@
 pub use std::io::{Read, Write};
 pub use super::HeaderMessage;
 
-#[derive(Debug, PartialEq)]
 /// Error Struct for messages, contains customized errors for each type of message (excluding
 /// VerACKMessage) and to diferenciate whether the error occured while instanciation or in
 /// message sending
+#[derive(Debug, PartialEq)]
 pub enum MessageError {
     ErrorCreatingVersionMessage,
     ErrorSendingVersionMessage,

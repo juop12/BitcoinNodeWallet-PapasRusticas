@@ -1,4 +1,4 @@
-use super::util::*;
+use super::utils::*;
 use bitcoin_hashes::{sha256d, Hash};
 
 
@@ -153,7 +153,7 @@ mod tests {
     //=================================================================
 
     #[test]
-    fn test_to_bytes_2_empty_header_message() -> Result<(), MessageError> {
+    fn header_message_test_1_to_bytes_empty_header_message() -> Result<(), MessageError> {
         let hm = HeaderMessage::new("verack\0\0\0\0\0\0", &Vec::new())?;
 
         let hm_bytes = hm.to_bytes();
@@ -163,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_bytes_3_non_empty_header_message() -> Result<(), MessageError> {
+    fn header_message_test_2_to_bytes_non_empty_header_message() -> Result<(), MessageError> {
         let hm = HeaderMessage::new("n_empty\0\0\0\0\0", &vec![1, 2, 3, 4])?;
 
         let hm_bytes = hm.to_bytes();
@@ -176,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn test_send_to_1_header_message() -> Result<(), MessageError> {
+    fn header_message_test_3_send_to() -> Result<(), MessageError> {
         let hm = HeaderMessage::new("verack\0\0\0\0\0\0", &Vec::new())?;
         let mut stream = MockTcpStream::new();
 
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_bytes_3_empty_header_message() -> Result<(), MessageError> {
+    fn header_message_test_4_from_bytes_empty_header_message() -> Result<(), MessageError> {
         let expected_hm = HeaderMessage::new("verack\0\0\0\0\0\0", &Vec::new())?;
 
         let hm =
@@ -198,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_bytes_4_non_empty_header_message() -> Result<(), MessageError> {
+    fn header_message_test_5_from_bytes_non_empty_header_message() -> Result<(), MessageError> {
         let expected_hm = HeaderMessage::new("version\0\0\0\0\0", &vec![1, 2, 3, 4])?;
 
         let hm =

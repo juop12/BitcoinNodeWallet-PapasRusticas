@@ -1,4 +1,4 @@
-use super::util::*;
+use super::utils::*;
 use crate::blockchain::*;
 
 
@@ -112,7 +112,7 @@ mod tests {
     //=================================================================
 
     #[test]
-    fn test_to_bytes_8_block_headers_message() -> Result<(), MessageError> {
+    fn block_headers_message_test_1_to_bytes() -> Result<(), MessageError> {
         
         let (expected_bytes, b_h1, b_h2) = block_headers_message_expected_bytes();
         
@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_bytes_8_block_headers_message() -> Result<(), MessageError> {
+    fn block_headers_message_test_2_from_bytes() -> Result<(), MessageError> {
         let (mut expected_bytes, b_h1, b_h2) = block_headers_message_expected_bytes();
         
         let mut block_headers = Vec::new();

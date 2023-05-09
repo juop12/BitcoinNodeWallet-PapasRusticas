@@ -1,4 +1,4 @@
-use super::util::*;
+use super::utils::*;
 use std::net::{IpAddr, SocketAddr};
 use rand::prelude::*;
 use chrono::Utc;
@@ -228,7 +228,7 @@ mod tests {
     //=================================================================
 
     #[test]
-    fn test_to_bytes_1_version_message_without_user_agent() -> Result<(), MessageError> {
+    fn version_message_test_1_to_bytes_without_user_agent() -> Result<(), MessageError> {
         let (receiver_socket, sender_socket) = create_socket();
 
         let version_msg = VersionMessage::new(70015, receiver_socket, sender_socket)?;
@@ -246,7 +246,7 @@ mod tests {
     }
     
     #[test]
-    fn test_to_bytes_5_version_message_with_user_agent() -> Result<(), MessageError> {
+    fn version_message_test_2_to_bytes_with_user_agent() -> Result<(), MessageError> {
         let mut expected_bytes = version_message_with_user_agent_expected_bytes();
         let version_msg = VersionMessage::from_bytes(&mut expected_bytes.as_mut_slice())?;
 
@@ -257,7 +257,7 @@ mod tests {
     }
 
     #[test]
-    fn test_send_to_2_version_message() -> Result<(), MessageError> {
+    fn version_message_test_3_send_to() -> Result<(), MessageError> {
         let mut stream = MockTcpStream::new();
 
         let (receiver_socket, sender_socket) = create_socket();
@@ -274,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_bytes_1_without_user_agent_version_message() -> Result<(), MessageError> {
+    fn version_message_test_4_from_bytes_without_user_agent() -> Result<(), MessageError> {
         let (receiver_socket, sender_socket) = create_socket();
 
         let expected_version_msg = VersionMessage::new(70015, receiver_socket, sender_socket)?;
@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_bytes_2_with_user_agent_version_message() -> Result<(), MessageError> {
+    fn version_message_test_5_from_bytes_with_user_agent() -> Result<(), MessageError> {
         let (receiver_socket, sender_socket) = create_socket();
 
         let mut expected_version_msg =
