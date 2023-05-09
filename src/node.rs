@@ -301,6 +301,13 @@ impl Node {
 
     fn IBD_receive_headers_message<T: Read + Write> (&self, mut stream: T) -> Result<BlockHeadersMessage, NodeError>{
         let block_headers_msg_h = self.receive_message_header(&mut stream)?;
+        println!("Recibe mensaje que se llama {}", block_headers_msg_h.get_command_name());
+
+        if block_headers_msg_h.get_command_name() == "sendheaders\0" || block_headers_msg_h.get_command_name() == "sendcmpct\0\0\0"{
+            block_headers_msg_h.send_to(&mut stream).unwrap();
+            self.IBD_send_get_block_headers_message(HASHEDGENESISBLOCK, &mut stream);
+            panic!();
+        } 
 
         if block_headers_msg_h.get_command_name() != "headers\0\0\0\0\0" {
             return Err(NodeError::ErrorReceivingHeadersMessageHeaderInIBD);
@@ -342,9 +349,9 @@ impl Node {
         }
     }
 
-    fn initial_block_download(&self) -> Result<(), NodeError> {
+    pub fn initial_block_download<T: Read + Write>(&self, tcp: T) -> Result<(), NodeError> {
 
-        let mut sync_node = &self.tcp_streams[0];
+        let mut sync_node =  tcp;//&self.tcp_streams[6];
         let mut block_headers: Vec<BlockHeader> = Vec::new();
         let mut quantity_received = 2000;
         let mut last_hash = HASHEDGENESISBLOCK;
