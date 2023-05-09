@@ -301,28 +301,25 @@ impl Node {
 
     fn IBD_receive_headers_message<T: Read + Write> (&self, mut stream: T) -> Result<BlockHeadersMessage, NodeError>{
         let block_headers_msg_h = self.receive_message_header(&mut stream)?;
-        println!("Recibe mensaje que se llama {}", block_headers_msg_h.get_command_name());
-
-        if block_headers_msg_h.get_command_name() == "sendheaders\0" || block_headers_msg_h.get_command_name() == "sendcmpct\0\0\0"{
-            block_headers_msg_h.send_to(&mut stream).unwrap();
-            self.IBD_send_get_block_headers_message(HASHEDGENESISBLOCK, &mut stream);
-            panic!();
-        } 
+        
+        let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
+        match stream.read_exact(&mut msg_bytes) {
+            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
+            Ok(_) => {}
+        }
 
         if block_headers_msg_h.get_command_name() != "headers\0\0\0\0\0" {
             return Err(NodeError::ErrorReceivingHeadersMessageHeaderInIBD);
+        }else{
+            println!("\n\n\nRECIBIMOS LOS HEADERS AAAAAAAAAAAAAAAAAAAA {:?}\n\n\n", block_headers_msg_h.get_command_name());
         }
 
-        let mut block_headers_msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
-        if let Err(_) = stream.read_exact(&mut block_headers_msg_bytes){
-            return Err(NodeError::ErrorReceivingHeadersMessageInIBD)
-        }
 
-        let block_headers_msg = match BlockHeadersMessage::from_bytes(&mut block_headers_msg_bytes){
+        let block_headers_msg = match BlockHeadersMessage::from_bytes(&mut msg_bytes){
             Ok(block_headers_message) => block_headers_message,
             Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
         };
-
+        println!("la cantidad de bloques es {:?}", block_headers_msg.count);
         Ok(block_headers_msg)
     }
 
@@ -360,7 +357,10 @@ impl Node {
             
             self.IBD_send_get_block_headers_message(last_hash, &mut sync_node)?;
 
-            let block_headers_msg = self.IBD_receive_headers_message(&mut sync_node,)?;
+            let block_headers_msg = match self.IBD_receive_headers_message(&mut sync_node,){
+                Ok(mensaje) => mensaje,
+                Err(_) => continue, 
+            };
             let received_block_headers = block_headers_msg.headers;        
     
             quantity_received = received_block_headers.len();
@@ -495,7 +495,7 @@ mod tests {
         assert_eq!(received_ver_ack_message, expected_ver_ack_message);
         Ok(())
     }
-
+    
     #[test]
     fn test_IBD_1_send_get_block_headers_message() -> Result<(), NodeError>{
         let mut stream = MockTcpStream::new();
@@ -534,4 +534,5 @@ mod tests {
         assert_eq!(received_message.to_bytes(), expected_message.to_bytes());
         Ok(())
     }
+    
 }

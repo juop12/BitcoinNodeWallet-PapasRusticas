@@ -405,7 +405,7 @@ impl Message for GetBlockHeadersMessage{
     fn to_bytes(&self) -> Vec<u8>{
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.version.to_le_bytes());
-        println!("\n\n\n{:?}\n\n\n\n", self.hash_count);
+        //println!("\n\n\n{:?}\n\n\n\n", self.hash_count);
 
         bytes_vector.extend(&self.hash_count);
 
@@ -488,7 +488,7 @@ const BLOCKHEADERSIZE: usize = 80;
 /// The BlockHeader struct represents a block header in the Bitcoin network.
 #[derive(Debug, PartialEq)]
 pub struct BlockHeadersMessage {
-    count: Vec<u8>,
+    pub count: Vec<u8>,
     pub headers: Vec<BlockHeader>,
 }
 
