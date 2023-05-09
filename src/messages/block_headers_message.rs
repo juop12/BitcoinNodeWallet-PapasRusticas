@@ -1,0 +1,144 @@
+use super::utils::*;
+use crate::blockchain::*;
+
+
+const BLOCKHEADER_SIZE: usize = 80;
+const BLOCKHEADERS_MSG_NAME: &str = "headers\0\0\0\0\0";
+
+
+/// The BlockHeader struct represents a block header in the Bitcoin network.
+#[derive(Debug, PartialEq)]
+pub struct BlockHeadersMessage {
+    pub count: Vec<u8>,
+    pub headers: Vec<BlockHeader>,
+}
+
+impl Message for BlockHeadersMessage{
+
+    type MessageType = BlockHeadersMessage;
+    
+    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
+        todo!()
+    }
+    
+    //transforms the message to bytes, usig the p2p bitcoin protocol
+    fn to_bytes(&self) -> Vec<u8>{
+        let mut bytes_vector = self.count.clone();
+        for header in &self.headers{
+            bytes_vector.extend(header.to_bytes());
+        }
+        bytes_vector
+    }
+
+    //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
+    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
+            if slice.len() <= 0{
+                return Err(MessageError::ErrorCreatingBlockHeadersMessage);
+            }
+        
+            match Self::_from_bytes(slice) {
+                Some(get_header_message) => Ok(get_header_message),
+                None => Err(MessageError::ErrorCreatingBlockHeadersMessage),
+            }
+    }
+    
+    //Gets the header message corresponding to the corresponding message
+    fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
+        HeaderMessage::new(BLOCKHEADERS_MSG_NAME, &self.to_bytes())
+    }
+} 
+
+impl BlockHeadersMessage{
+
+    pub fn new(headers: Vec<BlockHeader>) -> BlockHeadersMessage{
+        let mut count = Vec::new();
+        count.push(headers.len() as u8); //estamos asumiendo que solo van de 253 a menor
+        BlockHeadersMessage{
+            count,
+            headers,
+        }
+    }
+
+    fn _from_bytes(slice: &mut [u8]) -> Option<BlockHeadersMessage> {
+        let (count, amount_of_bytes) = calculate_variable_length_integer(&slice);
+        
+        /* 
+        if (amount_of_headers * 80 + count.len()) != slice.len(){
+            let a =  amount_of_headers * 80 + count.len();
+            let b = slice.len();
+            return None;
+        }*/
+        
+        let mut headers :Vec<BlockHeader> = Vec::new();
+        //let first_header_position = count.len();
+
+        let mut i = count.len();
+        while i < slice.len(){
+            let mut block_headers_bytes = Vec::from(&slice[(i)..(i + BLOCKHEADER_SIZE)]);
+            let bloc_header = BlockHeader::from_bytes(&mut block_headers_bytes).ok()?;
+            headers.push(bloc_header);
+            i += 80;
+        }
+        Some(BlockHeadersMessage::new(headers))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bitcoin_hashes::{sha256d, Hash};
+
+
+    // Auxiliar functions
+    //=================================================================
+
+    fn block_headers_message_expected_bytes() -> (Vec<u8>, BlockHeader, BlockHeader){
+        let hash1 :[u8;32] = *sha256d::Hash::hash(b"test1").as_byte_array();
+        let hash2 :[u8;32] = *sha256d::Hash::hash(b"test2").as_byte_array();
+        let merkle_hash1 :[u8;32] = *sha256d::Hash::hash(b"test merkle root1").as_byte_array();
+        let merkle_hash2 :[u8;32] = *sha256d::Hash::hash(b"test merkle root2").as_byte_array();
+        
+        let b_h1 = BlockHeader::new(70015, hash1, merkle_hash1); 
+        let b_h2 = BlockHeader::new(70015, hash2, merkle_hash2);
+
+        let mut expected_bytes = Vec::new();
+        expected_bytes.push(2);
+        expected_bytes.extend(b_h1.to_bytes());
+        expected_bytes.extend(b_h2.to_bytes());
+        (expected_bytes, b_h1, b_h2)
+    }
+
+    // Test
+    //=================================================================
+
+    #[test]
+    fn block_headers_message_test_1_to_bytes() -> Result<(), MessageError> {
+        
+        let (expected_bytes, b_h1, b_h2) = block_headers_message_expected_bytes();
+        
+        let mut block_headers = Vec::new();
+        block_headers.push(b_h1);
+        block_headers.push(b_h2);
+
+        let block_headers_msg = BlockHeadersMessage::new(block_headers);
+
+        assert_eq!(block_headers_msg.to_bytes(), expected_bytes);
+        Ok(())
+    }
+
+    #[test]
+    fn block_headers_message_test_2_from_bytes() -> Result<(), MessageError> {
+        let (mut expected_bytes, b_h1, b_h2) = block_headers_message_expected_bytes();
+        
+        let mut block_headers = Vec::new();
+        block_headers.push(b_h1);
+        block_headers.push(b_h2);
+
+        let expected_block_headers_msg = BlockHeadersMessage::new(block_headers);
+
+        let block_headers_msg = BlockHeadersMessage::from_bytes(&mut expected_bytes)?;
+
+        assert_eq!(block_headers_msg, expected_block_headers_msg);
+        Ok(())
+    }
+}

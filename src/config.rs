@@ -110,17 +110,17 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_config_1_valid_file_creates_config(){
+    fn config_test_1_valid_file_creates_config(){
         assert!(Config::from_path("src/nodo.conf").is_ok());
     }
 
     #[test]
-    fn test_config_2_invalid_file_cannot_create_config(){
+    fn config_test_2_invalid_file_cannot_create_config(){
         assert!(Config::from_path("invalid_file.conf").is_err());
     } 
 
     #[test]
-    fn test_config_3_saves_parameters_correctly(){
+    fn config_test_3_saves_parameters_correctly(){
         let parameters = vec![
             "70015".to_string(),
             "18333".to_string(),
@@ -139,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_4_invalid_ammount_parameters_cannot_create_config(){
+    fn config_test_4_invalid_ammount_parameters_cannot_create_config(){
         let parameters = vec![
             "70015".to_string(),
             "53".to_string(),
@@ -151,7 +151,7 @@ mod tests {
     }
     
     #[test]
-    fn test_config_5_invalid_type_for_local_port_parameter_cannot_create_config(){
+    fn config_test_5_invalid_type_for_local_port_parameter_cannot_create_config(){
         let parameters = vec![
             "70015".to_string(),
             "53".to_string(),
@@ -164,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_6_log_file_not_found_from_log_path_parameter_cannot_create_config(){
+    fn config_test_6_log_file_not_found_from_log_path_parameter_cannot_create_config(){
         let parameters = vec![
             "70015".to_string(),
             "53".to_string(),
