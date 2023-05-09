@@ -11,7 +11,7 @@ pub enum BlockChainError {
     ErrorSendingBlockHeader,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct BlockHeader {
     version: i32,
     prev_hash: [u8; 32],

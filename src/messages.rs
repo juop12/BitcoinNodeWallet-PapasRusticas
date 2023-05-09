@@ -489,7 +489,7 @@ const BLOCKHEADERSIZE: usize = 80;
 #[derive(Debug, PartialEq)]
 pub struct BlockHeadersMessage {
     count: Vec<u8>,
-    headers: Vec<BlockHeader>,
+    pub headers: Vec<BlockHeader>,
 }
 
 impl Message for BlockHeadersMessage{
@@ -523,7 +523,7 @@ impl Message for BlockHeadersMessage{
     
     //Gets the header message corresponding to the corresponding message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
-        HeaderMessage::new("headers\0\0", &self.to_bytes())
+        HeaderMessage::new("headers\0\0\0\0\0", &self.to_bytes())
     }
 } 
 
@@ -537,11 +537,6 @@ impl BlockHeadersMessage{
             headers,
         }
     }
-    /*
-    pub struct BlockHeadersMessage {
-        count: Vec<u8>,
-        headers: Vec<BlockHeader>,
-    }*/
 
     fn _from_bytes(slice: &mut [u8]) -> Option<BlockHeadersMessage> {
         let (count, amount_of_bytes) = calculate_variable_length_integer(&slice);
@@ -565,27 +560,6 @@ impl BlockHeadersMessage{
         }
         Some(BlockHeadersMessage::new(headers))
     }
-
-
-    pub fn collect_in_vector(&self, blocks_headers: &Vec<BlockHeader>) -> Result<(), MessageError> {
-        todo!();
-        /*
-        self.headers.iter().for_each( |block_header| {
-            let bh = match BlockHeader::from_bytes(block_header.as_mut_slice()) {
-                Ok(bh) => bh,
-                Err(_) => return (),
-            };
-
-            blocks_headers.push(bh);
-        });
-        
-        Ok(());
-        */
-    }
-    /* 
-    pub fn get_count(&self) -> Vec<u8> {
-        self.count
-    }*/
 }
 
 //====================================================================================
