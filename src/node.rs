@@ -1,7 +1,5 @@
 use bitcoin_hashes::{sha256d, Hash};
-
 use crate::blockchain::*;
-
 use crate::messages::*;
 use crate::config::*;
 use std::{
@@ -299,7 +297,7 @@ impl Node {
     }
     */
 
-    fn IBD_receive_headers_message<T: Read + Write> (&self, mut stream: T) -> Result<BlockHeadersMessage, NodeError>{
+    fn ibd_receive_headers_message<T: Read + Write> (&self, mut stream: T) -> Result<BlockHeadersMessage, NodeError>{
         let block_headers_msg_h = self.receive_message_header(&mut stream)?;
         
         let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
@@ -332,7 +330,7 @@ impl Node {
         GetBlockHeadersMessage::new(version, block_header_hashes, stopping_hash)
     }
 
-    fn IBD_send_get_block_headers_message<T: Read + Write>(
+    fn ibd_send_get_block_headers_message<T: Read + Write>(
         &self,
         last_hash: [u8; 32],
         stream: &mut T,
@@ -355,9 +353,9 @@ impl Node {
 
         while quantity_received == 2000{
             
-            self.IBD_send_get_block_headers_message(last_hash, &mut sync_node)?;
+            self.ibd_send_get_block_headers_message(last_hash, &mut sync_node)?;
 
-            let block_headers_msg = match self.IBD_receive_headers_message(&mut sync_node,){
+            let block_headers_msg = match self.ibd_receive_headers_message(&mut sync_node,){
                 Ok(mensaje) => mensaje,
                 Err(_) => continue, 
             };
@@ -512,7 +510,7 @@ mod tests {
     }
     
     #[test]
-    fn test_IBD_1_send_get_block_headers_message() -> Result<(), NodeError>{
+    fn test_ibd_1_send_get_block_headers_message() -> Result<(), NodeError>{
         let mut stream = MockTcpStream::new();
         let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
         let expected_message = node.create_get_block_header_message(HASHEDGENESISBLOCK);
@@ -520,14 +518,14 @@ mod tests {
         let mut expected_bytes = expected_hm.to_bytes();
         expected_bytes.extend(expected_message.to_bytes());
 
-        node.IBD_send_get_block_headers_message(HASHEDGENESISBLOCK, &mut stream);
+        node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, &mut stream)?;
         
         assert_eq!(stream.write_buffer, expected_bytes);
         Ok(())
     }
 
     #[test]
-    fn test_IBD_2_receive_block_headers() -> Result<(), NodeError> {
+    fn test_ibd_2_receive_block_headers() -> Result<(), NodeError> {
         let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
         let mut stream = MockTcpStream::new();
 
@@ -545,7 +543,7 @@ mod tests {
         stream.read_buffer = expected_hm.to_bytes();
         stream.read_buffer.extend(expected_message.to_bytes());
         
-        let received_message = node.IBD_receive_headers_message(stream)?;
+        let received_message = node.ibd_receive_headers_message(stream)?;
         assert_eq!(received_message.to_bytes(), expected_message.to_bytes());
         Ok(())
     }

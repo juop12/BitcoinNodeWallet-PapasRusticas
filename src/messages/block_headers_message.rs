@@ -2,7 +2,7 @@ use super::util::*;
 use crate::blockchain::*;
 
 
-const BLOCKHEADERSIZE: usize = 80;
+const BLOCKHEADER_SIZE: usize = 80;
 const BLOCKHEADERS_MSG_NAME: &str = "headers\0\0\0\0\0";
 
 
@@ -70,11 +70,11 @@ impl BlockHeadersMessage{
         }*/
         
         let mut headers :Vec<BlockHeader> = Vec::new();
-        let first_header_position = count.len();
+        //let first_header_position = count.len();
 
         let mut i = count.len();
         while i < slice.len(){
-            let mut block_headers_bytes = Vec::from(&slice[(i)..(i + 80)]);
+            let mut block_headers_bytes = Vec::from(&slice[(i)..(i + BLOCKHEADER_SIZE)]);
             let bloc_header = BlockHeader::from_bytes(&mut block_headers_bytes).ok()?;
             headers.push(bloc_header);
             i += 80;

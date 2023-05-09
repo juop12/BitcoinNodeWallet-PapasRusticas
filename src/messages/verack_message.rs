@@ -68,10 +68,10 @@ mod tests {
 
     #[test]
     fn test_send_to_3_verack_message() -> Result<(), MessageError> {
-        let ver_ack_msg = VerACKMessage::new()?;
+        let verack_msg = VerACKMessage::new()?;
         let mut stream = MockTcpStream::new();
 
-        ver_ack_msg.send_to(&mut stream)?;
+        verack_msg.send_to(&mut stream)?;
 
         assert_eq!(stream.write_buffer, empty_header_message_expected_bytes());
         Ok(())
@@ -79,35 +79,35 @@ mod tests {
 
     #[test]
     fn test_to_bytes_4_verack_message() -> Result<(), MessageError> {
-        let verack_message = VerACKMessage::new()?;
+        let verack_msg= VerACKMessage::new()?;
 
-        let verack_message_bytes = verack_message.to_bytes();
+        let verack_msg_bytes = verack_msg.to_bytes();
 
-        assert_eq!(verack_message_bytes, Vec::new());
+        assert_eq!(verack_msg_bytes, Vec::new());
         Ok(())
     }
 
     #[test]
     fn test_from_bytes_5_verack_message_from_empty_slice() -> Result<(), MessageError> {
-        let expected_verack_message = VerACKMessage::new()?;
+        let expected_verack_msg = VerACKMessage::new()?;
 
-        let verack_message =
-            VerACKMessage::from_bytes(&mut expected_verack_message.to_bytes().as_mut_slice())?;
+        let verack_msg =
+            VerACKMessage::from_bytes(&mut expected_verack_msg.to_bytes().as_mut_slice())?;
 
-        assert_eq!(verack_message, expected_verack_message);
+        assert_eq!(verack_msg, expected_verack_msg);
         Ok(())
     }
 
     #[test]
     fn test_from_bytes_6_verack_message_from_non_empty_slice() -> Result<(), MessageError> {
-        let expected_verack_message = VerACKMessage::new()?;
-        let mut expected_bytes = expected_verack_message.to_bytes();
+        let expected_verack_msg = VerACKMessage::new()?;
+        let mut expected_bytes = expected_verack_msg.to_bytes();
         expected_bytes.extend(vec![1, 2, 3, 4]);
 
-        let verack_message =
+        let verack_msg =
             VerACKMessage::from_bytes(&mut expected_bytes.as_mut_slice()).unwrap_err();
 
-        assert_eq!(verack_message, MessageError::ErrorCreatingVerAckMessage);
+        assert_eq!(verack_msg, MessageError::ErrorCreatingVerAckMessage);
         Ok(())
     }
 

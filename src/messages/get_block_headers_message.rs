@@ -1,7 +1,7 @@
 use super::util::*;
 
 
-const MAX_HASH_COUNT_SIZE: u64 = 0x02000000;
+//const MAX_HASH_COUNT_SIZE: u64 = 0x02000000;
 const GET_BLOCK_HEADERS_MSG_NAME: &str = "getheaders\0\0";
 
 
@@ -86,7 +86,7 @@ impl GetBlockHeadersMessage{
         let stopping_hash_length = slice.len() - 32;
         
         let version = u32::from_le_bytes(slice[0..4].try_into().ok()?);
-        let block_header_hashes_bytes = Vec::from(&slice[(4 + cant_bytes)..stopping_hash_length]);
+        //let block_header_hashes_bytes = Vec::from(&slice[(4 + cant_bytes)..stopping_hash_length]);
         
         let mut aux = 4 + cant_bytes;
         let mut block_header_hashes :Vec<[u8;32]> = Vec::new();
