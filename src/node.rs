@@ -3,17 +3,14 @@ use bitcoin_hashes::{sha256d, Hash};
 use crate::blockchain::*;
 
 use crate::messages::*;
+use crate::config::*;
 use std::{
     io::{Read, Write},
     net::{SocketAddr, TcpStream, ToSocketAddrs},
 };
 
 // use messages::VersionMessage;
-const VERSION: i32 = 70015;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
-const DNS_PORT: u16 = 18333;
-const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
-const LOCAL_PORT: u16 = 1001;
 const MESSAGE_HEADER_SIZE: usize = 24;
 const BLOCK_HEADER_SIZE: usize = 80;
 const HASHEDGENESISBLOCK: [u8; 32] = [
@@ -53,10 +50,10 @@ pub struct Node {
 impl Node {
 
     /// It creates and returns a Node with the default values
-    fn _new() -> Node {
+    fn _new(version: i32, local_host: [u8; 4], local_port: u16) -> Node {
         Node {
-            version: VERSION,
-            sender_address: SocketAddr::from((LOCAL_HOST, LOCAL_PORT)),
+            version,
+            sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
             blockchain: None,
         }
@@ -65,9 +62,11 @@ impl Node {
     /// Node constructor, it creates a new node and performs the handshake with the sockets obtained
     /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
     /// tcp_streams vector. Returns the node
-    pub fn new() -> Node {
-        let mut node = Node::_new();
-        let address_vector = node.peer_discovery(DNS_ADDRESS);
+    pub fn new(config: Config) -> Node {
+
+        let mut node = Node::_new(config.version, config.local_host, config.local_port);
+        let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
+        
         for addr in address_vector {
             if let Ok(tcp_stream) = node.handshake(addr) {
                 node.tcp_streams.push(tcp_stream)
@@ -85,9 +84,10 @@ impl Node {
     /// returned by the dns. If an error occured (for example, the dns address is not valid), it
     /// returns an empty Vector.
     /// The socket address requires a dns and a DNS_PORT, which is set to 53 by default
-    fn peer_discovery(&self, dns: &str) -> Vec<SocketAddr> {
+    fn peer_discovery(&self, dns: &str, dns_port: u16) -> Vec<SocketAddr> {
         let mut socket_address_vector = Vec::new();
-        if let Ok(address_iter) = (dns, DNS_PORT).to_socket_addrs() {
+
+        if let Ok(address_iter) = (dns, dns_port).to_socket_addrs() {
             for address in address_iter {
                 socket_address_vector.push(address);
             }
@@ -384,19 +384,34 @@ mod tests {
     use crate::mock_tcp_stream::*;
     use bitcoin_hashes::{sha256d, Hash};
 
+    const VERSION: i32 = 70015;
+    const DNS_PORT: u16 = 18333;
+    const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
+    const LOCAL_PORT: u16 = 1001;
+
     //test peer_discovery
 
     #[test]
-    fn test_1_peer_discovery_fails_when_receiving_invalid_dns() {
-        let node = Node::_new();
-        let address_vector = node.peer_discovery("does_not_exist");
+    fn test_1_peer_discovery_fails_when_receiving_invalid_dns_address() {
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+        let address_vector = node.peer_discovery("does_not_exist", DNS_PORT);
         assert!(address_vector.is_empty());
     }
 
+    /*
+    #[test]
+    fn test_2_peer_discovery_fails_when_receiving_invalid_dns_port() {
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+        let invalid_dns_port = 53;
+        let address_vector = node.peer_discovery(DNS_ADDRESS, invalid_dns_port);
+        assert!(address_vector.is_empty());
+    }
+    */
+    
     #[test]
     fn test_2_peer_discovery_returns_ip_vector_when_receiving_valid_dns() {
-        let node = Node::_new();
-        let address_vector = node.peer_discovery(DNS_ADDRESS);
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+        let address_vector = node.peer_discovery(DNS_ADDRESS, DNS_PORT);
         assert!(!address_vector.is_empty());
     }
 
@@ -405,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_handshake_1_send_version_message() -> Result<(), NodeError> {
-        let node = Node::_new();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
         let mut stream = MockTcpStream::new();
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
         let expected_vm =
@@ -442,7 +457,7 @@ mod tests {
 
     #[test]
     fn test_handshake_2_receive_header_message() -> Result<(), NodeError> {
-        let node = Node::_new();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
         let mut stream = MockTcpStream::new();
         let expected_hm =
             HeaderMessage::new("test message", &Vec::from("test".as_bytes())).unwrap();
@@ -455,7 +470,7 @@ mod tests {
 
     #[test]
     fn test_handshake_3_receive_version_message() -> Result<(), NodeError> {
-        let node = Node::_new();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
         let mut stream = MockTcpStream::new();
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
         let expected_vm =
@@ -471,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_handshake_4_send_verack_message() -> Result<(), NodeError> {
-        let node = Node::_new();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
         let mut stream = MockTcpStream::new();
         let expected_ver_ack_message = VerACKMessage::new().unwrap();
         let ver_ack_header = expected_ver_ack_message.get_header_message().unwrap();
@@ -485,7 +500,7 @@ mod tests {
 
     #[test]
     fn test_handshake_5_receive_verack_message() -> Result<(), NodeError> {
-        let node = Node::_new();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
         let mut stream = MockTcpStream::new();
         let expected_ver_ack_message = VerACKMessage::new().unwrap();
         let ver_ack_header = expected_ver_ack_message.get_header_message().unwrap();
