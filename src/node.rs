@@ -514,7 +514,7 @@ mod tests {
     #[test]
     fn test_IBD_1_send_get_block_headers_message() -> Result<(), NodeError>{
         let mut stream = MockTcpStream::new();
-        let node = Node::_new();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
         let expected_message = node.create_get_block_header_message(HASHEDGENESISBLOCK);
         let expected_hm = expected_message.get_header_message().unwrap();
         let mut expected_bytes = expected_hm.to_bytes();
@@ -528,7 +528,7 @@ mod tests {
 
     #[test]
     fn test_IBD_2_receive_block_headers() -> Result<(), NodeError> {
-        let node = Node::_new();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
         let mut stream = MockTcpStream::new();
 
         let hash1 :[u8;32] = *sha256d::Hash::hash(b"test1").as_byte_array();
