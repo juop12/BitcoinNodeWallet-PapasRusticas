@@ -1,9 +1,11 @@
 use chrono::Utc;
 use rand::prelude::*;
+use crate::blockchain::*;
 use std::{
     io::{Read, Write},
     net::{IpAddr, SocketAddr},
-};
+}; 
+
 
 use bitcoin_hashes::{sha256d, Hash};
 
@@ -12,6 +14,9 @@ const START_STRING_TEST_NET: [u8; 4] = [0x0b, 0x11, 0x09, 0x07];
 const MESAGE_HEADER_SIZE: usize = 24;
 const MINIMAL_VERSION_MESSAGE_SIZE: usize = 86;
 const COMMAND_NAME_ERROR: &str = "\0\0\0\0\0\0\0\0\0\0\0\0";
+
+//====================================================================================
+//====================================================================================
 
 #[derive(Debug, PartialEq)]
 /// Error Struct for messages, contains customized errors for each type of message (excluding
@@ -24,7 +29,14 @@ pub enum MessageError {
     ErrorSendingHeaderMessage,
     ErrorCreatingVerAckMessage,
     ErrorSendingVerAckMessage,
+    ErrorCreatingGetBlockHeadersMessage,
+    ErrorSendingGetBlockHeadersMessage,
+    ErrorCreatingBlockHeadersMessage,
+    ErrorHeadersBlockMessage,
 }
+
+//====================================================================================
+//====================================================================================
 
 #[derive(Debug, PartialEq)]
 /// Contains all necessary fields, for sending a version message needed for doing a handshake among nodes
@@ -45,11 +57,13 @@ pub struct VersionMessage {
     relay: u8,
 }
 
-/// Gets the user agent lenght based on the bytes of the slice. The size depends on waht the
+//Hacer refactor para que verifique que recibio la cantidad de datos que corresponde. Ya sea chequeandolo aca o devolviendo la cantidad
+
+/// Gets the variable lenght based on the bytes of the slice. The size depends on what the
 /// position 0 of the slice is, based on that it can be 1, 3, 5 or 9 bytes long.
-/// Returns a tuple with the user agent length and the amount of bytes that it has
-fn get_user_agent_length(slice: &[u8]) -> (Vec<u8>, usize) {
-    let mut user_agent_length = Vec::new();
+/// Returns a tuple with the variable length and the amount of bytes that it has
+fn calculate_variable_length_integer(slice: &[u8]) -> (Vec<u8>, usize) {
+    let mut length = Vec::new();
     let mut amount_of_bytes = 1;
     if slice[0] == 0xfd {
         amount_of_bytes = 3;
@@ -61,9 +75,9 @@ fn get_user_agent_length(slice: &[u8]) -> (Vec<u8>, usize) {
         amount_of_bytes = 9;
     }
     for i in slice.iter().take(amount_of_bytes) {
-        user_agent_length.push(*i);
+        length.push(*i);
     }
-    (user_agent_length, amount_of_bytes)
+    (length, amount_of_bytes)
 }
 
 impl Message for VersionMessage {
@@ -114,6 +128,7 @@ impl Message for VersionMessage {
         if slice.len() < MINIMAL_VERSION_MESSAGE_SIZE {
             return Err(MessageError::ErrorCreatingVersionMessage);
         }
+
         match Self::_from_bytes(slice) {
             Some(version_message) => Ok(version_message),
             None => Err(MessageError::ErrorCreatingVersionMessage),
@@ -126,7 +141,7 @@ impl Message for VersionMessage {
 }
 
 impl VersionMessage {
-    /// Constructor for the struct VersionMessage, receives a version and a reciever address (which
+    /// Constructor for the struct VersionMessage, receives a version and a receiver address (which
     /// includes both the ip and port) and returns an instance of a VersionMessage with all its
     /// necesary attributes initialized, the optional ones are left in blank
     pub fn new(
@@ -169,7 +184,10 @@ impl VersionMessage {
     /// returns an Option with either a VersionMessage if everything went Ok or None if any step
     /// in the middle of the conversion from bytes to VersionMessage fields failed.
     fn _from_bytes(slice: &mut [u8]) -> Option<VersionMessage> {
-        let (user_agent_length, cant_bytes) = get_user_agent_length(&slice[80..]);
+        if slice[80..].len() <= 0{
+            return None;
+        }
+        let (user_agent_length, cant_bytes) = calculate_variable_length_integer(&slice[80..]);
 
         let version_message = VersionMessage {
             version: i32::from_le_bytes(slice[0..4].try_into().ok()?),
@@ -195,7 +213,11 @@ impl VersionMessage {
     }
 }
 
-/// Contains all necessary fields for the HeaderMessage to work properly
+//====================================================================================
+//====================================================================================
+
+
+/// Struct that represents a header message in the bitcoin protocol
 #[derive(Debug, PartialEq, Clone)]
 pub struct HeaderMessage {
     start_string: [u8; 4],
@@ -206,9 +228,10 @@ pub struct HeaderMessage {
 
 impl Message for HeaderMessage {
     type MessageType = HeaderMessage;
+
     /// Sends a header message trough the tcp_stream
-    fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError> {
-        match reciever_stream.write(self.to_bytes().as_slice()) {
+    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
+        match receiver_stream.write(self.to_bytes().as_slice()) {
             Ok(_) => Ok(()),
             Err(_) => Err(MessageError::ErrorSendingHeaderMessage),
         }
@@ -241,10 +264,10 @@ impl Message for HeaderMessage {
         Ok(self.clone())
     }
 }
-/// Constructor for the struct HeaderMessage, receives a command name and a payload size and returns
-/// an instance of a HeaderMessage with all its necesary attributes initialized, according to the
-/// p2p bitcoing protocol
+
 impl HeaderMessage {
+    /// Receives a command name and a payload size and returns an instance of a HeaderMessage with
+    /// all its necesary attributes initialized, according to the p2p bitcoin protocol
     pub fn new(command_name: &str, payload: &Vec<u8>) -> Result<HeaderMessage, MessageError> {
         if command_name.len() > 12 {
             return Err(MessageError::ErrorCreatingHeaderMessage);
@@ -254,6 +277,7 @@ impl HeaderMessage {
         while command_bytes.len() < 12 {
             command_bytes.push(0);
         }
+        
         let mut command_bytes_fixed_size = [0u8; 12];
         command_bytes_fixed_size.copy_from_slice(command_bytes.as_slice());
         //let payload_size = size_of_val(payload.as_slice()) as u32;
@@ -276,10 +300,12 @@ impl HeaderMessage {
         Ok(header_message)
     }
 
+    /// Returns the payload size of the header message
     pub fn get_payload_size(&self) -> u32 {
         self.payload_size
     }
 
+    /// Returns the command name of the header message
     pub fn get_command_name(&self) -> String {
         match String::from_utf8(Vec::from(self.command_name)) {
             Ok(string) => string,
@@ -295,6 +321,7 @@ impl HeaderMessage {
         let command_name = slice[4..16].try_into().ok()?;
         let payload_size = u32::from_le_bytes(slice[16..20].try_into().ok()?);
         let checksum = slice[20..24].try_into().ok()?;
+
         Some(HeaderMessage {
             start_string,
             command_name,
@@ -304,6 +331,9 @@ impl HeaderMessage {
     }
 }
 
+//====================================================================================
+//====================================================================================
+
 /// Message used to acknoledge 2 nodes have sent Version Messages.
 #[derive(Debug, PartialEq)]
 pub struct VerACKMessage {}
@@ -312,9 +342,9 @@ impl Message for VerACKMessage {
     type MessageType = VerACKMessage;
     /// Implements the trait send_to for VerACKMessage, sends a VerACKMessage trough the tcp_stream,
     /// returns an error if the message could not be sent.
-    fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError> {
+    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
         let header_message = self.get_header_message()?;
-        header_message.send_to(reciever_stream)
+        header_message.send_to(receiver_stream)
     }
     /// Returns an empty vector of bytes, since the VerACKMessage has no payload.
     fn to_bytes(&self) -> Vec<u8> {
@@ -329,6 +359,7 @@ impl Message for VerACKMessage {
         Ok(VerACKMessage {})
     }
 
+    /// Returns a copy of the header message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError> {
         HeaderMessage::new("verack\0\0\0\0\0\0", &self.to_bytes())
     }
@@ -341,11 +372,204 @@ impl VerACKMessage {
     }
 }
 
+//====================================================================================
+//====================================================================================
+
+const MAX_HASH_COUNT_SIZE: u64 = 0x02000000;
+#[derive(Debug, PartialEq)]
+/// Message used to request a block header from a node.
+pub struct GetBlockHeadersMessage {
+    version: u32,
+    hash_count: Vec<u8>, //Que pasa si es 0?
+    block_header_hashes: Vec<[u8; 32]>, //Que pasa si su cantidad es distinta de hash_count?
+    stopping_hash: [u8; 32],
+}
+
+impl Message for GetBlockHeadersMessage{
+
+    type MessageType = GetBlockHeadersMessage;
+    
+    /// Sends a HeaderMessage and a GetBlockHeadersMessage through the tcp_stream. On success,
+    /// returns (), otherwise returns an error.
+    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
+        let header_message = self.get_header_message()?;
+        header_message.send_to(receiver_stream)?;
+
+        match receiver_stream.write(self.to_bytes().as_slice()) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(MessageError::ErrorSendingGetBlockHeadersMessage),
+       }
+    }
+
+    //transforms the message to bytes, usig the p2p bitcoin protocol
+    fn to_bytes(&self) -> Vec<u8>{
+        let mut bytes_vector = Vec::new();
+        bytes_vector.extend_from_slice(&self.version.to_le_bytes());
+        //println!("\n\n\n{:?}\n\n\n\n", self.hash_count);
+
+        bytes_vector.extend(&self.hash_count);
+
+        for i in 0..self.block_header_hashes.len(){
+            bytes_vector.extend(&self.block_header_hashes[i as usize]);
+        }
+
+        bytes_vector.extend_from_slice(&self.stopping_hash);
+        bytes_vector
+    }
+
+    //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
+    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
+        if slice.len() <= 0{
+            return Err(MessageError::ErrorCreatingGetBlockHeadersMessage);
+        }
+        
+        //checkear el tamaño max de la tira de bytes.
+        match Self::_from_bytes(slice) {
+            Some(get_header_message) => Ok(get_header_message),
+            None => Err(MessageError::ErrorCreatingGetBlockHeadersMessage),
+        }
+    }
+    
+    //Gets the header message corresponding to the corresponding message
+    fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
+        HeaderMessage::new("getheaders\0\0", &self.to_bytes())
+    }
+} 
+
+impl GetBlockHeadersMessage{
+
+    /// Rreturns an instance of a GetBlockHeadersMessage
+    pub fn new(version: u32, block_header_hashes: Vec<[u8;32]>, stopping_hash: [u8; 32]) -> GetBlockHeadersMessage{
+        let mut hash_count = Vec::new();
+        hash_count.push(block_header_hashes.len() as u8); //suponemos que nuca vamos a querer mas de 253 sin incluir
+        GetBlockHeadersMessage{
+            version,
+            hash_count, 
+            block_header_hashes,
+            stopping_hash,
+        }
+    }
+
+    /// Receives a slice of bytes and returns a GetBlockHeadersMessage. If anything fails, None
+    /// is returned.
+    fn _from_bytes(slice: &mut [u8]) -> Option<GetBlockHeadersMessage> {
+        
+        let (hash_count, cant_bytes) = calculate_variable_length_integer(&slice[4..]);
+        let stopping_hash_length = slice.len() - 32;
+        
+        let version = u32::from_le_bytes(slice[0..4].try_into().ok()?);
+        let block_header_hashes_bytes = Vec::from(&slice[(4 + cant_bytes)..stopping_hash_length]);
+        
+        let mut aux = 4 + cant_bytes;
+        let mut block_header_hashes :Vec<[u8;32]> = Vec::new();
+        while aux < stopping_hash_length{
+            let a :[u8;32] = slice[aux..(aux+32)].try_into().ok()?;
+            block_header_hashes.push(a);
+            aux += 32;
+        }
+        
+        //p no hay que chequear que sea 0?
+        let stopping_hash = slice[stopping_hash_length..].try_into().ok()?;
+
+        Some(GetBlockHeadersMessage{
+            version,
+            hash_count,
+            block_header_hashes,
+            stopping_hash,
+        })
+    }
+}
+
+//====================================================================================
+//====================================================================================
+
+const BLOCKHEADERSIZE: usize = 80;
+
+/// The BlockHeader struct represents a block header in the Bitcoin network.
+#[derive(Debug, PartialEq)]
+pub struct BlockHeadersMessage {
+    pub count: Vec<u8>,
+    pub headers: Vec<BlockHeader>,
+}
+
+impl Message for BlockHeadersMessage{
+
+    type MessageType = BlockHeadersMessage;
+    
+    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
+        todo!()
+    }
+    
+    //transforms the message to bytes, usig the p2p bitcoin protocol
+    fn to_bytes(&self) -> Vec<u8>{
+        let mut bytes_vector = self.count.clone();
+        for header in &self.headers{
+            bytes_vector.extend(header.to_bytes());
+        }
+        bytes_vector
+    }
+
+    //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
+    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
+            if slice.len() <= 0{
+                return Err(MessageError::ErrorCreatingBlockHeadersMessage);
+            }
+        
+            match Self::_from_bytes(slice) {
+                Some(get_header_message) => Ok(get_header_message),
+                None => Err(MessageError::ErrorCreatingBlockHeadersMessage),
+            }
+    }
+    
+    //Gets the header message corresponding to the corresponding message
+    fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
+        HeaderMessage::new("headers\0\0\0\0\0", &self.to_bytes())
+    }
+} 
+
+impl BlockHeadersMessage{
+
+    pub fn new(headers: Vec<BlockHeader>) -> BlockHeadersMessage{
+        let mut count = Vec::new();
+        count.push(headers.len() as u8); //estamos asumiendo que solo van de 253 a menor
+        BlockHeadersMessage{
+            count,
+            headers,
+        }
+    }
+
+    fn _from_bytes(slice: &mut [u8]) -> Option<BlockHeadersMessage> {
+        let (count, amount_of_bytes) = calculate_variable_length_integer(&slice);
+        
+        /* 
+        if (amount_of_headers * 80 + count.len()) != slice.len(){
+            let a =  amount_of_headers * 80 + count.len();
+            let b = slice.len();
+            return None;
+        }*/
+        
+        let mut headers :Vec<BlockHeader> = Vec::new();
+        let first_header_position = count.len();
+
+        let mut i = count.len();
+        while i < slice.len(){
+            let mut block_headers_bytes = Vec::from(&slice[(i)..(i + 80)]);
+            let bloc_header = BlockHeader::from_bytes(&mut block_headers_bytes).ok()?;
+            headers.push(bloc_header);
+            i += 80;
+        }
+        Some(BlockHeadersMessage::new(headers))
+    }
+}
+
+//====================================================================================
+//====================================================================================
+
 //Hacer un wrapper para send to,cosa de que solo se pueda mandar un tcpStream?
 pub trait Message {
     type MessageType;
-    //Writes the message as bytes in the reciever_stream
-    fn send_to<T: Read + Write>(&self, reciever_stream: &mut T) -> Result<(), MessageError>;
+    //Writes the message as bytes in the receiver_stream
+    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>;
 
     //transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>;
@@ -356,6 +580,9 @@ pub trait Message {
     //Gets the header message corresponding to the corresponding message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>;
 }
+
+//====================================================================================
+//====================================================================================
 
 #[cfg(test)]
 mod tests {
@@ -424,6 +651,31 @@ mod tests {
         bytes_vector
     }
 
+    fn get_block_headers_message_expected_bytes() -> Vec <u8> {
+        let mut bytes_vector = Vec::new();
+        bytes_vector.extend_from_slice(&(70015 as i32).to_le_bytes());
+        bytes_vector.push(1 as u8);
+        bytes_vector.extend_from_slice(sha256d::Hash::hash(b"test").as_byte_array());
+        bytes_vector.extend_from_slice(sha256d::Hash::hash(b"test").as_byte_array());
+        bytes_vector
+    }
+
+    fn block_headers_message_expected_bytes() -> (Vec<u8>, BlockHeader, BlockHeader){
+        let hash1 :[u8;32] = *sha256d::Hash::hash(b"test1").as_byte_array();
+        let hash2 :[u8;32] = *sha256d::Hash::hash(b"test2").as_byte_array();
+        let merkle_hash1 :[u8;32] = *sha256d::Hash::hash(b"test merkle root1").as_byte_array();
+        let merkle_hash2 :[u8;32] = *sha256d::Hash::hash(b"test merkle root2").as_byte_array();
+        
+        let b_h1 = BlockHeader::new(70015, hash1, merkle_hash1); 
+        let b_h2 = BlockHeader::new(70015, hash2, merkle_hash2);
+
+        let mut expected_bytes = Vec::new();
+        expected_bytes.push(2);
+        expected_bytes.extend(b_h1.to_bytes());
+        expected_bytes.extend(b_h2.to_bytes());
+        (expected_bytes, b_h1, b_h2)
+    }
+   
     #[test]
     fn test_to_bytes_1_version_message_without_user_agent() -> Result<(), MessageError> {
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
@@ -465,6 +717,7 @@ mod tests {
         );
         Ok(())
     }
+    
     #[test]
     fn test_to_bytes_4_verack_message() -> Result<(), MessageError> {
         let verack_message = VerACKMessage::new()?;
@@ -474,6 +727,7 @@ mod tests {
         assert_eq!(verack_message_bytes, Vec::new());
         Ok(())
     }
+    
     #[test]
     fn test_to_bytes_5_version_message_with_user_agent() -> Result<(), MessageError> {
         let mut expected_bytes = version_message_with_user_agent_expected_bytes();
@@ -482,6 +736,34 @@ mod tests {
         let version_message_bytes = version_message.to_bytes();
 
         assert_eq!(version_message_bytes, expected_bytes);
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_bytes_6_get_block_headers_message() -> Result<(), MessageError> {
+        let expected_bytes = get_block_headers_message_expected_bytes();
+        let hash :[u8;32] = *sha256d::Hash::hash(b"test").as_byte_array();
+        let mut vec_hash = Vec::new();
+        vec_hash.push(hash);
+        let get_block_headers_message = GetBlockHeadersMessage::new(70015, vec_hash,hash);
+
+        let get_block_headers_message = get_block_headers_message.to_bytes();
+
+        assert_eq!(get_block_headers_message, expected_bytes);
+        Ok(())
+    } 
+
+    #[test]
+    fn test_to_bytes_8_block_headers_message() -> Result<(), MessageError> {
+        
+        let (expected_bytes, b_h1, b_h2) = block_headers_message_expected_bytes();
+        let mut block_headers = Vec::new();
+        block_headers.push(b_h1);
+        block_headers.push(b_h2);
+
+        let block_headers_message = BlockHeadersMessage::new(block_headers);
+
+        assert_eq!(block_headers_message.to_bytes(), expected_bytes);
         Ok(())
     }
 
@@ -520,6 +802,22 @@ mod tests {
         ver_ack_message.send_to(&mut stream)?;
 
         assert_eq!(stream.write_buffer, empty_header_message_expected_bytes());
+        Ok(())
+    }
+
+    #[test]
+    fn test_send_to_4_get_block_headers_message()-> Result<(), MessageError> {
+        let hash :[u8;32] = *sha256d::Hash::hash(b"test").as_byte_array();
+        let mut vec_hash = Vec::new();
+        vec_hash.push(hash);
+        let get_block_headers_message = GetBlockHeadersMessage::new(70015, vec_hash,hash);
+        let mut stream = MockTcpStream::new();
+        let header_message = get_block_headers_message.get_header_message()?;
+        let mut expected_result = header_message.to_bytes();
+        expected_result.extend(get_block_headers_message.to_bytes());
+        get_block_headers_message.send_to(&mut stream)?;
+
+        assert_eq!(stream.write_buffer, expected_result);
         Ok(())
     }
 
@@ -596,5 +894,34 @@ mod tests {
 
         assert_eq!(verack_message, MessageError::ErrorCreatingVerAckMessage);
         Ok(())
+    }
+
+    #[test]
+    fn test_from_bytes_7_get_block_headers_message() -> Result<(), MessageError> {
+        let hash :[u8;32] = *sha256d::Hash::hash(b"test").as_byte_array();
+        let mut vec_hash = Vec::new();
+        vec_hash.push(hash);
+        let expected_get_block_headers_message = GetBlockHeadersMessage::new(70015, vec_hash,hash);
+
+        let  get_block_headers_message=
+        GetBlockHeadersMessage::from_bytes(&mut expected_get_block_headers_message.to_bytes().as_mut_slice())?;
+
+        assert_eq!(get_block_headers_message, expected_get_block_headers_message);
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_bytes_8_block_headers_message() -> Result<(), MessageError> {
+        let (mut expected_bytes, b_h1, b_h2) = block_headers_message_expected_bytes();
+        let mut block_headers = Vec::new();
+        block_headers.push(b_h1);
+        block_headers.push(b_h2);
+
+        let expected_block_headers_message = BlockHeadersMessage::new(block_headers);
+
+        let block_headers_message = BlockHeadersMessage::from_bytes(&mut expected_bytes)?;
+        assert_eq!(block_headers_message, expected_block_headers_message);
+        Ok(())
+
     }
 }
