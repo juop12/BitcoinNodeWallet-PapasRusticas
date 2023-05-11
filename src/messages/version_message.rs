@@ -137,7 +137,7 @@ impl VersionMessage {
         if slice[80..].len() <= 0{
             return None;
         }
-        let (user_agent_length, cant_bytes) = calculate_variable_length_integer(&slice[80..]);
+        let (user_agent_length, cant_bytes, value) = calculate_variable_length_integer(&slice[80..]);
 
         let version_msg = VersionMessage {
             version: i32::from_le_bytes(slice[0..4].try_into().ok()?),

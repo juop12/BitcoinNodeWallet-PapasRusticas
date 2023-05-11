@@ -82,7 +82,7 @@ impl GetBlockHeadersMessage{
     /// is returned.
     fn _from_bytes(slice: &mut [u8]) -> Option<GetBlockHeadersMessage> {
         
-        let (hash_count, cant_bytes) = calculate_variable_length_integer(&slice[4..]);
+        let (hash_count, cant_bytes, value) = calculate_variable_length_integer(&slice[4..]);
         let stopping_hash_length = slice.len() - 32;
         
         let version = u32::from_le_bytes(slice[0..4].try_into().ok()?);

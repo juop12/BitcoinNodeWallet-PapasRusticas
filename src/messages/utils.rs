@@ -16,6 +16,7 @@ pub enum MessageError {
     ErrorSendingGetBlockHeadersMessage,
     ErrorCreatingBlockHeadersMessage,
     ErrorHeadersBlockMessage,
+    ErrorCreatingGetData
 }
 
 //Hacer un wrapper para send to,cosa de que solo se pueda mandar un tcpStream?
@@ -37,20 +38,36 @@ pub trait Message {
 /// Gets the variable lenght based on the bytes of the slice. The size depends on what the
 /// position 0 of the slice is, based on that it can be 1, 3, 5 or 9 bytes long.
 /// Returns a tuple with the variable length and the amount of bytes that it has
-pub fn calculate_variable_length_integer(slice: &[u8]) -> (Vec<u8>, usize) {
-    let mut length = Vec::new();
+pub fn calculate_variable_length_integer(slice: &[u8]) -> (Vec<u8>, usize, usize) {
+    let mut count = Vec::new();
     let mut amount_of_bytes = 1;
+    let mut value :usize = slice[0] as usize;
+
     if slice[0] == 0xfd {
         amount_of_bytes = 3;
+        let array: [u8; 2] = [slice[1], slice[2]];
+        value = u16::from_le_bytes(array) as usize;
     }
     if slice[0] == 0xfe {
         amount_of_bytes = 5;
+        let mut array: [u8; 4] = [0_u8; 4];
+        for i in 0..(amount_of_bytes - 1){
+            array[i] = slice[i+1];
+        }
+        value = u32::from_le_bytes(array) as usize;
     }
     if slice[0] == 0xff {
         amount_of_bytes = 9;
+        let mut array: [u8; 8] = [0_u8; 8];
+        for i in 0..(amount_of_bytes - 1){
+            array[i] = slice[i+1];
+        }
+        value = u64::from_le_bytes(array) as usize;
     }
+
     for i in slice.iter().take(amount_of_bytes) {
-        length.push(*i);
+        count.push(*i);
     }
-    (length, amount_of_bytes)
+
+    (count, amount_of_bytes, value)
 }

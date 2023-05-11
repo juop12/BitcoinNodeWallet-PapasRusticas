@@ -26,10 +26,10 @@ mod test {
             local_port: 1001,
             log_path: String::from("src/node_log.txt"),
         };
-        let node = Node::new(config);
+        let mut node = Node::new(config);
         //let mut j = 0;
         let aux = node.get_tcp_streams();
-        match node.initial_block_download(&aux[1]){
+        match node.initial_block_download(){
             Ok(_) => {
                 return Ok(());
             },
