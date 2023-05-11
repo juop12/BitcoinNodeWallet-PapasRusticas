@@ -1,5 +1,6 @@
 use crate::node::*;
 use bitcoin_hashes::{sha256d, Hash};
+use std::{io::{BufRead, BufReader}, fs::File, path::Path};
 
 const HASHEDGENESISBLOCK: [u8; 32] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
@@ -71,11 +72,41 @@ impl Node {
 
         match block_headers_msg_h.get_command_name().as_str(){
             "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, sync_node_index)?,
+            "block\0\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
             _ => {},
         }
 
         Ok(block_headers_msg_h.get_command_name())
 
+    }
+
+    //works for <253 hashes
+    fn send_get_data_message_for_block(&self, hashes :Vec<[u8; 32]>, sync_node_index: usize)->Result<(), NodeError>{
+        let get_data_message = GetDataMessage::new(hashes, vec![hashes.len() as u8]);
+        
+        let mut stream = &self.tcp_streams[sync_node_index];
+        
+        match get_data_message.send_to(&mut stream) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(NodeError::ErrorSendingMessageInIBD),
+        }
+    }
+
+    fn handle_block_message(&mut self, mut msg_bytes :Vec<u8>)-> Result<(), NodeError>{
+
+        let block_msg = match BlockMessage::from_bytes(&mut msg_bytes){
+            Ok(block_message) => block_message,
+            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
+        };
+        let blocks_file = Self::_open_blocks_handler("blocks.csv");
+
+    }
+
+    fn _open_blocks_handler(path: &str) -> Result<File, ConfigError> {
+        match File::open(path){
+            Ok(file)=> Ok(file),
+            Err(_) => Err(ConfigError::ErrorReadingFile),
+        }
     }
 
     pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
@@ -89,8 +120,12 @@ impl Node {
             if self.receive_message(sync_node_index)? == "headers\0\0\0\0\0"{
                 headers_received += 2000;
             }
+            //validar que el header del bloque diga que es de la fecha de la consigna en adelante (modificar config)
+            //descargar bloques validos (aplicar concurrencia)
             println!("# de headers = {headers_received}");
         }
+
+        
         println!("# de headers = {headers_received}");
         println!("# de headers = {}", self.block_headers.len());
         Ok(())
