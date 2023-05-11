@@ -4,6 +4,7 @@ pub mod handshake;
 use crate::blockchain::*;
 use crate::messages::*;
 use crate::config::*;
+use crate::log::*;
 use std::{
     io::{Read, Write},
     net::{SocketAddr, ToSocketAddrs, TcpStream},
@@ -30,6 +31,25 @@ pub enum NodeError {
     ErrorReceivingHeadersMessageHeaderInIBD,
 }
 
+impl BTCError for NodeError{
+
+    fn decode(&self) -> &str{
+        match self {
+            NodeError::ErrorConnectingToPeer => "",
+            NodeError::ErrorSendingMessageInHandshake => "",
+            NodeError::ErrorReceivingMessageInHandshake => "",
+            NodeError::ErrorReceivedUnknownMessage => "",
+            NodeError::ErrorInterpretingMessageCommandName => "",
+            NodeError::ErrorUnknownCommandName => "",
+            NodeError::ErrorSendingMessageInIBD => "",
+            NodeError::ErrorIteratingStreams => "",
+            NodeError::ErrorReceivingHeadersMessageInIBD => "",
+            NodeError::ErrorReceivingMessageHeader => "", 
+            NodeError::ErrorReceivingHeadersMessageHeaderInIBD => "",
+        }
+    }
+}
+
 
 /// Struct that represents the bitcoin node
 pub struct Node {
@@ -41,20 +61,21 @@ pub struct Node {
 
 impl Node {
     /// It creates and returns a Node with the default values
-    fn _new(version: i32, local_host: [u8; 4], local_port: u16) -> Node {
+    fn _new(version: i32, local_host: [u8; 4], local_port: u16/* , logger: Logger<&str> */) -> Node {
         Node {
             version,
             sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
             blockchain: None,
+            // logger.
         }
     }
 
     /// Node constructor, it creates a new node and performs the handshake with the sockets obtained
     /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
     /// tcp_streams vector. Returns the node
-    pub fn new(config: Config) -> Node {
-        let mut node = Node::_new(config.version, config.local_host, config.local_port);
+    pub fn new(logger: Logger<&str>, config: Config) -> Node {
+        let mut node = Node::_new(config.version, config.local_host, config.local_port/* , logger */);
         let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
         
         for addr in address_vector {
