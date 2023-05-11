@@ -1,6 +1,5 @@
 use crate::node::*;
 
-
 impl Node {
 
     ///Returns a tcp stream representing the conection with the peer, if this fails returns ErrorConnectingToPeer
