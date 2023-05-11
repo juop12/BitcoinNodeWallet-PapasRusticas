@@ -33,8 +33,8 @@ pub enum NodeError {
 
 impl BTCError for NodeError{
 
-    fn decode(&self) -> &str{
-        match self {
+    fn decode(&self) -> String{
+        let message = match self {
             NodeError::ErrorConnectingToPeer => "",
             NodeError::ErrorSendingMessageInHandshake => "",
             NodeError::ErrorReceivingMessageInHandshake => "",
@@ -46,7 +46,9 @@ impl BTCError for NodeError{
             NodeError::ErrorReceivingHeadersMessageInIBD => "",
             NodeError::ErrorReceivingMessageHeader => "", 
             NodeError::ErrorReceivingHeadersMessageHeaderInIBD => "",
-        }
+        };
+
+        message.to_string()
     }
 }
 
@@ -57,25 +59,26 @@ pub struct Node {
     sender_address: SocketAddr,
     tcp_streams: Vec<TcpStream>,
     blockchain: Option<Block>,
+    logger: Logger,
 }
 
 impl Node {
     /// It creates and returns a Node with the default values
-    fn _new(version: i32, local_host: [u8; 4], local_port: u16/* , logger: Logger<&str> */) -> Node {
+    fn _new(version: i32, local_host: [u8; 4], local_port: u16, logger: Logger) -> Node {
         Node {
             version,
             sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
             blockchain: None,
-            // logger.
+            logger,
         }
     }
 
     /// Node constructor, it creates a new node and performs the handshake with the sockets obtained
     /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
     /// tcp_streams vector. Returns the node
-    pub fn new(logger: Logger<&str>, config: Config) -> Node {
-        let mut node = Node::_new(config.version, config.local_host, config.local_port/* , logger */);
+    pub fn new(logger: Logger, config: Config) -> Node {
+        let mut node = Node::_new(config.version, config.local_host, config.local_port, logger);
         let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
         
         for addr in address_vector {
@@ -108,7 +111,7 @@ impl Node {
 
     ///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
     /// On error returns ErrorReceivingMessage
-    pub fn receive_message_header<T: Read + Write>(&self, mut stream: T,) -> Result<HeaderMessage, NodeError> {
+    pub fn receive_message_header<T: Read + Write>(&self, mut stream: T) -> Result<HeaderMessage, NodeError> {
         let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
         if let Err(_) = stream.read_exact(&mut header_bytes) {
             return Err(NodeError::ErrorReceivingMessageHeader);
@@ -170,7 +173,8 @@ mod tests {
 
     #[test]
     fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address() {
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+        //let logger = Logger::from_path("log_file.txt").unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
         let address_vector = node.peer_discovery("does_not_exist", DNS_PORT);
 
         assert!(address_vector.is_empty());
