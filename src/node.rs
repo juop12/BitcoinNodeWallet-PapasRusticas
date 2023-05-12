@@ -91,7 +91,8 @@ impl Node {
     /// On error returns ErrorReceivingMessage
     pub fn receive_message_header<T: Read + Write>(&self, mut stream: T,) -> Result<HeaderMessage, NodeError> {
         let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
-        if let Err(_) = stream.read_exact(&mut header_bytes) {
+        if let Err(error) = stream.read_exact(&mut header_bytes){
+            println!("ENTRO ACA, {}", error);
             return Err(NodeError::ErrorReceivingMessageHeader);
         };
     

@@ -1,7 +1,7 @@
 use super::utils::*;
 use crate::messages::*;
 
-const BLOCK_IDENTIFIER: [u8; 4] = [0x00, 0x00, 0x00, 0x02];
+const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 
 fn as_block_element(hash: [u8;32]) -> [u8;36]{
     let mut block_element = [0;36];
@@ -51,8 +51,8 @@ impl Message for GetDataMessage{
         let mut bytes_vector = Vec::new();
         bytes_vector.extend(&self.count);
        
-        for element in &self.inventory {
-            bytes_vector.extend(element);
+        for i in 0..self.inventory.len() {
+            bytes_vector.extend(self.inventory[i]);
         }
         bytes_vector
     }

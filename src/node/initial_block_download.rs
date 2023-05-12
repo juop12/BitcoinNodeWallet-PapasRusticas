@@ -106,21 +106,15 @@ impl Node {
         Ok(())
     }
 
-    fn _open_blocks_handler(path: &str) -> Result<File, ConfigError> {
-        match File::open(path){
-            Ok(file)=> Ok(file),
-            Err(_) => Err(ConfigError::ErrorReadingFile),
-        }
-    }
-
     fn get_block_bundle(&mut self, requested_block_hashes_bundled: Vec<[u8;32]>)-> Result<(), NodeError>{
         println!("\n\nentre a block bundle");
         let amount_of_hashes = requested_block_hashes_bundled.len();
-        self.send_get_data_message_for_blocks(requested_block_hashes_bundled, 0);
+        self.send_get_data_message_for_blocks(requested_block_hashes_bundled, 0)?;
         for _ in 0..amount_of_hashes{
             let mut received_message_type = self.receive_message(0)?;
             println!("no es el primer receive");
-            while (received_message_type != "block\0\0\0\0\0\0") && (received_message_type != "notfound\0\0\0\0"){
+            while (received_message_type != "block\0\0\0\0\0\0\0") && (received_message_type != "notfound\0\0\0\0"){
+                println!("sigo aca");
                 received_message_type = self.receive_message(0)?;
             }
         }
@@ -146,45 +140,25 @@ impl Node {
             headers_received += 2000;
             last_hash = self.block_headers[self.block_headers.len()-1].hash();
 
-            while i < self.block_headers.len(){
-                if self.block_headers[i].time() > STARTING_BLOCK_TIME { 
-                    println!("meti un hash en el bundle");
-                    request_block_hashes_bundle.push(self.block_headers[i].hash());
-                    if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE{
-                        self.get_block_bundle(request_block_hashes_bundle);
-                        request_block_hashes_bundle = Vec::new();
+            if self.block_headers[i].time() > STARTING_BLOCK_TIME{
+                while i < self.block_headers.len(){
+                    if self.block_headers[i].time() > STARTING_BLOCK_TIME { 
+                        println!("meti un hash en el bundle");
+                        request_block_hashes_bundle.push(self.block_headers[i].hash());
+                        if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE{
+                            self.get_block_bundle(request_block_hashes_bundle);
+                            request_block_hashes_bundle = Vec::new();
+                        }
                     }
+                    i+= 1;
                 }
-                i+= 1;
             }
-            /* 
-            iterar de a MAX_BLOCK_BUNDLE
-                llamas a la thread con i
-            
-            */
-
-            //validar que el header del bloque diga que es de la fecha de la consigna en adelante (modificar config)
-            //descargar bloques validos (aplicar concurrencia)
-
             println!("# de headers = {headers_received}");
         }
 
         if request_block_hashes_bundle.len() >0{
             self.get_block_bundle(request_block_hashes_bundle);
         }
-
-        /*
-        let blocks_to_download: [u8;32] = match self.block_headers[0].to_bytes().try_into(){
-            Ok(hash) => hash,
-            Err(_) => return Err(NodeError::ErrorSendingMessageInIBD),
-        };
-        match self.send_get_data_message_for_block(vec![blocks_to_download], sync_node_index){
-            Ok(_) => {},
-            Err(_) => return Err(NodeError::ErrorSendingMessageInIBD),
-        }
-        self.receive_message(sync_node_index)?;
-        */
-
         
         println!("# de headers = {headers_received}");
         println!("# de headers = {}", self.block_headers.len());
