@@ -12,12 +12,14 @@ pub enum LoggerError{
     ErrorSendingMessage,
 }
 
+/// This struct has the responsability to write to a file.
 pub struct Logger{
     tx: Sender<String>, 
 }
 
 impl Logger {
 
+    /// Creates a new logger from a path, on error returns ErrorOpeningFile.
     pub fn from_path(path: &str) -> Result<Logger, LoggerError> {
 
         let mut file = _open_log_handler(path)?;
@@ -60,6 +62,7 @@ impl Logger {
     }
     */
 
+    /// Writes a text to the log, on error returns ErrorSendingMessage.
     pub fn log(&self, text: String) -> Result<(), LoggerError>{
         if let Err(_) = self.tx.send(text){
             return Err(LoggerError::ErrorSendingMessage);

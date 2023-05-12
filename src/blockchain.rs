@@ -1,7 +1,9 @@
 use chrono::Utc;
 use rand::prelude::*;
 
+
 const BLOCKHEADER_SIZE: usize = 80; 
+
 
 #[derive(Debug)]
 pub enum BlockChainError {
