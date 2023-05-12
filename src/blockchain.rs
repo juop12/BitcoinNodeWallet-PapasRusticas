@@ -2,7 +2,9 @@ use chrono::Utc;
 use rand::prelude::*;
 use bitcoin_hashes::{sha256d, Hash};
 
+
 const BLOCKHEADER_SIZE: usize = 80; 
+
 
 #[derive(Debug)]
 pub enum BlockChainError {

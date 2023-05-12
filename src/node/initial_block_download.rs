@@ -17,7 +17,7 @@ impl Node {
         block_header_hashes.push(hash);
         let version = self.version as u32;
         let stopping_hash = [0_u8; 32];
-
+      
         GetBlockHeadersMessage::new(version, block_header_hashes, stopping_hash)
     }
 
