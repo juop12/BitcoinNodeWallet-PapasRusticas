@@ -28,12 +28,13 @@ mod test {
             local_port: 1001,
             log_path: String::from("src/node_log.txt"),
         };
+
         let logger = Logger::from_path("test_log.txt").unwrap();
 
         let node = Node::new(logger, config);
-        
+
         let aux = node.get_tcp_streams();
-        match node.initial_block_download(&aux[1]){
+        match node.initial_block_download(){
             Ok(_) => {
                 return Ok(());
             },

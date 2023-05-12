@@ -1,6 +1,5 @@
 use super::utils::*;
 
-
 const VERACK_MSG_NAME: &str = "verack\0\0\0\0\0\0";
 
 

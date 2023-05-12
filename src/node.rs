@@ -60,6 +60,7 @@ pub struct Node {
     version: i32,
     sender_address: SocketAddr,
     tcp_streams: Vec<TcpStream>,
+    block_headers: Vec<BlockHeader>,
     blockchain: Option<Block>,
     logger: Logger,
 }
@@ -72,6 +73,7 @@ impl Node {
             version,
             sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
+            block_headers: Vec::new(),
             blockchain: None,
             logger,
         }

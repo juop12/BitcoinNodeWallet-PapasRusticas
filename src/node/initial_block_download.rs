@@ -1,7 +1,6 @@
 use crate::node::*;
 use bitcoin_hashes::{sha256d, Hash};
 
-
 const HASHEDGENESISBLOCK: [u8; 32] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
     0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
@@ -9,6 +8,7 @@ const HASHEDGENESISBLOCK: [u8; 32] = [
     0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
 ];// 0x64 | [u8; 32] 
 
+const MAX_RECEIVED_HEADERS: usize = 2000;
 
 impl Node {
 
@@ -17,12 +17,51 @@ impl Node {
         block_header_hashes.push(hash);
         let version = self.version as u32;
         let stopping_hash = [0_u8; 32];
-    
+      
         GetBlockHeadersMessage::new(version, block_header_hashes, stopping_hash)
     }
+
+    ///Creates and sends a GetBlockHeadersMessage to the stream, always asking for the maximum amount of headers. On error returns ErrorSendingMessageInIBD
+    fn ibd_send_get_block_headers_message(
+        &self,
+        last_hash: [u8; 32],
+        sync_node_index: usize,
+    ) -> Result<(), NodeError> {
+
+        let get_block_headers_msg = self.create_get_block_header_message(last_hash);
+        println!("Mandamos {:?}", get_block_headers_msg);
+        let mut stream = &self.tcp_streams[sync_node_index];
+        
+        match get_block_headers_msg.send_to(&mut stream) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(NodeError::ErrorSendingMessageInIBD),
+        }
+    }
+
+    ///Handles the headers message by hashing the last received header and asking for more headers
+    fn handle_block_headers_message(&mut self, mut msg_bytes :Vec<u8>, sync_node_index: usize)-> Result<(), NodeError>{
+        let block_headers_msg = match BlockHeadersMessage::from_bytes(&mut msg_bytes){
+            Ok(block_headers_message) => block_headers_message,
+            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
+        };
+        println!("Recibimos {:?} headers", block_headers_msg.count);
+        let received_block_headers = block_headers_msg.headers;
+        let quantity_received = received_block_headers.len();
+
+        let last_header_hash = *sha256d::Hash::hash(&received_block_headers[quantity_received -1].to_bytes()).as_byte_array();
+        
+        self.block_headers.extend(received_block_headers);
+        if quantity_received == MAX_RECEIVED_HEADERS{
+            self.ibd_send_get_block_headers_message(last_header_hash, sync_node_index)?;
+        }
+        Ok(())
+    }
     
-    fn ibd_receive_headers_message<T: Read + Write> (&self, mut stream: T) -> Result<BlockHeadersMessage, NodeError>{
+    ///Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
+    fn receive_message (&mut self, sync_node_index: usize) -> Result<String, NodeError>{
+        let mut stream = &self.tcp_streams[sync_node_index];
         let block_headers_msg_h = self.receive_message_header(&mut stream)?;
+        println!("\n\n{}", block_headers_msg_h.get_command_name());
         
         let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
         match stream.read_exact(&mut msg_bytes) {
@@ -30,116 +69,31 @@ impl Node {
             Ok(_) => {}
         }
 
-        if block_headers_msg_h.get_command_name() != "headers\0\0\0\0\0" {
-            return Err(NodeError::ErrorReceivingHeadersMessageHeaderInIBD);
-        }else{
-            println!("\n\n\nRECIBIMOS LOS HEADERS AAAAAAAAAAAAAAAAAAAA {:?}\n\n\n", block_headers_msg_h.get_command_name());
+        match block_headers_msg_h.get_command_name().as_str(){
+            "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, sync_node_index)?,
+            _ => {},
         }
 
+        Ok(block_headers_msg_h.get_command_name())
 
-        let block_headers_msg = match BlockHeadersMessage::from_bytes(&mut msg_bytes){
-            Ok(block_headers_message) => block_headers_message,
-            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
-        };
-        println!("la cantidad de bloques es {:?}", block_headers_msg.count);
-
-        Ok(block_headers_msg)
     }
 
-    fn ibd_send_get_block_headers_message<T: Read + Write>(
-        &self,
-        last_hash: [u8; 32],
-        stream: &mut T,
-    ) -> Result<(), NodeError> {
-
-        let get_block_headers_msg = self.create_get_block_header_message(last_hash);
+    pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
+        let sync_node_index :usize = 2;
+        let last_hash = HASHEDGENESISBLOCK;
+        let mut headers_received = self.block_headers.len();
         
-        match get_block_headers_msg.send_to(stream) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(NodeError::ErrorSendingMessageInIBD),
+        self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
+        
+        while headers_received == self.block_headers.len(){
+            if self.receive_message(sync_node_index)? == "headers\0\0\0\0\0"{
+                headers_received += 2000;
+            }
+            println!("# de headers = {headers_received}");
         }
-    }
-
-    pub fn initial_block_download<T: Read + Write>(&self, tcp: T) -> Result<(), NodeError> {
-
-        let mut sync_node =  tcp;//&self.tcp_streams[6];
-        let mut block_headers: Vec<BlockHeader> = Vec::new();
-        let mut quantity_received = 2000;
-        let mut last_hash = HASHEDGENESISBLOCK;
-
-        while quantity_received == 2000{
-            
-            self.ibd_send_get_block_headers_message(last_hash, &mut sync_node)?;
-
-            let block_headers_msg = match self.ibd_receive_headers_message(&mut sync_node,){
-                Ok(mensaje) => mensaje,
-                Err(_) => continue, 
-            };
-            let received_block_headers = block_headers_msg.headers;        
-    
-            quantity_received = received_block_headers.len();
-            last_hash = *sha256d::Hash::hash(&received_block_headers[quantity_received-1].to_bytes()).as_byte_array();
-            
-            block_headers.extend(received_block_headers);
-
-        }
+        println!("# de headers = {headers_received}");
+        println!("# de headers = {}", self.block_headers.len());
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::mock_tcp_stream::*;
-    use bitcoin_hashes::{sha256d, Hash};
-
-
-    const VERSION: i32 = 70015;
-    const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
-    const LOCAL_PORT: u16 = 1001;
-
-
-    #[test]
-    fn ibd_test_1_send_get_block_headers_message() -> Result<(), NodeError>{
-        let mut stream = MockTcpStream::new();
-
-        let logger = Logger::from_path("test_log.txt").unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
-
-        let expected_msg = node.create_get_block_header_message(HASHEDGENESISBLOCK);
-        let expected_hm = expected_msg.get_header_message().unwrap();
-        let mut expected_bytes = expected_hm.to_bytes();
-        expected_bytes.extend(expected_msg.to_bytes());
-
-        node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, &mut stream)?;
         
-        assert_eq!(stream.write_buffer, expected_bytes);
-        Ok(())
-    }
-
-    #[test]
-    fn ibd_test_2_receive_block_headers() -> Result<(), NodeError> {
-        let mut stream = MockTcpStream::new();
-        
-        let logger = Logger::from_path("test_log.txt").unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
-
-        let hash1 :[u8;32] = *sha256d::Hash::hash(b"test1").as_byte_array();
-        let hash2 :[u8;32] = *sha256d::Hash::hash(b"test2").as_byte_array();
-        let merkle_hash1 :[u8;32] = *sha256d::Hash::hash(b"test merkle root1").as_byte_array();
-        let merkle_hash2 :[u8;32] = *sha256d::Hash::hash(b"test merkle root2").as_byte_array();
-        
-        let b_h1 = BlockHeader::new(70015, hash1, merkle_hash1); 
-        let b_h2 = BlockHeader::new(70015, hash2, merkle_hash2);
-        
-        let expected_msg = BlockHeadersMessage::new(vec![b_h1, b_h2]);
-        let expected_hm = expected_msg.get_header_message().unwrap();
-        stream.read_buffer = expected_hm.to_bytes();
-        stream.read_buffer.extend(expected_msg.to_bytes());
-        
-        let received_message = node.ibd_receive_headers_message(stream)?;
-        
-        assert_eq!(received_message.to_bytes(), expected_msg.to_bytes());
-        Ok(())
     }
 }

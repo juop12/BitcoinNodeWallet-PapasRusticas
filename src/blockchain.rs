@@ -1,5 +1,6 @@
 use chrono::Utc;
 use rand::prelude::*;
+use bitcoin_hashes::{sha256d, Hash};
 
 
 const BLOCKHEADER_SIZE: usize = 80; 
@@ -16,7 +17,7 @@ pub enum BlockChainError {
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockHeader {
     version: i32,
-    prev_hash: [u8; 32],
+    pub prev_hash: [u8; 32],
     merkle_root_hash: [u8; 32],
     time: u32,
     n_bits: u32,
@@ -82,6 +83,10 @@ impl BlockHeader{
             n_bits,
             nonce,
         })
+    }
+
+    pub fn hash(&self) -> [u8;32]{
+        *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
 }
 
