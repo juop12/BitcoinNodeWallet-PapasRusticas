@@ -1,7 +1,7 @@
 mod test {
-    //use proyecto::config;
-    use proyecto::node::*;
     use proyecto::config::*;
+    use proyecto::node::*;
+    use proyecto::log::*;
 
      #[test]
     fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes() {
@@ -13,7 +13,9 @@ mod test {
             log_path: String::from("src/node_log.txt"),
         };
 
-        let node = Node::new(config);
+        let logger = Logger::from_path("test_log.txt").unwrap();
+
+        let node = Node::new(logger, config);
         assert!(node.get_tcp_streams().len() > 1);
     } 
 
@@ -26,8 +28,10 @@ mod test {
             local_port: 1001,
             log_path: String::from("src/node_log.txt"),
         };
-        let node = Node::new(config);
-        //let mut j = 0;
+        let logger = Logger::from_path("test_log.txt").unwrap();
+
+        let node = Node::new(logger, config);
+        
         let aux = node.get_tcp_streams();
         match node.initial_block_download(&aux[1]){
             Ok(_) => {

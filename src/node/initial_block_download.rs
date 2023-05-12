@@ -42,6 +42,7 @@ impl Node {
             Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
         };
         println!("la cantidad de bloques es {:?}", block_headers_msg.count);
+
         Ok(block_headers_msg)
     }
 
@@ -101,7 +102,9 @@ mod tests {
     #[test]
     fn ibd_test_1_send_get_block_headers_message() -> Result<(), NodeError>{
         let mut stream = MockTcpStream::new();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+
+        let logger = Logger::from_path("test_log.txt").unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
 
         let expected_msg = node.create_get_block_header_message(HASHEDGENESISBLOCK);
         let expected_hm = expected_msg.get_header_message().unwrap();
@@ -118,7 +121,8 @@ mod tests {
     fn ibd_test_2_receive_block_headers() -> Result<(), NodeError> {
         let mut stream = MockTcpStream::new();
         
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+        let logger = Logger::from_path("test_log.txt").unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
 
         let hash1 :[u8;32] = *sha256d::Hash::hash(b"test1").as_byte_array();
         let hash2 :[u8;32] = *sha256d::Hash::hash(b"test2").as_byte_array();

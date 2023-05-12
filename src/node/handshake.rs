@@ -122,7 +122,8 @@ mod tests {
 
     fn initiate() -> (MockTcpStream, Node) {
         let stream = MockTcpStream::new();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+        let logger = Logger::from_path("test_log.txt").unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
 
         (stream, node)
     }
