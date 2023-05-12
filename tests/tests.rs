@@ -3,6 +3,10 @@ mod test {
     use proyecto::node::*;
     use proyecto::config::*;
 
+
+    const BEGIN_TIME_EPOCH: u32 = 1681084800; // 2023-04-10
+
+
      #[test]
     fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes() {
         let config = Config {
@@ -11,6 +15,7 @@ mod test {
             local_host: [127,0,0,1],
             local_port: 1001,
             log_path: String::from("src/node_log.txt"),
+            begin_time: BEGIN_TIME_EPOCH,
         };
 
         let node = Node::new(config);
@@ -25,10 +30,11 @@ mod test {
             local_host: [127,0,0,1],
             local_port: 1001,
             log_path: String::from("src/node_log.txt"),
+            begin_time: BEGIN_TIME_EPOCH,
         };
+
         let mut node = Node::new(config);
-        //let mut j = 0;
-        let aux = node.get_tcp_streams();
+
         match node.initial_block_download(){
             Ok(_) => {
                 return Ok(());

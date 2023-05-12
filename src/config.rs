@@ -1,7 +1,10 @@
-use std::{io::{BufRead, BufReader}, fs::File, path::Path};
+use std::{io::{BufRead, BufReader}, fs::File/* , path::Path */};
+use chrono::{Utc, DateTime};
+
 
 const CONFIG_FILENAME : &str = "nodo.conf";
-const PARAMETER_AMOUNT : usize = 5;
+const PARAMETER_AMOUNT : usize = 6;
+
 
 /// Struct that represents errors that can occur with the config setup.
 #[derive(Debug)]
@@ -11,8 +14,8 @@ pub enum ConfigError{
     ErrorMismatchedFileName,
     ErrorMismatchedQuantityOfParameters,
     ErrorMismatchedParameters,
+    ErrorParsingDate,
 }
-
 
 /// Struct that represents a node's configuration parameters.
 #[derive(Debug)]
@@ -22,6 +25,7 @@ pub struct Config {
     pub local_host: [u8; 4],
     pub local_port: u16,
     pub log_path: String,
+    pub begin_time: u32,
 }
 
 impl Config{
@@ -32,10 +36,21 @@ impl Config{
             return Err(ConfigError::ErrorMismatchedQuantityOfParameters);        
         }
 
+        let begin_time: u32 = match parse_date(&config_fields[5]){
+            Some(time) => time,
+            None => return Err(ConfigError::ErrorParsingDate),
+        };
+
+        if begin_time > (Utc::now().timestamp() as u32){
+            return Err(ConfigError::ErrorParsingDate);
+        }
+
+        /*
         let path = Path::new(config_fields[4].as_str());
         if !path.is_file() {
             return Err(ConfigError::ErrorMismatchedParameters);
         }
+        */
 
         Ok(())
     }
@@ -48,13 +63,16 @@ impl Config{
         for (i, number) in (0_usize..).zip(splitter){
             local_host[i] = number.parse::<u8>().ok()?;
         }
-        
+
+        let begin_time = parse_date(&config_fields[5])?;
+
         Some(Config {
             version: config_fields[0].parse::<i32>().ok()?,
             dns_port: config_fields[1].parse::<u16>().ok()?,
             local_host, 
             local_port: config_fields[3].parse::<u16>().ok()? ,
             log_path: config_fields[4].to_string(),
+            begin_time, 
         })
     }
 
@@ -105,14 +123,29 @@ fn _open_config_handler(path: &str) -> Result<File, ConfigError> {
     }
 }
 
+fn parse_date(line: &str) -> Option<u32>{
+    let complete_date = format!("{}T00:00:00Z", line);
+
+    let begin_time: u32 = match complete_date.parse::<DateTime<Utc>>(){
+        Ok(datetime) => datetime.timestamp() as u32,
+        Err(_) => return None,
+    };
+
+    Some(begin_time)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    /*
+    
+
+    const BEGIN_TIME: &str = "2023-04-10";
+
+
     #[test]
     fn config_test_1_valid_file_creates_config(){
         assert!(Config::from_path("src/nodo.conf").is_ok());
-    }*/
+    }
 
     #[test]
     fn config_test_2_invalid_file_cannot_create_config(){
@@ -127,8 +160,11 @@ mod tests {
             "127,0,0,1".to_string(),
             "1001".to_string(),
             "src/node_log.txt".to_string(),
+            BEGIN_TIME.to_string(),
         ];
         
+        let expected_begin_time_timestamp: u32 = 1681084800;
+
         let config = Config::_from(parameters).expect("Could not create config from valid parameters.");
         
         assert_eq!(config.version, 70015);
@@ -136,6 +172,7 @@ mod tests {
         assert_eq!(config.local_host, [127,0,0,1]);
         assert_eq!(config.local_port, 1001);
         assert_eq!(config.log_path, "src/node_log.txt".to_string());
+        assert_eq!(config.begin_time, expected_begin_time_timestamp);
     }
 
     #[test]
@@ -145,6 +182,7 @@ mod tests {
             "53".to_string(),
             "127,0,0,1".to_string(),
             "1001".to_string(),
+            BEGIN_TIME.to_string(),
         ];
         
         assert!(Config::_from(parameters).is_err());
@@ -158,11 +196,28 @@ mod tests {
             "34".to_string(),
             "this should be a u16".to_string(),
             "src/node_log.txt".to_string(),
+            BEGIN_TIME.to_string(),
         ];
         
         assert!(Config::_from(parameters).is_err());
     }
 
+    #[test]
+    fn config_test_6_future_begin_time_parameter_cannot_create_config(){
+        let parameters = vec![
+            "70015".to_string(),
+            "53".to_string(),
+            "34".to_string(),
+            "this should be a u16".to_string(),
+            "src/node_log.txt".to_string(),
+            Utc::now().date_naive().succ_opt().unwrap().to_string(),
+        ];
+        
+        assert!(Config::_from(parameters).is_err());
+    }
+
+
+    /*
     #[test]
     fn config_test_6_log_file_not_found_from_log_path_parameter_cannot_create_config(){
         let parameters = vec![
@@ -171,9 +226,10 @@ mod tests {
             "34".to_string(),
             "this should be a u16".to_string(),
             "src/node_log.txt".to_string(),
+            BEGIN_TIME.to_string(),
         ];
         
         assert!(Config::_from(parameters).is_err());
-    }      
+    }
+    */
 }
-

@@ -1,7 +1,7 @@
 use super::utils::*;
 use crate::messages::*;
 
-const BLOCK_IDENTIFIER: [u8; 4] = [0x00, 0x00, 0x00, 0x02];
+const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 
 fn as_block_element(hash: [u8;32]) -> [u8;36]{
     let mut block_element = [0;36];
