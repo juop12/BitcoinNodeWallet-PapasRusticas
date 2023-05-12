@@ -1,6 +1,6 @@
 use crate::node::*;
 use bitcoin_hashes::{sha256d, Hash};
-use std::{io::{BufRead, BufReader}, fs::File, path::Path};
+use std::{io::{BufRead, BufReader}, fs::File, path::Path, char::MAX};
 
 const HASHEDGENESISBLOCK: [u8; 32] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
@@ -9,6 +9,7 @@ const HASHEDGENESISBLOCK: [u8; 32] = [
     0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
 ];// 0x64 | [u8; 32] 
 
+const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 const MAX_RECEIVED_HEADERS: usize = 2000;
 
 impl Node {
@@ -82,7 +83,14 @@ impl Node {
 
     //works for <253 hashes
     fn send_get_data_message_for_block(&self, hashes :Vec<[u8; 32]>, sync_node_index: usize)->Result<(), NodeError>{
-        let get_data_message = GetDataMessage::new(hashes, vec![hashes.len() as u8]);
+        let count = vec![hashes.len() as u8];
+        let mut inventory = Vec::new();
+        for _ in 0..hashes.len(){
+            
+            inventory.push(GetDataMessage::as_block_element(inventory_element));
+        }
+        
+        let get_data_message = GetDataMessage::new(inventory, count);
         
         let mut stream = &self.tcp_streams[sync_node_index];
         
@@ -98,8 +106,9 @@ impl Node {
             Ok(block_message) => block_message,
             Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
         };
-        let blocks_file = Self::_open_blocks_handler("blocks.csv");
-
+        //let blocks_file = Self::_open_blocks_handler("blocks.csv");
+        self.blockchain.push(block_msg.block);
+        Ok(())
     }
 
     fn _open_blocks_handler(path: &str) -> Result<File, ConfigError> {
@@ -118,17 +127,47 @@ impl Node {
         
         while headers_received == self.block_headers.len(){
             if self.receive_message(sync_node_index)? == "headers\0\0\0\0\0"{
-                headers_received += 2000;
+                headers_received = self.block_headers.len();
             }
             //validar que el header del bloque diga que es de la fecha de la consigna en adelante (modificar config)
             //descargar bloques validos (aplicar concurrencia)
+
             println!("# de headers = {headers_received}");
         }
+        let blocks_to_download: [u8;32] = match self.block_headers[0].to_bytes().try_into(){
+            Ok(hash) => hash,
+            Err(_) => return Err(NodeError::ErrorSendingMessageInIBD),
+        };
+        match self.send_get_data_message_for_block(vec![blocks_to_download], sync_node_index){
+            Ok(_) => {},
+            Err(_) => return Err(NodeError::ErrorSendingMessageInIBD),
+        }
+        self.receive_message(sync_node_index)?;
 
         
         println!("# de headers = {headers_received}");
         println!("# de headers = {}", self.block_headers.len());
         Ok(())
         
+    }
+}
+
+#[cfg(test)]
+
+mod tests{
+    use super::*;
+
+    #[test]
+    fn test_IBD_1_can_download_blocks(){
+        let config = Config {
+            version: 70015,
+            dns_port: 18333,
+            local_host: [127,0,0,1],
+            local_port: 1001,
+            log_path: String::from("src/node_log.txt"),
+        };
+        let mut node = Node::new(config);
+        assert!(node.initial_block_download().is_ok());
+        assert_eq!(node.blockchain.len(), 1);
     }
 }

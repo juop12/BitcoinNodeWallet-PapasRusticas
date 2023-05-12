@@ -1,18 +1,36 @@
 use super::utils::*;
 use crate::messages::*;
 
+const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
+
+fn as_block_element(hash: [u8;32]) -> [u8;36]{
+    let mut block_element = [0;36];
+    block_element[0..4].copy_from_slice(&BLOCK_IDENTIFIER);
+    block_element[4..36].copy_from_slice(&hash);
+    block_element
+}
+
 #[derive(Debug)]
 pub struct GetDataMessage {
     count: Vec<u8>,
-    inventory: Vec<[u8;32]>,
+    
+    inventory: Vec<[u8;36]>,
 }
 impl GetDataMessage{
-    pub fn new(inventory: Vec<[u8;32]>, count: Vec<u8>) -> GetDataMessage{
+    pub fn new(inventory: Vec<[u8;36]>, count: Vec<u8>) -> GetDataMessage{
         GetDataMessage{
                 count,
                 inventory,
-            }
         }
+    }
+
+    fn create_geta_data_message_block_type(inventory_entries: Vec<[u8;32]>, count: Vec<u8>) -> Vec<[u8;36]>{
+        let mut inventory: Vec<[u8;36]> = Vec::new();
+        for entry in inventory_entries{
+            inventory.push(as_block_element(entry))
+        };
+        inventory
+    }
 }
 
 impl Message for GetDataMessage{
@@ -43,19 +61,19 @@ impl Message for GetDataMessage{
     fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
         let (count, amount_of_bytes, inventory_size) = calculate_variable_length_integer(&slice);
 
-        if (inventory_size * 32 + amount_of_bytes) != slice.len(){
+        if (inventory_size * 36 + amount_of_bytes) != slice.len(){
             return Err(MessageError::ErrorCreatingGetDataMessage)
         }
 
-        let mut inventory: Vec<[u8;32]> = Vec::new();
+        let mut inventory: Vec<[u8;36]> = Vec::new();
         let mut i = amount_of_bytes;
         while i < slice.len(){
-            let aux: [u8;32] = match slice[(i)..(i + 32)].try_into(){
+            let aux: [u8;36] = match slice[(i)..(i + 36)].try_into(){
                 Ok(array) => array,
                 Err(_) => return Err(MessageError::ErrorCreatingGetDataMessage),
             };
             inventory.push(aux);
-            i += 32;
+            i += 36;
         }
 
         Ok(GetDataMessage::new(inventory,count))
@@ -84,16 +102,19 @@ mod test{
         }else{
             expected_bytes.push(2);
         }
-        expected_bytes.extend(hash1);
-        expected_bytes.extend(hash2);
+        expected_bytes.extend(GetDataMessage::as_block_element(hash1));
+        expected_bytes.extend(GetDataMessage::as_block_element(hash2));
         (expected_bytes, hash1, hash2)
     }
+
+   
 
     #[test]
     fn get_data_test1_to_bytes() -> Result<(), MessageError> {
             
         let (expected_bytes, hash1, hash2) = get_data_message_expected_bytes(false);
-        let hashes  = vec![hash1, hash2];
+        
+        let hashes  = vec![GetDataMessage::as_block_element(hash1), GetDataMessage::as_block_element(hash2),];
         
         let block_headers_message = GetDataMessage::new(hashes,vec![2]);
 

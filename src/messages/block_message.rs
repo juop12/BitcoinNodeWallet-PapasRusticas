@@ -3,7 +3,7 @@ use crate::messages::*;
 use crate::blockchain::Block;
 
 pub struct BlockMessage{
-    block :Block,
+    pub block :Block,
 }
 
 impl Message for BlockMessage {

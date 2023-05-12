@@ -37,7 +37,7 @@ pub struct Node {
     sender_address: SocketAddr,
     tcp_streams: Vec<TcpStream>,
     block_headers: Vec<BlockHeader>,
-    blockchain: Option<Block>,
+    blockchain: Vec<Block>,
 }
 
 impl Node {
@@ -48,7 +48,7 @@ impl Node {
             sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
             block_headers: Vec::new(),
-            blockchain: None,
+            blockchain: Vec::new(),
         }
     }
 
