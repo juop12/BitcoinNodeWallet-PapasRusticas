@@ -90,6 +90,10 @@ impl BlockHeader{
     pub fn hash(&self) -> [u8;32]{
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
+
+    pub fn time(&self) -> u32{
+        self.time.clone()
+    }
 }
 
 impl Block{
@@ -126,13 +130,8 @@ impl Block{
 
     fn _from_bytes(slice: &mut [u8]) -> Option<Block> {
 
-        let header = match BlockHeader::from_bytes(&mut slice[..BLOCKHEADER_SIZE]){
-            Ok(header) => header,
-            Err(_) => return None,
-        };
-
         let (header_bytes, slice) = slice.split_at_mut(BLOCKHEADER_SIZE);
-        let header =BlockHeader::from_bytes(header_bytes).ok()?;
+        let header = BlockHeader::from_bytes(header_bytes).ok()?;
 
         let (transaction_count, count_amount_of_bytes, amount_of_transactions) = calculate_variable_length_integer(slice);
         let (_count_bytes ,transactions_bytes) = slice.split_at_mut(count_amount_of_bytes);
@@ -142,6 +141,10 @@ impl Block{
             transactions: Vec::from(transactions_bytes),
         })
     } 
+
+    pub fn time(&self) -> u32{
+        self.header.time()
+    }
 }
 
 #[cfg(test)]

@@ -33,8 +33,7 @@ mod test {
             Ok(_) => {
                 return Ok(());
             },
-            Err(_) => {},
+            Err(err) => Err(err),
         }
-        panic!("Ningun nodo funciono")
     }
 }

@@ -1,7 +1,7 @@
 use super::utils::*;
 use crate::messages::*;
 
-const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
+const BLOCK_IDENTIFIER: [u8; 4] = [0x00, 0x00, 0x00, 0x02];
 
 fn as_block_element(hash: [u8;32]) -> [u8;36]{
     let mut block_element = [0;36];
@@ -24,12 +24,12 @@ impl GetDataMessage{
         }
     }
 
-    fn create_geta_data_message_block_type(inventory_entries: Vec<[u8;32]>, count: Vec<u8>) -> Vec<[u8;36]>{
+    pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8;32]>, count: Vec<u8>) -> GetDataMessage{
         let mut inventory: Vec<[u8;36]> = Vec::new();
         for entry in inventory_entries{
             inventory.push(as_block_element(entry))
         };
-        inventory
+        Self::new(inventory, count)
     }
 }
 
@@ -102,8 +102,8 @@ mod test{
         }else{
             expected_bytes.push(2);
         }
-        expected_bytes.extend(GetDataMessage::as_block_element(hash1));
-        expected_bytes.extend(GetDataMessage::as_block_element(hash2));
+        expected_bytes.extend(as_block_element(hash1));
+        expected_bytes.extend(as_block_element(hash2));
         (expected_bytes, hash1, hash2)
     }
 
@@ -114,7 +114,7 @@ mod test{
             
         let (expected_bytes, hash1, hash2) = get_data_message_expected_bytes(false);
         
-        let hashes  = vec![GetDataMessage::as_block_element(hash1), GetDataMessage::as_block_element(hash2),];
+        let hashes  = vec![as_block_element(hash1), as_block_element(hash2),];
         
         let block_headers_message = GetDataMessage::new(hashes,vec![2]);
 

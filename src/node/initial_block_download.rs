@@ -1,6 +1,8 @@
 use crate::node::*;
 use bitcoin_hashes::{sha256d, Hash};
 use std::{io::{BufRead, BufReader}, fs::File, path::Path, char::MAX};
+use chrono::{DateTime, TimeZone,Utc};
+
 
 const HASHEDGENESISBLOCK: [u8; 32] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
@@ -8,9 +10,11 @@ const HASHEDGENESISBLOCK: [u8; 32] = [
     0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
     0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
 ];// 0x64 | [u8; 32] 
-
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 const MAX_RECEIVED_HEADERS: usize = 2000;
+const MAX_BLOCK_BUNDLE: usize = 16;
+const STARTING_BLOCK_TIME: u32 = 1681084800; // https://www.epochconverter.com/, 2023-04-10 00:00:00 GMT
+
 
 impl Node {
 
@@ -49,13 +53,8 @@ impl Node {
         println!("Recibimos {:?} headers", block_headers_msg.count);
         let received_block_headers = block_headers_msg.headers;
         let quantity_received = received_block_headers.len();
-
-        let last_header_hash = *sha256d::Hash::hash(&received_block_headers[quantity_received -1].to_bytes()).as_byte_array();
         
         self.block_headers.extend(received_block_headers);
-        if quantity_received == MAX_RECEIVED_HEADERS{
-            self.ibd_send_get_block_headers_message(last_header_hash, sync_node_index)?;
-        }
         Ok(())
     }
     
@@ -82,15 +81,11 @@ impl Node {
     }
 
     //works for <253 hashes
-    fn send_get_data_message_for_block(&self, hashes :Vec<[u8; 32]>, sync_node_index: usize)->Result<(), NodeError>{
+    fn send_get_data_message_for_blocks(&self, hashes :Vec<[u8; 32]>, sync_node_index: usize)->Result<(), NodeError>{
         let count = vec![hashes.len() as u8];
-        let mut inventory = Vec::new();
-        for _ in 0..hashes.len(){
-            
-            inventory.push(GetDataMessage::as_block_element(inventory_element));
-        }
         
-        let get_data_message = GetDataMessage::new(inventory, count);
+        let get_data_message = GetDataMessage::create_message_inventory_block_type(hashes, count);
+        println!("{:?}", get_data_message);
         
         let mut stream = &self.tcp_streams[sync_node_index];
         
@@ -118,22 +113,67 @@ impl Node {
         }
     }
 
+    fn get_block_bundle(&mut self, requested_block_hashes_bundled: Vec<[u8;32]>)-> Result<(), NodeError>{
+        println!("\n\nentre a block bundle");
+        let amount_of_hashes = requested_block_hashes_bundled.len();
+        self.send_get_data_message_for_blocks(requested_block_hashes_bundled, 0);
+        for _ in 0..amount_of_hashes{
+            let mut received_message_type = self.receive_message(0)?;
+            println!("no es el primer receive");
+            while (received_message_type != "block\0\0\0\0\0\0") && (received_message_type != "notfound\0\0\0\0"){
+                received_message_type = self.receive_message(0)?;
+            }
+        }
+        println!("Tengo # de blockes = {}", self.blockchain.len());
+        Ok(())
+    }
+
     pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
-        let sync_node_index :usize = 2;
-        let last_hash = HASHEDGENESISBLOCK;
+        let sync_node_index :usize = 0;
+        let mut last_hash = HASHEDGENESISBLOCK;
         let mut headers_received = self.block_headers.len();
+        let mut request_block_hashes_bundle :Vec<[u8;32]> = Vec::new();
         
-        self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
+        //self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
         
         while headers_received == self.block_headers.len(){
-            if self.receive_message(sync_node_index)? == "headers\0\0\0\0\0"{
-                headers_received = self.block_headers.len();
+            self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
+            while(self.receive_message(sync_node_index)? != "headers\0\0\0\0\0"){
+
             }
+            println!("recibi el message header");
+            let mut i = headers_received;
+            headers_received += 2000;
+            last_hash = self.block_headers[self.block_headers.len()-1].hash();
+
+            while i < self.block_headers.len(){
+                if self.block_headers[i].time() > STARTING_BLOCK_TIME { 
+                    println!("meti un hash en el bundle");
+                    request_block_hashes_bundle.push(self.block_headers[i].hash());
+                    if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE{
+                        self.get_block_bundle(request_block_hashes_bundle);
+                        request_block_hashes_bundle = Vec::new();
+                    }
+                }
+                i+= 1;
+            }
+            /* 
+            iterar de a MAX_BLOCK_BUNDLE
+                llamas a la thread con i
+            
+            */
+
             //validar que el header del bloque diga que es de la fecha de la consigna en adelante (modificar config)
             //descargar bloques validos (aplicar concurrencia)
 
             println!("# de headers = {headers_received}");
         }
+
+        if request_block_hashes_bundle.len() >0{
+            self.get_block_bundle(request_block_hashes_bundle);
+        }
+
+        /*
         let blocks_to_download: [u8;32] = match self.block_headers[0].to_bytes().try_into(){
             Ok(hash) => hash,
             Err(_) => return Err(NodeError::ErrorSendingMessageInIBD),
@@ -143,6 +183,7 @@ impl Node {
             Err(_) => return Err(NodeError::ErrorSendingMessageInIBD),
         }
         self.receive_message(sync_node_index)?;
+        */
 
         
         println!("# de headers = {headers_received}");
@@ -157,8 +198,10 @@ impl Node {
 mod tests{
     use super::*;
 
+    //test unitario de descargaqr un solo header
+    
     #[test]
-    fn test_IBD_1_can_download_blocks(){
+    fn ibd_test_1_can_download_blocks() -> Result<(), NodeError>{
         let config = Config {
             version: 70015,
             dns_port: 18333,
@@ -166,8 +209,23 @@ mod tests{
             local_port: 1001,
             log_path: String::from("src/node_log.txt"),
         };
+        let sync_node_index = 0;
         let mut node = Node::new(config);
-        assert!(node.initial_block_download().is_ok());
-        assert_eq!(node.blockchain.len(), 1);
+        node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
+        while node.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
+
+        }
+
+        let mut block_hashes_bundle = Vec::new();
+        for i in 0..16{
+            block_hashes_bundle.push(node.block_headers[i].hash());
+        }
+        node.get_block_bundle(block_hashes_bundle)?;
+        
+        assert!(node.blockchain.len() > 1);
+        Ok(())
+        //node.receive_message(sync_node_index);
     }
+    
+    
 }
