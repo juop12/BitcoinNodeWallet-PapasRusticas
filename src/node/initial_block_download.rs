@@ -9,12 +9,11 @@ const HASHEDGENESISBLOCK: [u8; 32] = [
     0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
     0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
     0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
-];// 0x64 | [u8; 32] 
+];
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 const MAX_RECEIVED_HEADERS: usize = 2000;
 const MAX_BLOCK_BUNDLE: usize = 16;
 const STARTING_BLOCK_TIME: u32 = 1681084800; // https://www.epochconverter.com/, 2023-04-10 00:00:00 GMT
-
 
 impl Node {
 
@@ -114,7 +113,6 @@ impl Node {
             let mut received_message_type = self.receive_message(0)?;
             println!("no es el primer receive");
             while (received_message_type != "block\0\0\0\0\0\0\0") && (received_message_type != "notfound\0\0\0\0"){
-                println!("sigo aca");
                 received_message_type = self.receive_message(0)?;
             }
         }
@@ -174,7 +172,7 @@ mod tests{
 
     //test unitario de descargaqr un solo header
     
-    /* #[test]
+     #[test]
     fn ibd_test_1_can_download_blocks() -> Result<(), NodeError>{
         let config = Config {
             version: 70015,
@@ -201,6 +199,6 @@ mod tests{
         assert!(node.blockchain.len() > 1);
         Ok(())
         //node.receive_message(sync_node_index);
-    } */
+    } 
     
 }
