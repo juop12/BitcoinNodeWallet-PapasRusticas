@@ -1,5 +1,6 @@
 pub mod initial_block_download;
 pub mod handshake;
+pub mod block_downloader;
 
 use crate::blockchain::*;
 use crate::messages::*;

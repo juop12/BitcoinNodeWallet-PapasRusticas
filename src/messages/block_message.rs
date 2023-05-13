@@ -35,8 +35,13 @@ impl Message for BlockMessage {
     /// Gets the header message corresponding to the corresponding message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
         HeaderMessage::new("block", &self.to_bytes())
+    }  
+}
+
+impl BlockMessage{
+    pub fn block(&self)-> Block{
+        self.block
     }
-   
 }
 
 #[cfg(test)]
