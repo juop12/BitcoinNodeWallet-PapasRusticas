@@ -60,7 +60,7 @@ impl Node {
     ///Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
     fn receive_message (&mut self, sync_node_index: usize) -> Result<String, NodeError>{
         let mut stream = &self.tcp_streams[sync_node_index];
-        let block_headers_msg_h = self.receive_message_header(&mut stream)?;
+        let block_headers_msg_h = receive_message_header(&mut stream)?;
         println!("\n\n{}", block_headers_msg_h.get_command_name());
         
         let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];

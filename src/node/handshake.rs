@@ -33,7 +33,7 @@ impl Node {
         &self,
         mut stream: T,
     ) -> Result<VersionMessage, NodeError> {
-        let hm = self.receive_message_header(&mut stream)?;
+        let hm = receive_message_header(&mut stream)?;
 
         if hm.get_command_name() != "version\0\0\0\0\0" {
             return Err(NodeError::ErrorReceivingMessageInHandshake);
@@ -74,7 +74,7 @@ impl Node {
         &self,
         stream: T,
     ) -> Result<VerACKMessage, NodeError> {
-        let hm = self.receive_message_header(stream)?;
+        let hm = receive_message_header(stream)?;
 
         if hm.get_payload_size() == 0 && hm.get_command_name() == "verack\0\0\0\0\0\0" {
             //no se si falta hacer el segundo chequeo
