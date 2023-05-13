@@ -39,9 +39,9 @@ impl Message for BlockMessage {
 }
 
 impl BlockMessage{
-    pub fn block(&self)-> Block{
+    /*pub fn block(&self)-> Block{
         self.block
-    }
+    }*/
 }
 
 #[cfg(test)]
