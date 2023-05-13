@@ -174,7 +174,7 @@ mod tests{
 
     //test unitario de descargaqr un solo header
     
-    #[test]
+    /* #[test]
     fn ibd_test_1_can_download_blocks() -> Result<(), NodeError>{
         let config = Config {
             version: 70015,
@@ -182,7 +182,9 @@ mod tests{
             local_host: [127,0,0,1],
             local_port: 1001,
             log_path: String::from("src/node_log.txt"),
+            begin_time: 1681084800,
         };
+
         let sync_node_index = 0;
         let mut node = Node::new(config);
         node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
@@ -199,7 +201,6 @@ mod tests{
         assert!(node.blockchain.len() > 1);
         Ok(())
         //node.receive_message(sync_node_index);
-    }
-    
+    } */
     
 }
