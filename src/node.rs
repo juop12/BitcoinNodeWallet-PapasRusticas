@@ -29,6 +29,7 @@ pub enum NodeError {
     ErrorReceivingHeadersMessageInIBD,
     ErrorReceivingMessageHeader,
     ErrorReceivingHeadersMessageHeaderInIBD,
+    ErrorCreatingBlockDownloader,
 }
 
 
@@ -88,6 +89,9 @@ impl Node {
         &self.tcp_streams
     }
 
+    pub fn get_blockchain(&self) -> &Vec<Block>{
+        &self.blockchain
+    }
     /*
             fn handle_received_verack_message(&self, message_bytes: Vec<u8>)-> Result<(), NodeError>{
                 let vm = match VersionMessage::from_bytes(message_bytes) {
@@ -129,10 +133,8 @@ impl Node {
 pub fn receive_message_header<T: Read + Write>(mut stream: T,) -> Result<HeaderMessage, NodeError> {
     let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
     if let Err(error) = stream.read_exact(&mut header_bytes){
-        println!("ENTRO ACA, {}", error);
         return Err(NodeError::ErrorReceivingMessageHeader);
     };
-
     match HeaderMessage::from_bytes(&mut header_bytes) {
         Ok(header_message) => Ok(header_message),
         Err(_) => Err(NodeError::ErrorReceivingMessageHeader),

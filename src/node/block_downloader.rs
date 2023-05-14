@@ -7,13 +7,13 @@ use crate::messages::get_data_message::*;
 use crate::messages::utils::Message;
 use crate::node::*;
 /// Struct that represents a worker thread in the thread pool.
+#[derive(Debug)]
 struct Worker {
     id: usize,
     thread: thread::JoinHandle<()>,
     stream: TcpStream,
 }
 
-type Job =  Box<dyn FnOnce() + Send + 'static> ;
 type Bundle = Box<Vec<[u8;32]>>;
 
 impl Worker {
@@ -34,12 +34,19 @@ impl Worker {
                 },
                 Err(_) => return,
             };
+
+            //si se recibe un vector vacio 
+            if bundle.is_empty(){
+                return
+            }
             
             println!("Worker {id} got a job; executing.");
             let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream) {
                 Ok(blocks) => blocks,
-                Err(_) => return,
+                Err(e) => return,
             };
+
+            println!("\n Soy el worker {id}, descargue {}", received_blocks.len());
 
             let mut block_chain = match locked_block_chain.lock(){
                 Ok(mut block_chain) => {
@@ -53,27 +60,37 @@ impl Worker {
         Ok(Worker { id, thread, stream: stream_cpy })
     }
 
+    fn join_thread(self)->Result<(), BlockDownloaderError>{
+        match self.thread.join(){
+            Ok(()) => Ok(()),
+            Err(_) => Err(BlockDownloaderError::ErrorJoiningThread),
+        }
+    }
+
     
 }
 
 /// Struct that represents a thread pool.
-struct BlockDownloader{
+#[derive(Debug)]
+pub struct BlockDownloader{
     workers: Vec<Worker>,
     sender: mpsc::Sender<Bundle>,
 }
 
 /// Enum that contains the possible errors that can occur when running the thread pool.
-enum BlockDownloaderError {
+#[derive(Debug)]
+pub enum BlockDownloaderError {
     ErrorInvalidCreationSize,
     ErrorSendingToThread,
     ErrorReceivingBlockMessage,
     ErrorSendingMessageBlockDownloader,
     ErrorCreatingWorker,
+    ErrorJoiningThread,
 }
 
 impl BlockDownloader{
     /// Creates a new thread pool with the specified size, it must be greater than zero.
-    fn new(mut out_bound_connections : Vec<TcpStream>, block_chain :Arc<Mutex<Vec<Block>>>)->Result<BlockDownloader, BlockDownloaderError>{
+    pub fn new(out_bound_connections : &Vec<TcpStream>, block_chain :&Arc<Mutex<Vec<Block>>>)->Result<BlockDownloader, BlockDownloaderError>{
         let connections_ammount = out_bound_connections.len();
         if connections_ammount == 0{
             return Err(BlockDownloaderError::ErrorInvalidCreationSize);
@@ -95,6 +112,9 @@ impl BlockDownloader{
     
     ///Receives a function or closure that receives no parameters and executes them in a diferent thread using workers.x
     pub fn download_block_bundle(&self, bundle: Vec<[u8; 32]>) -> Result<(), BlockDownloaderError> {
+        if bundle.is_empty(){
+            return Ok(());
+        }
         let box_bundle = Box::new(bundle);
 
         match self.sender.send(box_bundle) {
@@ -102,6 +122,20 @@ impl BlockDownloader{
             Err(_) => Err(BlockDownloaderError::ErrorSendingToThread),
         }
     }
+
+    pub fn finish_downloading(self)->Result<(), BlockDownloaderError>{
+        for _ in 0..self.workers.len(){
+            let end_of_channel :Vec<[u8;32]> = Vec::new();
+            if self.sender.send(Box::new(end_of_channel)).is_err(){
+                return Err(BlockDownloaderError::ErrorSendingToThread);
+            }
+        }
+        for worker in self.workers{
+            worker.join_thread()?;
+        }
+        Ok(())
+    }
+
 }
 
 fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDownloaderError>{
@@ -109,10 +143,12 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
         Ok(stream_cpy) => stream_cpy,
         Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
     };
+
     let block_msg_h = match receive_message_header(stream_cpy){
         Ok(msg_h) => msg_h,
-        Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+        Err(e) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
     };
+    //println!("no falle al recibir el header");
     println!("\n\n{}", block_msg_h.get_command_name());
     
     let mut msg_bytes = vec![0; block_msg_h.get_payload_size() as usize];
@@ -139,7 +175,7 @@ fn send_get_data_message_for_blocks(hashes :Vec<[u8; 32]>, stream: &mut TcpStrea
     let count = vec![hashes.len() as u8];
     
     let get_data_message = GetDataMessage::create_message_inventory_block_type(hashes, count);
-    println!("{:?}", get_data_message);
+    //println!("{:?}", get_data_message);
     
     match get_data_message.send_to(stream) {
         Ok(_) => Ok(()),
@@ -152,7 +188,7 @@ fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut Tcp
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     let mut blocks :Vec<Block> = Vec::new();
-    for _ in 0..amount_of_hashes{
+    for i in 0..amount_of_hashes{
         let received_message = receive_block_message(stream)?;
         blocks.push(received_message.block);
     }
