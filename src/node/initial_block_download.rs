@@ -3,8 +3,9 @@ use bitcoin_hashes::{sha256d, Hash};
 use std::{io::{BufRead, BufReader}, fs::File, path::Path, char::MAX};
 use chrono::{DateTime, TimeZone,Utc};
 use block_downloader::*;
-use std::thread;
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex},
+};
 
 
 const HASHEDGENESISBLOCK: [u8; 32] = [
@@ -20,7 +21,7 @@ const STARTING_BLOCK_TIME: u32 = 1681084800; // https://www.epochconverter.com/,
 
 
 impl Node {
-
+    ///Creates a GetBlockHeadersMessage with the given hash
     fn create_get_block_header_message(&self, hash: [u8; 32]) -> GetBlockHeadersMessage {
         let mut block_header_hashes = Vec::new();
         block_header_hashes.push(hash);
@@ -34,12 +35,11 @@ impl Node {
     fn ibd_send_get_block_headers_message(
         &self,
         last_hash: [u8; 32],
-        sync_node_index: usize,
     ) -> Result<(), NodeError> {
 
         let get_block_headers_msg = self.create_get_block_header_message(last_hash);
         println!("Mandamos {:?}", get_block_headers_msg);
-        let mut stream = &self.tcp_streams[sync_node_index];
+        let mut stream = &self.tcp_streams[0];
         
         match get_block_headers_msg.send_to(&mut stream) {
             Ok(_) => Ok(()),
@@ -53,7 +53,7 @@ impl Node {
             Ok(block_headers_message) => block_headers_message,
             Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
         };
-        println!("Recibimos {:?} headers", block_headers_msg.count);
+        //println!("Recibimos {:?} headers", block_headers_msg.count);
         let received_block_headers = block_headers_msg.headers;
         let quantity_received = received_block_headers.len();
         
@@ -65,7 +65,7 @@ impl Node {
     fn receive_message (&mut self, sync_node_index: usize) -> Result<String, NodeError>{
         let mut stream = &self.tcp_streams[sync_node_index];
         let block_headers_msg_h = receive_message_header(&mut stream)?;
-        println!("\n\n{}", block_headers_msg_h.get_command_name());
+        //println!("\n\n{}", block_headers_msg_h.get_command_name());
         
         let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
         match stream.read_exact(&mut msg_bytes) {
@@ -75,7 +75,7 @@ impl Node {
 
         match block_headers_msg_h.get_command_name().as_str(){
             "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, sync_node_index)?,
-            "block\0\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
+            //"block\0\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
             _ => {},
         }
 
@@ -83,62 +83,31 @@ impl Node {
 
     }
 
-    //works for <253 hashes
-    fn send_get_data_message_for_blocks(&self, hashes :Vec<[u8; 32]>, sync_node_index: usize)->Result<(), NodeError>{
-        let count = vec![hashes.len() as u8];
-        
-        let get_data_message = GetDataMessage::create_message_inventory_block_type(hashes, count);
-        println!("{:?}", get_data_message);
-        
-        let mut stream = &self.tcp_streams[sync_node_index];
-        
-        match get_data_message.send_to(&mut stream) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(NodeError::ErrorSendingMessageInIBD),
+    ///Creates a block downloader and returns it. On error returns NodeError
+    fn create_block_downloader(&self) -> Result<(BlockDownloader, Arc<Mutex<Vec<Block>>>), NodeError>{
+        let mut new_blocks :Vec<Block> = Vec::new();
+        let safe_new_blocks = Arc::new(Mutex::from(new_blocks));
+        let mut block_downloader = BlockDownloader::new(&self.tcp_streams, &safe_new_blocks);
+        match block_downloader{
+            Ok(block_downloader) => Ok((block_downloader, safe_new_blocks)),
+            Err(_) => Err(NodeError::ErrorCreatingBlockDownloader),
         }
     }
 
-    fn handle_block_message(&mut self, mut msg_bytes :Vec<u8>)-> Result<(), NodeError>{
-
-        let block_msg = match BlockMessage::from_bytes(&mut msg_bytes){
-            Ok(block_message) => block_message,
-            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
-        };
-        //let blocks_file = Self::_open_blocks_handler("blocks.csv");
-        self.blockchain.push(block_msg.block);
-        Ok(())
-    }
-
-    fn get_block_bundle(&mut self, requested_block_hashes_bundled: Vec<[u8;32]>)-> Result<(), NodeError>{
-        println!("\n\nentre a block bundle");
-        let amount_of_hashes = requested_block_hashes_bundled.len();
-        self.send_get_data_message_for_blocks(requested_block_hashes_bundled, 0)?;
-        for _ in 0..amount_of_hashes{
-            let mut received_message_type = self.receive_message(0)?;
-            println!("no es el primer receive");
-            while (received_message_type != "block\0\0\0\0\0\0\0") && (received_message_type != "notfound\0\0\0\0"){
-                println!("sigo aca");
-                received_message_type = self.receive_message(0)?;
-            }
-        }
-        println!("Tengo # de blockes = {}", self.blockchain.len());
-        Ok(())
-    }
-
-    pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
+    ///Downloads the blocks from the node, starting from the given block hash. It ignores the messages that
+    ///are not block messages, and only downloads blocks that are after the given time. On error returns NodeError
+    fn download_headers_and_blocks(&mut self, block_downloader :&BlockDownloader) -> Result<(), NodeError> {
+        let mut headers_received = self.block_headers.len();
         let sync_node_index :usize = 0;
         let mut last_hash = HASHEDGENESISBLOCK;
-        let mut headers_received = self.block_headers.len();
         let mut request_block_hashes_bundle :Vec<[u8;32]> = Vec::new();
-        
-        //self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
-        
+        let mut j =0;
+
         while headers_received == self.block_headers.len(){
-            self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
+            self.ibd_send_get_block_headers_message(last_hash)?;
             while(self.receive_message(sync_node_index)? != "headers\0\0\0\0\0"){
 
             }
-            println!("recibi el message header");
             let mut i = headers_received;
             headers_received += 2000;
             last_hash = self.block_headers[self.block_headers.len()-1].hash();
@@ -146,25 +115,64 @@ impl Node {
             if self.block_headers[i].time() > STARTING_BLOCK_TIME{
                 while i < self.block_headers.len(){
                     if self.block_headers[i].time() > STARTING_BLOCK_TIME { 
-                        println!("meti un hash en el bundle");
+                        j+=1;
                         request_block_hashes_bundle.push(self.block_headers[i].hash());
                         if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE{
-                            self.get_block_bundle(request_block_hashes_bundle);
+                            if block_downloader.download_block_bundle(request_block_hashes_bundle).is_err(){
+                                return Err(NodeError::ErrorDownloadingBlockBundle);
+                            }
                             request_block_hashes_bundle = Vec::new();
                         }
                     }
                     i+= 1;
                 }
             }
-            println!("# de headers = {headers_received}");
-        }
-
-        if request_block_hashes_bundle.len() >0{
-            self.get_block_bundle(request_block_hashes_bundle);
+            println!("#de hashes = {headers_received}");
         }
         
-        println!("# de headers = {headers_received}");
+        if request_block_hashes_bundle.len() >0{
+            if block_downloader.download_block_bundle(request_block_hashes_bundle).is_err(){
+                return Err(NodeError::ErrorDownloadingBlockBundle);
+            }
+        }
+        println!("Deberiamos tener {j} bloques descargados");
+        Ok(())
+    }
+
+    ///Asks the node for the block headers starting from the given block hash, and then downloads the blocks
+    ///starting from the given time. On error returns NodeError
+    pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
+        
+
+        let (block_downloader, safe_new_blocks) = self.create_block_downloader()?;
+        
+        self.download_headers_and_blocks(&block_downloader);
+
+        match block_downloader.finish_downloading(){
+            Ok(_) => {
+                println!("Paso y funco el finish");
+
+                let inner_vector = match safe_new_blocks.lock() {
+                    Ok(inner) => inner,
+                    Err(_) => return Err(NodeError::ErrorDownloadingBlockBundle),
+                };
+                for block in inner_vector.iter(){
+                    let copied_block = match Block::from_bytes(&mut block.to_bytes()){
+                        Ok(block) => block,
+                        Err(_) => return Err(NodeError::ErrorDownloadingBlockBundle),
+                    };
+                    self.blockchain.push(copied_block);
+                }
+            },
+            Err(_) => {
+                println!("Paso y fallo el finish");
+                return Err(NodeError::ErrorDownloadingBlockBundle);
+            },
+        }
+    
         println!("# de headers = {}", self.block_headers.len());
+        println!("# de bloques descargados = {}", self.blockchain.len());
+
         Ok(())
         
     }
@@ -180,7 +188,6 @@ mod tests{
 
     //test unitario de descargaqr un solo header
     
-    /*
     #[test]
     fn ibd_test_1_can_download_blocks() -> Result<(), NodeError>{
         let config = Config {
@@ -191,24 +198,15 @@ mod tests{
             log_path: String::from("src/node_log.txt"),
             begin_time: 1681084800,
         };
-        let sync_node_index = 0;
         let mut node = Node::new(config);
-        node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
-        while node.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
+        node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK)?;
+        while node.receive_message(0)? != "headers\0\0\0\0\0" {
 
         }
-
-        let mut block_hashes_bundle = Vec::new();
-        for i in 0..16{
-            block_hashes_bundle.push(node.block_headers[i].hash());
-        }
-        node.get_block_bundle(block_hashes_bundle)?;
         
-        assert!(node.blockchain.len() > 1);
+        assert!(node.block_headers.len() == 2000);
         Ok(())
-        //node.receive_message(sync_node_index);
     }
-    */
 
     #[test]
     fn ibd_test_2_can_download_blocks() -> Result<(), NodeError>{
@@ -222,20 +220,22 @@ mod tests{
         };
         let sync_node_index = 0;
         let mut node = Node::new(config);
-        node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
-        while node.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
-
-        }
         let vec = Vec::new();
         let safe_block_chain = Arc::new(Mutex::from(vec));
         let block_downloader = BlockDownloader::new(node.get_tcp_streams(), &safe_block_chain).unwrap();
+        for _ in 0..3{
+            node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK)?;
+            while node.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
 
-        for j in 0..125{
-            let mut block_hashes_bundle :Vec<[u8;32]> = Vec::new();
-            for i in 0..16{
-                block_hashes_bundle.push(node.block_headers[j*16 + i].hash());
+            }   
+            for j in 0..125{
+                let mut block_hashes_bundle :Vec<[u8;32]> = Vec::new();
+                for i in 0..16{
+                    block_hashes_bundle.push(node.block_headers[j*16 + i].hash());
+                }
+                block_downloader.download_block_bundle(block_hashes_bundle).unwrap();
             }
-            block_downloader.download_block_bundle(block_hashes_bundle).unwrap();
+
         }
 
         block_downloader.finish_downloading();

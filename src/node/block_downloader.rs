@@ -40,13 +40,10 @@ impl Worker {
                 return
             }
             
-            println!("Worker {id} got a job; executing.");
             let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream) {
                 Ok(blocks) => blocks,
                 Err(e) => return,
             };
-
-            println!("\n Soy el worker {id}, descargue {}", received_blocks.len());
 
             let mut block_chain = match locked_block_chain.lock(){
                 Ok(mut block_chain) => {
@@ -60,6 +57,7 @@ impl Worker {
         Ok(Worker { id, thread, stream: stream_cpy })
     }
 
+    ///Joins the thread of the worker, returning an error if it was not possible to join it.
     fn join_thread(self)->Result<(), BlockDownloaderError>{
         match self.thread.join(){
             Ok(()) => Ok(()),
@@ -99,7 +97,8 @@ impl BlockDownloader{
         
         let receiver = Arc::new(Mutex::new(receiver));
         let mut workers = Vec::with_capacity(connections_ammount);
-        for id in 0..connections_ammount {
+        //No tomamos el primer tcpStream, porque se usa para descargar headers.
+        for id in 1..connections_ammount {
             let current_stream = match out_bound_connections[id].try_clone(){
                 Ok(stream) => stream,
                 Err(_) => return Err(BlockDownloaderError::ErrorCreatingWorker),
@@ -122,7 +121,8 @@ impl BlockDownloader{
             Err(_) => Err(BlockDownloaderError::ErrorSendingToThread),
         }
     }
-
+    ///Writes an empty vector to the channel of the workers, so they can finish their execution. It works as
+    ///a way to stop the threads execution. On error, it returns BlockDownloaderError.
     pub fn finish_downloading(self)->Result<(), BlockDownloaderError>{
         for _ in 0..self.workers.len(){
             let end_of_channel :Vec<[u8;32]> = Vec::new();
@@ -138,18 +138,17 @@ impl BlockDownloader{
 
 }
 
+///Receives a TcpStream and gets the blocks from the stream, returning a BlockMessage.
 fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDownloaderError>{
-    let mut stream_cpy = match stream.try_clone() {
+    let stream_cpy = match stream.try_clone() {
         Ok(stream_cpy) => stream_cpy,
         Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
     };
 
     let block_msg_h = match receive_message_header(stream_cpy){
         Ok(msg_h) => msg_h,
-        Err(e) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+        Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
     };
-    //println!("no falle al recibir el header");
-    println!("\n\n{}", block_msg_h.get_command_name());
     
     let mut msg_bytes = vec![0; block_msg_h.get_payload_size() as usize];
     match stream.read_exact(&mut msg_bytes) {
@@ -164,6 +163,10 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
                 Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
             }
         },
+        "notfound\0\0\0\0" =>{
+            println!("Hubo un not found");
+            panic!();
+        },
         _ => return receive_block_message(stream),
     };
 
@@ -171,11 +174,12 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
 
 }
 
+/// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
+/// Returns an error if it was not possible to send the message.
 fn send_get_data_message_for_blocks(hashes :Vec<[u8; 32]>, stream: &mut TcpStream)->Result<(), BlockDownloaderError>{
     let count = vec![hashes.len() as u8];
     
     let get_data_message = GetDataMessage::create_message_inventory_block_type(hashes, count);
-    //println!("{:?}", get_data_message);
     
     match get_data_message.send_to(stream) {
         Ok(_) => Ok(()),
@@ -183,8 +187,8 @@ fn send_get_data_message_for_blocks(hashes :Vec<[u8; 32]>, stream: &mut TcpStrea
     }
 }
 
+/// Receives a vector of block hashes and a TcpStream, and returns a vector of blocks that were requested to the stream
 fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut TcpStream)-> Result<Vec<Block>, BlockDownloaderError>{
-    println!("\n\nentre a block bundle");
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     let mut blocks :Vec<Block> = Vec::new();

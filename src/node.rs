@@ -30,6 +30,7 @@ pub enum NodeError {
     ErrorReceivingMessageHeader,
     ErrorReceivingHeadersMessageHeaderInIBD,
     ErrorCreatingBlockDownloader,
+    ErrorDownloadingBlockBundle,
 }
 
 
