@@ -5,6 +5,7 @@ pub mod block_downloader;
 use crate::blockchain::*;
 use crate::messages::*;
 use crate::config::*;
+use crate::log::*;
 use std::{
     io::{Read, Write},
     net::{SocketAddr, ToSocketAddrs, TcpStream},
@@ -33,6 +34,29 @@ pub enum NodeError {
     ErrorDownloadingBlockBundle,
 }
 
+/* 
+impl BTCError for NodeError{
+
+    fn decode(&self) -> String{
+        let message = match self {
+            NodeError::ErrorConnectingToPeer => "",
+            NodeError::ErrorSendingMessageInHandshake => "",
+            NodeError::ErrorReceivingMessageInHandshake => "",
+            NodeError::ErrorReceivedUnknownMessage => "",
+            NodeError::ErrorInterpretingMessageCommandName => "",
+            NodeError::ErrorUnknownCommandName => "",
+            NodeError::ErrorSendingMessageInIBD => "",
+            NodeError::ErrorIteratingStreams => "",
+            NodeError::ErrorReceivingHeadersMessageInIBD => "",
+            NodeError::ErrorReceivingMessageHeader => "", 
+            NodeError::ErrorReceivingHeadersMessageHeaderInIBD => "",
+        };
+
+        message.to_string()
+    }
+} 
+*/
+
 
 /// Struct that represents the bitcoin node
 pub struct Node {
@@ -41,25 +65,28 @@ pub struct Node {
     tcp_streams: Vec<TcpStream>,
     block_headers: Vec<BlockHeader>,
     blockchain: Vec<Block>,
+    logger: Logger,
 }
 
 impl Node {
+
     /// It creates and returns a Node with the default values
-    fn _new(version: i32, local_host: [u8; 4], local_port: u16) -> Node {
+    fn _new(version: i32, local_host: [u8; 4], local_port: u16, logger: Logger) -> Node {
         Node {
             version,
             sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
             block_headers: Vec::new(),
             blockchain: Vec::new(),
+            logger,
         }
     }
 
     /// Node constructor, it creates a new node and performs the handshake with the sockets obtained
     /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
     /// tcp_streams vector. Returns the node
-    pub fn new(config: Config) -> Node {
-        let mut node = Node::_new(config.version, config.local_host, config.local_port);
+    pub fn new(logger: Logger, config: Config) -> Node {
+        let mut node = Node::_new(config.version, config.local_host, config.local_port, logger);
         let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
         
         for addr in address_vector {
@@ -67,6 +94,7 @@ impl Node {
                 node.tcp_streams.push(tcp_stream);
             }
         }
+
         node
     }
 
@@ -156,7 +184,8 @@ mod tests {
 
     #[test]
     fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address() {
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+        let logger = Logger::from_path("test_log.txt").unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
         let address_vector = node.peer_discovery("does_not_exist", DNS_PORT);
 
         assert!(address_vector.is_empty());
@@ -164,7 +193,8 @@ mod tests {
 
     #[test]
     fn peer_discovery_test_2_returns_ip_vector_when_receiving_valid_dns() {
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+        let logger = Logger::from_path("test_log.txt").unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
         let address_vector = node.peer_discovery(DNS_ADDRESS, DNS_PORT);
 
         assert!(!address_vector.is_empty());
@@ -174,7 +204,8 @@ mod tests {
     fn node_test_1_receive_header_message() -> Result<(), NodeError> {
         let mut stream = MockTcpStream::new();
 
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT);
+        let logger = Logger::from_path("test_log.txt").unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
 
         let expected_hm =
             HeaderMessage::new("test message", &Vec::from("test".as_bytes())).unwrap();

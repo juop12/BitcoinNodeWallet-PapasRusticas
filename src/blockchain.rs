@@ -1,11 +1,11 @@
 use chrono::Utc;
 use rand::prelude::*;
 use bitcoin_hashes::{sha256d, Hash};
-
 use crate::messages::block_message;
 use crate::messages::utils::calculate_variable_length_integer;
 
 const BLOCKHEADER_SIZE: usize = 80; 
+
 
 #[derive(Debug)]
 pub enum BlockChainError {

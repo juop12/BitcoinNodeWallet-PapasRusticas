@@ -1,7 +1,7 @@
 mod test {
-    //use proyecto::config;
-    use proyecto::node::*;
     use proyecto::config::*;
+    use proyecto::node::*;
+    use proyecto::log::*;
 
 
     const BEGIN_TIME_EPOCH: u32 = 1681084800; // 2023-04-10
@@ -18,7 +18,9 @@ mod test {
             begin_time: BEGIN_TIME_EPOCH,
         };
 
-        let node = Node::new(config);
+        let logger = Logger::from_path("test_log.txt").unwrap();
+
+        let node = Node::new(logger, config);
         assert!(node.get_tcp_streams().len() > 1);
     } 
 
@@ -32,9 +34,11 @@ mod test {
             log_path: String::from("src/node_log.txt"),
             begin_time: BEGIN_TIME_EPOCH,
         };
-
+      
         let mut node = Node::new(config);
-
+        let logger = Logger::from_path("test_log.txt").unwrap();
+        let node = Node::new(logger, config);
+      
         match node.initial_block_download(){
             Ok(_) => {
                 return Ok(());
