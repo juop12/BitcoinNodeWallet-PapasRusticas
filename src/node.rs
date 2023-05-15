@@ -32,6 +32,7 @@ pub enum NodeError {
     ErrorReceivingHeadersMessageHeaderInIBD,
     ErrorCreatingBlockDownloader,
     ErrorDownloadingBlockBundle,
+    ErrorCreatingNode,
 }
 
 /* 
@@ -85,7 +86,11 @@ impl Node {
     /// Node constructor, it creates a new node and performs the handshake with the sockets obtained
     /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
     /// tcp_streams vector. Returns the node
-    pub fn new(logger: Logger, config: Config) -> Node {
+    pub fn new(config: Config) -> Result<Node, NodeError> {
+        let logger = match Logger::from_path(config.log_path.as_str()){
+            Ok(logger) => logger,
+            Err(_) => return Err(NodeError::ErrorCreatingNode),
+        };
         let mut node = Node::_new(config.version, config.local_host, config.local_port, logger);
         let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
         
@@ -95,7 +100,7 @@ impl Node {
             }
         }
 
-        node
+        Ok(node)
     }
 
     /// Receives a dns address as a String and returns a Vector that contains all the addresses
