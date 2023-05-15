@@ -19,7 +19,7 @@ type Bundle = Box<Vec<[u8;32]>>;
 impl Worker {
     ///Creates a worker which attempts to execute tasks received trough the channel in a loop
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Bundle>>>, mut stream: TcpStream, locked_block_chain: Arc<Mutex<Vec<Block>>>) -> Result<Worker, BlockDownloaderError> {
-        let mut stream_cpy = match stream.try_clone(){
+        let stream_cpy = match stream.try_clone(){
             Ok(cloned_stream) => cloned_stream,
             Err(_) => return Err(BlockDownloaderError::ErrorCreatingWorker),
         };
@@ -42,7 +42,7 @@ impl Worker {
             
             let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream) {
                 Ok(blocks) => blocks,
-                Err(e) => return,
+                Err(_) => return,
             };
 
             let mut block_chain = match locked_block_chain.lock(){
@@ -192,7 +192,7 @@ fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut Tcp
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     let mut blocks :Vec<Block> = Vec::new();
-    for i in 0..amount_of_hashes{
+    for _ in 0..amount_of_hashes{
         let received_message = receive_block_message(stream)?;
         blocks.push(received_message.block);
     }
