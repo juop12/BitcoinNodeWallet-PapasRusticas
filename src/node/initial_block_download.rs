@@ -3,6 +3,7 @@ use bitcoin_hashes::{sha256d, Hash};
 use std::{io::{BufRead, BufReader}, fs::File, path::Path, char::MAX};
 use chrono::{DateTime, TimeZone,Utc};
 use block_downloader::*;
+use data_handler::*;
 use std::{
     sync::{Arc, Mutex},
 };
@@ -93,13 +94,16 @@ impl Node {
             Err(_) => Err(NodeError::ErrorCreatingBlockDownloader),
         }
     }
-
+    
     ///Downloads the blocks from the node, starting from the given block hash. It ignores the messages that
     ///are not block messages, and only downloads blocks that are after the given time. On error returns NodeError
     fn download_headers_and_blocks(&mut self, block_downloader :&BlockDownloader) -> Result<(), NodeError> {
         let mut headers_received = self.block_headers.len();
         let sync_node_index :usize = 0;
         let mut last_hash = HASHEDGENESISBLOCK;
+        if !self.block_headers.is_empty(){
+            last_hash = self.block_headers[self.block_headers.len() - 1].hash();
+        }
         let mut request_block_hashes_bundle :Vec<[u8;32]> = Vec::new();
         let mut j =0;
 
@@ -139,10 +143,47 @@ impl Node {
         Ok(())
     }
 
+    /// Writes the necessary headers and data into disk, to be able to continue the IBD from the last point. On error returns NodeError
+    /// Both are written starting from the given positions.
+    fn store_data_in_disk(&self, mut data_handler: NodeDataHandler, headers_starting_position: usize, blocks_starting_position: usize) -> Result<(), NodeError>{
+        if data_handler.save_headers(&self.block_headers, headers_starting_position).is_err(){
+            return Err(NodeError::ErrorSavingDataToDisk);
+        }
+        match data_handler.save_blocks(&self.blockchain, blocks_starting_position) {
+            Ok(_) => Ok(()),
+            Err(_) => return Err(NodeError::ErrorSavingDataToDisk),
+        }
+    }
+
+    fn load_blocks_and_headers(&mut self, mut data_handler: NodeDataHandler)->Result<NodeDataHandler, NodeError>{
+        let headers = match data_handler.get_all_headers(){
+            Ok(headers) => headers,
+            Err(_) => return Err(NodeError::ErrorLoadingDataFromDisk),
+        };
+
+        let blocks = match data_handler.get_all_blocks(){
+            Ok(blocks) => blocks,
+            Err(_) => return Err(NodeError::ErrorLoadingDataFromDisk),
+        };
+
+        self.blockchain.extend(blocks);
+        self.block_headers.extend(headers);
+        Ok(data_handler)
+    }
+
     ///Asks the node for the block headers starting from the given block hash, and then downloads the blocks
     ///starting from the given time. On error returns NodeError
     pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
         
+        let mut data_handler = match NodeDataHandler::new(){
+            Ok(handler) => handler,
+            Err(_) => return Err(NodeError::ErrorSavingDataToDisk),
+        };
+        println!("empece a loadear");
+        data_handler = self.load_blocks_and_headers(data_handler)?;
+        println!("termine de loadear");
+        let new_headers_starting_position = self.block_headers.len();
+        let new_blocks_starting_position = self.blockchain.len();
 
         let (block_downloader, safe_new_blocks) = self.create_block_downloader()?;
         
@@ -150,8 +191,6 @@ impl Node {
 
         match block_downloader.finish_downloading(){
             Ok(_) => {
-                println!("Paso y funco el finish");
-
                 let inner_vector = match safe_new_blocks.lock() {
                     Ok(inner) => inner,
                     Err(_) => return Err(NodeError::ErrorDownloadingBlockBundle),
@@ -164,14 +203,16 @@ impl Node {
                     self.blockchain.push(copied_block);
                 }
             },
-            Err(_) => {
-                println!("Paso y fallo el finish");
-                return Err(NodeError::ErrorDownloadingBlockBundle);
-            },
+            Err(_) => {return Err(NodeError::ErrorDownloadingBlockBundle)},
         }
     
         println!("# de headers = {}", self.block_headers.len());
         println!("# de bloques descargados = {}", self.blockchain.len());
+
+        println!("\n\nempese a guardar la data");
+        
+        self.store_data_in_disk(data_handler, new_headers_starting_position, new_blocks_starting_position);
+        println!("\n\ntermine de guardar la data");
 
         Ok(())
         

@@ -42,7 +42,10 @@ impl Worker {
             
             let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream) {
                 Ok(blocks) => blocks,
-                Err(_) => return,
+                Err(_) => {
+                    println!("\n\n\n perdi un worker\n\n\n");
+                    return;
+                },
             };
 
             let mut block_chain = match locked_block_chain.lock(){
@@ -51,8 +54,11 @@ impl Worker {
                         block_chain.push(block);
                     }
                 },
-                Err(_) => return,
-            };
+                Err(_) => {
+                    println!("\n\n\n perdi un worker uwun't \n\n\n");
+                    return;
+                    },
+                };
         });
         Ok(Worker { id, thread, stream: stream_cpy })
     }

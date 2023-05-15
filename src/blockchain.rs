@@ -27,10 +27,10 @@ pub struct BlockHeader {
 
 #[derive(Debug)]
 pub struct Block {
-    header: BlockHeader,
-    transaction_count: Vec<u8>, // 0 for now.
+    pub header: BlockHeader,
+    pub transaction_count: Vec<u8>, // 0 for now.
     //transactions: Vec<Transaction>,
-    transactions: Vec<u8>,
+    pub transactions: Vec<u8>,
 }
 
 impl BlockHeader{
