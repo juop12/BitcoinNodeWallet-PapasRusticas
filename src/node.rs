@@ -1,6 +1,7 @@
 pub mod initial_block_download;
 pub mod handshake;
 pub mod block_downloader;
+pub mod data_handler;
 
 use crate::blockchain::*;
 use crate::messages::*;
@@ -33,6 +34,8 @@ pub enum NodeError {
     ErrorCreatingBlockDownloader,
     ErrorDownloadingBlockBundle,
     ErrorCreatingNode,
+    ErrorSavingDataToDisk,
+    ErrorLoadingDataFromDisk,
 }
 
 /* 
