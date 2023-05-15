@@ -1,5 +1,5 @@
 use super::utils::*;
-use crate::blockchain::*;
+use crate::blockchain::BlockHeader;
 
 
 const BLOCKHEADER_SIZE: usize = 80;

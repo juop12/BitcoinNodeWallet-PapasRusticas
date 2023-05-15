@@ -1,5 +1,6 @@
 pub mod initial_block_download;
 pub mod handshake;
+pub mod block_downloader;
 
 use crate::blockchain::*;
 use crate::messages::*;
@@ -29,6 +30,8 @@ pub enum NodeError {
     ErrorReceivingHeadersMessageInIBD,
     ErrorReceivingMessageHeader,
     ErrorReceivingHeadersMessageHeaderInIBD,
+    ErrorCreatingBlockDownloader,
+    ErrorDownloadingBlockBundle,
 }
 
 /* 
@@ -61,7 +64,7 @@ pub struct Node {
     sender_address: SocketAddr,
     tcp_streams: Vec<TcpStream>,
     block_headers: Vec<BlockHeader>,
-    blockchain: Option<Block>,
+    blockchain: Vec<Block>,
     logger: Logger,
 }
 
@@ -74,7 +77,7 @@ impl Node {
             sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
             block_headers: Vec::new(),
-            blockchain: None,
+            blockchain: Vec::new(),
             logger,
         }
     }
@@ -115,20 +118,9 @@ impl Node {
         &self.tcp_streams
     }
 
-    ///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
-    /// On error returns ErrorReceivingMessage
-    pub fn receive_message_header<T: Read + Write>(&self, mut stream: T) -> Result<HeaderMessage, NodeError> {
-        let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
-        if let Err(_) = stream.read_exact(&mut header_bytes) {
-            return Err(NodeError::ErrorReceivingMessageHeader);
-        };
-    
-        match HeaderMessage::from_bytes(&mut header_bytes) {
-            Ok(header_message) => Ok(header_message),
-            Err(_) => Err(NodeError::ErrorReceivingMessageHeader),
-        }
+    pub fn get_blockchain(&self) -> &Vec<Block>{
+        &self.blockchain
     }
-
     /*
             fn handle_received_verack_message(&self, message_bytes: Vec<u8>)-> Result<(), NodeError>{
                 let vm = match VersionMessage::from_bytes(message_bytes) {
@@ -163,6 +155,19 @@ impl Node {
                 Ok(())
             }
     */
+}
+
+///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
+/// On error returns ErrorReceivingMessage
+pub fn receive_message_header<T: Read + Write>(mut stream: T,) -> Result<HeaderMessage, NodeError> {
+    let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
+    if let Err(error) = stream.read_exact(&mut header_bytes){
+        return Err(NodeError::ErrorReceivingMessageHeader);
+    };
+    match HeaderMessage::from_bytes(&mut header_bytes) {
+        Ok(header_message) => Ok(header_message),
+        Err(_) => Err(NodeError::ErrorReceivingMessageHeader),
+    }
 }
 
 #[cfg(test)]
@@ -206,7 +211,7 @@ mod tests {
             HeaderMessage::new("test message", &Vec::from("test".as_bytes())).unwrap();
         stream.read_buffer = expected_hm.to_bytes();
 
-        let received_hm = node.receive_message_header(&mut stream)?;
+        let received_hm = receive_message_header(&mut stream)?;
 
         assert_eq!(received_hm, expected_hm);
         Ok(())
