@@ -17,10 +17,5 @@ fn main() {
         Err(error) => return eprintln!("{:?}", error),
     };
 
-    let log = match Logger::from_path(&config.log_path){
-        Ok(log) => log,
-        Err(error) => return eprintln!("{:?}", error),
-    };
-
-    Node::new(log, config);
+    Node::new(config);
 }

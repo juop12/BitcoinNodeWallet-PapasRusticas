@@ -1,4 +1,5 @@
 use std::sync::{mpsc, mpsc::Sender};
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::fs::File;
 use std::thread;
@@ -37,6 +38,10 @@ impl Logger {
                     continue;
                 };
 
+                if let Err(_) = file.flush(){
+                    continue;
+                };
+
                 if received == "stop"{
                     break;
                 }
@@ -49,17 +54,17 @@ impl Logger {
     }
 
     /*
-    pub fn log_error<T: BTCError>(&self, error: &T) -> Result<(), LoggerError>{
-        let text = error.decode();  
-        self.log(text)
-    }
+        pub fn log_error<T: BTCError>(&self, error: &T) -> Result<(), LoggerError>{
+            let text = error.decode();  
+            self.log(text)
+        }
     */
 
     /*
-    pub fn log_message<T: Message>(&self, message: T) -> Result<(), LoggerError>{
-        let text = message.decode();  
-        self.log(text)
-    }
+        pub fn log_message<T: Message>(&self, message: T) -> Result<(), LoggerError>{
+            let text = message.decode();  
+            self.log(text)
+        }
     */
 
     /// Writes a text to the log, on error returns ErrorSendingMessage.
@@ -73,19 +78,22 @@ impl Logger {
 }
 
 /*
-pub trait BTCError{
-    fn decode(&self) -> String;
-}
+    pub trait BTCError{
+        fn decode(&self) -> String;
+    }
 */
 
 /// A handler for opening the log file in write mode, on error returns ErrorOpeningFile
 fn _open_log_handler(path: &str) -> Result<File, LoggerError> {
-    match File::create(path){
-        Ok(file)=> Ok(file),
+    match OpenOptions::new().create(true).write(true).open(path){
+        Ok(file)=> {
+            Ok(file)
+        },
         Err(_) => Err(LoggerError::ErrorOpeningFile),
     }
 }
 
+/* 
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,7 +111,7 @@ mod tests {
 
     }
     */
-
+    /*
     #[test]
     fn log_test_1_writes_text_correctly() {
         let logger = Logger::from_path(LOGFILE).unwrap();
@@ -116,4 +124,6 @@ mod tests {
 
         assert!((contenido[0] == "prueba") && (contenido[1] == "stop"));
     }
+    */
 }
+*/

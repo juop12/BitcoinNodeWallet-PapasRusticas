@@ -198,7 +198,7 @@ mod tests{
             log_path: String::from("src/node_log.txt"),
             begin_time: 1681084800,
         };
-        let mut node = Node::new(config);
+        let mut node = Node::new(config)?;
         node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK)?;
         while node.receive_message(0)? != "headers\0\0\0\0\0" {
 
@@ -219,7 +219,7 @@ mod tests{
             begin_time: 1681084800,
         };
         let sync_node_index = 0;
-        let mut node = Node::new(config);
+        let mut node = Node::new(config)?;
         let vec = Vec::new();
         let safe_block_chain = Arc::new(Mutex::from(vec));
         let block_downloader = BlockDownloader::new(node.get_tcp_streams(), &safe_block_chain).unwrap();

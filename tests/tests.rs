@@ -8,20 +8,19 @@ mod test {
 
 
      #[test]
-    fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes() {
+    fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes() -> Result<(), NodeError>  {
         let config = Config {
             version: 70015,
             dns_port: 18333,
             local_host: [127,0,0,1],
             local_port: 1001,
-            log_path: String::from("src/node_log.txt"),
+            log_path: String::from("src/test_log.txt"),
             begin_time: BEGIN_TIME_EPOCH,
         };
 
-        let logger = Logger::from_path("test_log.txt").unwrap();
-
-        let node = Node::new(logger, config);
+        let node = Node::new(config)?;
         assert!(node.get_tcp_streams().len() > 1);
+        Ok(())
     } 
 
     #[test]
@@ -35,9 +34,7 @@ mod test {
             begin_time: BEGIN_TIME_EPOCH,
         };
       
-        let mut node = Node::new(config);
-        let logger = Logger::from_path("test_log.txt").unwrap();
-        let node = Node::new(logger, config);
+        let mut node = Node::new(config)?;
       
         match node.initial_block_download(){
             Ok(_) => {
