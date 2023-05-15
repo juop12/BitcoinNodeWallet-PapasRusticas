@@ -18,7 +18,7 @@ pub enum BlockChainError {
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockHeader {
     version: i32,
-    pub prev_hash: [u8; 32],
+    prev_hash: [u8; 32],
     merkle_root_hash: [u8; 32],
     time: u32,
     n_bits: u32,
@@ -27,10 +27,10 @@ pub struct BlockHeader {
 
 #[derive(Debug)]
 pub struct Block {
-    pub header: BlockHeader,
-    pub transaction_count: Vec<u8>, // 0 for now.
+    header: BlockHeader,
+    transaction_count: Vec<u8>, // 0 for now.
     //transactions: Vec<Transaction>,
-    pub transactions: Vec<u8>,
+    transactions: Vec<u8>,
 }
 
 impl BlockHeader{
