@@ -1,5 +1,6 @@
 use super::utils::*;
 use crate::messages::*;
+use crate::variable_length_integer::VarLenInt;
 
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 
@@ -12,19 +13,18 @@ fn as_block_element(hash: [u8;32]) -> [u8;36]{
 
 #[derive(Debug)]
 pub struct GetDataMessage {
-    count: Vec<u8>,
-    
+    count: VarLenInt,
     inventory: Vec<[u8;36]>,
 }
 impl GetDataMessage{
-    pub fn new(inventory: Vec<[u8;36]>, count: Vec<u8>) -> GetDataMessage{
+    pub fn new(inventory: Vec<[u8;36]>, count: VarLenInt) -> GetDataMessage{
         GetDataMessage{
                 count,
                 inventory,
         }
     }
 
-    pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8;32]>, count: Vec<u8>) -> GetDataMessage{
+    pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8;32]>, count: VarLenInt) -> GetDataMessage{
         let mut inventory: Vec<[u8;36]> = Vec::new();
         for entry in inventory_entries{
             inventory.push(as_block_element(entry))
@@ -49,7 +49,7 @@ impl Message for GetDataMessage{
     //transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>{
         let mut bytes_vector = Vec::new();
-        bytes_vector.extend(&self.count);
+        bytes_vector.extend(&self.count.to_bytes());
        
         for i in 0..self.inventory.len() {
             bytes_vector.extend(self.inventory[i]);
@@ -59,14 +59,14 @@ impl Message for GetDataMessage{
 
     //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
-        let (count, amount_of_bytes, inventory_size) = calculate_variable_length_integer(&slice);
+        let count = VarLenInt::from_bytes(&slice);
 
-        if (inventory_size * 36 + amount_of_bytes) != slice.len(){
+        if (count.to_usize() * 36 + count.amount_of_bytes()) != slice.len(){
             return Err(MessageError::ErrorCreatingGetDataMessage)
         }
 
         let mut inventory: Vec<[u8;36]> = Vec::new();
-        let mut i = amount_of_bytes;
+        let mut i = count.amount_of_bytes();
         while i < slice.len(){
             let aux: [u8;36] = match slice[(i)..(i + 36)].try_into(){
                 Ok(array) => array,
@@ -116,7 +116,7 @@ mod test{
         
         let hashes  = vec![as_block_element(hash1), as_block_element(hash2),];
         
-        let block_headers_message = GetDataMessage::new(hashes,vec![2]);
+        let block_headers_message = GetDataMessage::new(hashes,VarLenInt::new(2));
 
         assert_eq!(block_headers_message.to_bytes(), expected_bytes);
         Ok(())

@@ -2,7 +2,7 @@ use chrono::Utc;
 use rand::prelude::*;
 use bitcoin_hashes::{sha256d, Hash};
 use crate::messages::block_message;
-use crate::messages::utils::calculate_variable_length_integer;
+use crate::variable_length_integer::VarLenInt;
 
 const BLOCKHEADER_SIZE: usize = 80; 
 
@@ -28,7 +28,7 @@ pub struct BlockHeader {
 #[derive(Debug)]
 pub struct Block {
     header: BlockHeader,
-    transaction_count: Vec<u8>, // 0 for now.
+    transaction_count: VarLenInt, // 0 for now.
     //transactions: Vec<Transaction>,
     transactions: Vec<u8>,
 }
@@ -112,7 +112,7 @@ impl Block{
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = self.header.to_bytes();
-        bytes_vector.extend_from_slice(&self.transaction_count);
+        bytes_vector.extend_from_slice(&self.transaction_count.to_bytes());
         bytes_vector.extend_from_slice(&self.transactions);
         bytes_vector
     }
@@ -132,9 +132,8 @@ impl Block{
 
         let (header_bytes, slice) = slice.split_at_mut(BLOCKHEADER_SIZE);
         let header = BlockHeader::from_bytes(header_bytes).ok()?;
-
-        let (transaction_count, count_amount_of_bytes, amount_of_transactions) = calculate_variable_length_integer(slice);
-        let (_count_bytes ,transactions_bytes) = slice.split_at_mut(count_amount_of_bytes);
+        let transaction_count = VarLenInt::from_bytes(slice);
+        let (_count_bytes ,transactions_bytes) = slice.split_at_mut(transaction_count.amount_of_bytes());
         Some(Block {
             header,
             transaction_count, // 0 for now.
@@ -209,7 +208,7 @@ mod tests {
             n_bits: 0x30c31b18,
             nonce: 14082023,
         };
-        let transaction_count:Vec<u8> = vec![2];
+        let transaction_count = VarLenInt::new(2);
         let mut transactions:Vec<u8> = Vec::new();
         for _ in 0..100{
             transactions.push(0)
