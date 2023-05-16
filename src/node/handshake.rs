@@ -72,7 +72,7 @@ impl Node {
     /// On error returns ErrorSendingMessageInHandshake
     fn handshake_receive_verack_message<T: Read + Write>(
         &self,
-        stream: T,
+        stream: &mut T,
     ) -> Result<VerACKMessage, NodeError> {
         let hm = receive_message_header(stream)?;
 
@@ -90,7 +90,7 @@ impl Node {
     ///Does peer conection protocol acording to the bitcoin network. Sends a VersionMessage, recieves one, sends a VerACKMessage then receives one.
     ///If everything works returns a tcpstream,
     pub fn handshake(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> {
-        let tcp_stream = self.connect_to_peer(receiving_addrs)?;
+        let mut tcp_stream = self.connect_to_peer(receiving_addrs)?;
 
         self.handshake_send_version_message(receiving_addrs, &tcp_stream)?;
 
@@ -98,7 +98,7 @@ impl Node {
 
         self.handshake_send_verack_message(&tcp_stream)?;
 
-        self.handshake_receive_verack_message(&tcp_stream)?;
+        self.handshake_receive_verack_message(&mut tcp_stream)?;
 
         Ok(tcp_stream)
     }
