@@ -173,11 +173,6 @@ impl BlockDownloader{
 
 ///Receives a TcpStream and gets the blocks from the stream, returning a BlockMessage.
 fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDownloaderError>{
-    /*let stream_cpy = match stream.try_clone() {
-        Ok(stream_cpy) => stream_cpy,
-        Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
-    };*/
-
     let block_msg_h = match receive_message_header(stream){
         Ok(msg_h) => msg_h,
         Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
@@ -198,7 +193,7 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
         },
         "notfound\0\0\0\0" =>{
             println!("Hubo un not found");
-            panic!();
+            todo!();
         },
         _ => return receive_block_message(stream),
     };
@@ -229,6 +224,6 @@ fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut Tcp
         let received_message = receive_block_message(stream)?;
         blocks.push(received_message.block);
     }
-    //mandar al nodo los bloques obtenidos
+    
     Ok(blocks)
 }

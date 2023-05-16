@@ -183,9 +183,7 @@ impl Node {
             Ok(handler) => handler,
             Err(_) => return Err(NodeError::ErrorSavingDataToDisk),
         };
-        println!("empece a loadear");
         data_handler = self.load_blocks_and_headers(data_handler)?;
-        println!("termine de loadear");
         let new_headers_starting_position = self.block_headers.len();
         let new_blocks_starting_position = self.blockchain.len();
 
@@ -216,11 +214,8 @@ impl Node {
     
         println!("# de headers = {}", self.block_headers.len());
         println!("# de bloques descargados = {}", self.blockchain.len());
-
-        println!("\n\nempese a guardar la data");
         
         self.store_data_in_disk(data_handler, new_headers_starting_position, new_blocks_starting_position);
-        println!("\n\ntermine de guardar la data");
 
         Ok(())
         
@@ -288,7 +283,6 @@ mod tests{
         }
 
         block_downloader.finish_downloading().unwrap();
-        //thread::sleep(Duration::from_secs(30));
         
         let a = safe_block_chain.lock().unwrap();
         println!("{}", a.len());
