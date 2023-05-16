@@ -167,7 +167,7 @@ impl Node {
 
 ///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
 /// On error returns ErrorReceivingMessage
-pub fn receive_message_header<T: Read + Write>(mut stream: T,) -> Result<HeaderMessage, NodeError> {
+pub fn receive_message_header<T: Read + Write>(stream: &mut T,) -> Result<HeaderMessage, NodeError> {
     let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
     if let Err(error) = stream.read_exact(&mut header_bytes){
         return Err(NodeError::ErrorReceivingMessageHeader);

@@ -18,7 +18,7 @@ type Bundle = Box<Vec<[u8;32]>>;
 
 impl Worker {
     ///Creates a worker which attempts to execute tasks received trough the channel in a loop
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Bundle>>>, mut stream: TcpStream, locked_block_chain: Arc<Mutex<Vec<Block>>>) -> Result<Worker, BlockDownloaderError> {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Bundle>>>, mut stream: TcpStream, locked_block_chain: Arc<Mutex<Vec<Block>>>, missed_bundles_sender: mpsc::Sender<Bundle>) -> Result<Worker, BlockDownloaderError> {
         let stream_cpy = match stream.try_clone(){
             Ok(cloned_stream) => cloned_stream,
             Err(_) => return Err(BlockDownloaderError::ErrorCreatingWorker),
@@ -39,26 +39,28 @@ impl Worker {
             if bundle.is_empty(){
                 return
             }
+
+            let a = *bundle.clone();
             
             let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream) {
                 Ok(blocks) => blocks,
                 Err(_) => {
-                    println!("\n\n\n perdi un worker\n\n\n");
+                    let _ = missed_bundles_sender.send(Box::new(a));
                     return;
-                },
+                    }
             };
 
-            let mut block_chain = match locked_block_chain.lock(){
+            match locked_block_chain.lock(){
                 Ok(mut block_chain) => {
                     for block in received_blocks{
                         block_chain.push(block);
                     }
                 },
                 Err(_) => {
-                    println!("\n\n\n perdi un worker uwun't \n\n\n");
+                    let _ = missed_bundles_sender.send(Box::new(a));
                     return;
-                    },
-                };
+                    }
+            };
         });
         Ok(Worker { id, thread, stream: stream_cpy })
     }
@@ -71,7 +73,9 @@ impl Worker {
         }
     }
 
-    
+    fn is_finished(&self)->bool{
+        self.thread.is_finished()
+    }
 }
 
 /// Struct that represents a thread pool.
@@ -79,6 +83,7 @@ impl Worker {
 pub struct BlockDownloader{
     workers: Vec<Worker>,
     sender: mpsc::Sender<Bundle>,
+    missed_bundles_receiver: mpsc::Receiver<Bundle>,
 }
 
 /// Enum that contains the possible errors that can occur when running the thread pool.
@@ -100,6 +105,7 @@ impl BlockDownloader{
             return Err(BlockDownloaderError::ErrorInvalidCreationSize);
         }   
         let (sender, receiver) = mpsc::channel();
+        let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
         
         let receiver = Arc::new(Mutex::new(receiver));
         let mut workers = Vec::with_capacity(connections_ammount);
@@ -109,10 +115,10 @@ impl BlockDownloader{
                 Ok(stream) => stream,
                 Err(_) => return Err(BlockDownloaderError::ErrorCreatingWorker),
             };
-            let worker = Worker::new(id,receiver.clone(), current_stream, block_chain.clone())?;
+            let worker = Worker::new(id, receiver.clone(), current_stream, block_chain.clone(), missed_bundles_sender.clone())?;
             workers.push(worker); // la que estaba en The Rust Book es Arc::clone(&receiver)
         }
-        Ok(BlockDownloader {workers, sender})
+        Ok(BlockDownloader {workers, sender, missed_bundles_receiver})
     }
     
     ///Receives a function or closure that receives no parameters and executes them in a diferent thread using workers.x
@@ -127,17 +133,38 @@ impl BlockDownloader{
             Err(_) => Err(BlockDownloaderError::ErrorSendingToThread),
         }
     }
+
     ///Writes an empty vector to the channel of the workers, so they can finish their execution. It works as
     ///a way to stop the threads execution. On error, it returns BlockDownloaderError.
-    pub fn finish_downloading(self)->Result<(), BlockDownloaderError>{
-        for _ in 0..self.workers.len(){
+    pub fn finish_downloading(&mut self)->Result<(), BlockDownloaderError>{
+        let cantidad_workers = self.workers.len();
+        for _ in 0..cantidad_workers{
+            if self.sender.send(Box::new(vec![])).is_err() {
+                return Err(BlockDownloaderError::ErrorSendingToThread);
+            }
+
+            while let Ok(bundle) = self.missed_bundles_receiver.try_recv(){
+                //println!("represoesar {:?}", *bundle);
+                self.download_block_bundle(*bundle)?;
+            }
+
             let end_of_channel :Vec<[u8;32]> = Vec::new();
             if self.sender.send(Box::new(end_of_channel)).is_err(){
                 return Err(BlockDownloaderError::ErrorSendingToThread);
             }
-        }
-        for worker in self.workers{
-            worker.join_thread()?;
+          
+            
+            let mut joined_a_worker = false;
+            
+            while !joined_a_worker{
+                let worker = self.workers.remove(0);
+                if worker.is_finished(){
+                    worker.join_thread()?;
+                    joined_a_worker = true;
+                }else{
+                    self.workers.push(worker);
+                }
+            }
         }
         Ok(())
     }
@@ -146,12 +173,7 @@ impl BlockDownloader{
 
 ///Receives a TcpStream and gets the blocks from the stream, returning a BlockMessage.
 fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDownloaderError>{
-    let stream_cpy = match stream.try_clone() {
-        Ok(stream_cpy) => stream_cpy,
-        Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
-    };
-
-    let block_msg_h = match receive_message_header(stream_cpy){
+    let block_msg_h = match receive_message_header(stream){
         Ok(msg_h) => msg_h,
         Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
     };
@@ -171,7 +193,7 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
         },
         "notfound\0\0\0\0" =>{
             println!("Hubo un not found");
-            panic!();
+            todo!();
         },
         _ => return receive_block_message(stream),
     };
@@ -202,6 +224,6 @@ fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut Tcp
         let received_message = receive_block_message(stream)?;
         blocks.push(received_message.block);
     }
-    //mandar al nodo los bloques obtenidos
+    
     Ok(blocks)
 }

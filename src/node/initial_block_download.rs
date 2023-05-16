@@ -97,9 +97,8 @@ impl Node {
     
     ///Downloads the blocks from the node, starting from the given block hash. It ignores the messages that
     ///are not block messages, and only downloads blocks that are after the given time. On error returns NodeError
-    fn download_headers_and_blocks(&mut self, block_downloader :&BlockDownloader) -> Result<(), NodeError> {
+    fn download_headers_and_blocks(&mut self, block_downloader :&BlockDownloader, sync_node_index: usize) -> Result<(), NodeError> {
         let mut headers_received = self.block_headers.len();
-        let sync_node_index :usize = 0;
         let mut last_hash = HASHEDGENESISBLOCK;
         if !self.block_headers.is_empty(){
             last_hash = self.block_headers[self.block_headers.len() - 1].hash();
@@ -115,6 +114,11 @@ impl Node {
             let mut i = headers_received;
             headers_received += 2000;
             last_hash = self.block_headers[self.block_headers.len()-1].hash();
+
+            //si no lee nada falla sin el if
+            if headers_received == self.block_headers.len(){
+                break;
+            }
 
             if self.block_headers[i].time() > STARTING_BLOCK_TIME{
                 while i < self.block_headers.len(){
@@ -179,15 +183,17 @@ impl Node {
             Ok(handler) => handler,
             Err(_) => return Err(NodeError::ErrorSavingDataToDisk),
         };
-        println!("empece a loadear");
         data_handler = self.load_blocks_and_headers(data_handler)?;
-        println!("termine de loadear");
         let new_headers_starting_position = self.block_headers.len();
         let new_blocks_starting_position = self.blockchain.len();
 
-        let (block_downloader, safe_new_blocks) = self.create_block_downloader()?;
+        let (mut block_downloader, safe_new_blocks) = self.create_block_downloader()?;
         
-        self.download_headers_and_blocks(&block_downloader);
+        let mut i = 0;
+        while let Err(_) = self.download_headers_and_blocks(&block_downloader, i) {
+            i+=1;
+        }
+        self.tcp_streams.swap(0, i);
 
         match block_downloader.finish_downloading(){
             Ok(_) => {
@@ -208,11 +214,8 @@ impl Node {
     
         println!("# de headers = {}", self.block_headers.len());
         println!("# de bloques descargados = {}", self.blockchain.len());
-
-        println!("\n\nempese a guardar la data");
         
         self.store_data_in_disk(data_handler, new_headers_starting_position, new_blocks_starting_position);
-        println!("\n\ntermine de guardar la data");
 
         Ok(())
         
@@ -263,8 +266,8 @@ mod tests{
         let mut node = Node::new(config)?;
         let vec = Vec::new();
         let safe_block_chain = Arc::new(Mutex::from(vec));
-        let block_downloader = BlockDownloader::new(node.get_tcp_streams(), &safe_block_chain).unwrap();
-        for _ in 0..3{
+        let mut block_downloader = BlockDownloader::new(node.get_tcp_streams(), &safe_block_chain).unwrap();
+        for _ in 0..1{
             node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK)?;
             while node.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
 
@@ -279,11 +282,11 @@ mod tests{
 
         }
 
-        block_downloader.finish_downloading();
-        //thread::sleep(Duration::from_secs(30));
+        block_downloader.finish_downloading().unwrap();
         
         let a = safe_block_chain.lock().unwrap();
-        assert!(a.len() >= 1);
+        println!("{}", a.len());
+        assert!(a.len() == 2000);
         Ok(())
         //node.receive_message(sync_node_index);
     }
