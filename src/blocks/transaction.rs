@@ -5,12 +5,14 @@ const MIN_BYTES_TX_OUT :usize = 9;
 const MIN_BYTES_TRANSACTION: usize = 10;
 const OUTPOINT_BYTES :usize = 36;
 
+/// Struct that represents the Outpoint, that is used in the TxIn struct.
 #[derive(Debug, PartialEq)]
 pub struct Outpoint {
     hash: [u8; 32],
     index: u32,
 }
 
+/// Struct that represents the TxIn used in the struct Transaction.
 #[derive(Debug, PartialEq)]
 pub struct TxIn {
     previous_output: Outpoint,
@@ -19,6 +21,7 @@ pub struct TxIn {
     sequence: u32,
 }
 
+/// Struct that represents the TxOut used in the struct Transaction
 #[derive(Debug, PartialEq)]
 pub struct TxOut {
     value: i64,
@@ -26,6 +29,7 @@ pub struct TxOut {
     pk_script: Vec<u8>,
 }
 
+/// Implementation of a Transaction in a Bitcoin block.
 #[derive(Debug, PartialEq)]
 pub struct Transaction {
     version: i32,
@@ -36,6 +40,7 @@ pub struct Transaction {
     lock_time: u32,
 }
 
+/// Enum that represents the possible errors that can occur while creating a transaction
 #[derive(Debug, PartialEq)]
 pub enum TransactionError {
     ErrorCreatingTransaction,
@@ -45,16 +50,19 @@ pub enum TransactionError {
 }
 
 impl Outpoint{
+    ///Creates a new Outpoint
     fn new(hash: [u8;32], index: u32)->Outpoint{
         Outpoint{hash, index}
     }
 
+    ///Returns the contents of Outpoint as a bytes vecotr
     fn to_bytes(&self)-> Vec<u8>{
         let mut bytes = Vec::from(self.hash);
         bytes.extend(self.index.to_le_bytes());
         bytes
     }
-
+    
+    ///If the bytes given can form a valid Outpoint, it creates it, if not returns error
     fn from_bytes(slice :&[u8])->Result<Outpoint, TransactionError>{
         if slice.len() != OUTPOINT_BYTES{
             return Err(TransactionError::ErrorCreatingOutpointFromBytes);
@@ -83,6 +91,7 @@ impl TxOut {
         }
     }
 
+    ///Returns the contents of Outpoint as a bytes vecotr
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.value.to_le_bytes());
@@ -91,6 +100,9 @@ impl TxOut {
         bytes_vector
     }
 
+    /// If the bytes given can form a valid TxOut, it creates it, if not returns error.
+    /// It is important to note that not all bytes passed will be used. The function 
+    /// will only use the bytes needed to create the TxOut
     fn from_bytes(slice: &[u8]) -> Result<TxOut, TransactionError> {
         if slice.len() < MIN_BYTES_TX_OUT{
             return Err(TransactionError::ErrorCreatingTxOutFromBytes);
@@ -118,6 +130,7 @@ impl TxOut {
 
 
 impl TxIn{
+    /// Creates a new TxIn
     pub fn new(previous_output: Outpoint, signature_script: Vec<u8>, sequence: u32) -> TxIn {
         let script_length = VarLenInt::new(signature_script.len());
         TxIn{
@@ -128,6 +141,7 @@ impl TxIn{
         }
     }
 
+    /// Returns the contents of TxIn as a bytes vector
     fn to_bytes(&self) -> Vec<u8>{
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.previous_output.to_bytes());
@@ -137,6 +151,9 @@ impl TxIn{
         bytes_vector
     }
 
+    /// If the bytes given can form a valid TxIn, it creates it, if not returns error.
+    /// It is important to note that not all bytes passed will be used. The function 
+    /// will only use the bytes needed to create the TxIn
     fn from_bytes(slice: &[u8]) -> Result<TxIn, TransactionError> {
         if slice.len() < MIN_BYTES_TX_IN{
             return Err(TransactionError::ErrorCreatingTxInFromBytes);
@@ -164,12 +181,14 @@ impl TxIn{
         })
     }
 
+    /// Returns the amount of bytes needed to represent the TxIn
     fn amount_of_bytes(&self) -> usize{
         self.to_bytes().len()
     }
 }
 
 impl Transaction {
+    /// Creates a new Transaction
     pub fn new(version: i32, tx_in_vector: Vec<TxIn>, tx_out_vector: Vec<TxOut>, lock_time: u32) -> Transaction {
         Transaction {
             version,
@@ -181,6 +200,7 @@ impl Transaction {
         }
     }
 
+    /// Returns the contents of Transaction as a bytes vector
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.version.to_le_bytes());
@@ -195,7 +215,8 @@ impl Transaction {
         bytes_vector.extend_from_slice(&self.lock_time.to_le_bytes());
         bytes_vector
     }
-
+    
+    /// If the bytes given can form a valid Transaction, it creates it, if not returns error.
     fn from_bytes(slice: &[u8])-> Result<Transaction,TransactionError>{
         if slice.len() < MIN_BYTES_TRANSACTION{
             return Err(TransactionError::ErrorCreatingTxInFromBytes);
@@ -206,6 +227,8 @@ impl Transaction {
         }
     }
 
+    /// It receives the slice of bytes and checks if it can form a valid Transaction by converting the bytes into
+    /// the corresponding fields. If it can, it returns the Transaction, if not, it returns None
     fn _from_bytes(slice: &[u8]) -> Option<Transaction> {
         let version = i32::from_le_bytes(slice[0..4].try_into().ok()?);
         let tx_in_count = VarLenInt::from_bytes(&slice[4..]);
@@ -229,7 +252,6 @@ impl Transaction {
         }
         
         if slice.len() != 4{
-            println!("!= 4");
             return None;
         }
         let lock_time = u32::from_le_bytes(slice.try_into().ok()?);
