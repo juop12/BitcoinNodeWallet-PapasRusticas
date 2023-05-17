@@ -1,7 +1,4 @@
 use crate::node::*;
-use bitcoin_hashes::{sha256d, Hash};
-use std::{io::{BufRead, BufReader}, fs::File, path::Path, char::MAX};
-use chrono::{DateTime, TimeZone,Utc};
 use block_downloader::*;
 use data_handler::*;
 use std::{
@@ -108,7 +105,7 @@ impl Node {
 
         while headers_received == self.block_headers.len(){
             self.ibd_send_get_block_headers_message(last_hash)?;
-            while(self.receive_message(sync_node_index)? != "headers\0\0\0\0\0"){
+            while self.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
 
             }
             let mut i = headers_received;

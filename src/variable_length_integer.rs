@@ -45,7 +45,7 @@ impl VarLenInt{
         for i in 0..amount_of_bytes{
             bytes.push(slice[i]);
         }
-        VarLenInt{ bytes}
+        VarLenInt{ bytes }
     }
 
     pub fn amount_of_bytes(&self)->usize{
