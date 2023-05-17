@@ -1,6 +1,6 @@
 use super::utils::*;
 use crate::messages::*;
-use crate::blockchain::Block;
+use crate::blocks::blockchain::Block;
 
 pub struct BlockMessage{
     pub block :Block,

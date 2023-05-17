@@ -2,7 +2,7 @@ use super::utils::*;
 use std::net::{IpAddr, SocketAddr};
 use rand::prelude::*;
 use chrono::Utc;
-
+use crate::variable_length_integer::VarLenInt;
 
 const NODE_NETWORK: u64 = 0x01;
 const VERSION_MSG_NAME: &str = "version\0\0\0\0\0";
@@ -22,7 +22,7 @@ pub struct VersionMessage {
     sender_address: [u8; 16],
     sender_port: u16,
     nonce: u64,
-    user_agent_length: Vec<u8>,
+    user_agent_length: VarLenInt,
     user_agent: Vec<u8>,
     start_height: i32,
     relay: u8,
@@ -61,8 +61,8 @@ impl Message for VersionMessage {
         bytes_vector.extend_from_slice(&self.sender_address);
         bytes_vector.extend_from_slice(&self.sender_port.to_be_bytes());
         bytes_vector.extend_from_slice(&self.nonce.to_le_bytes());
-        bytes_vector.extend(&self.user_agent_length);
-        if self.user_agent_length[0] > 0 {
+        bytes_vector.extend(&self.user_agent_length.to_bytes());
+        if self.user_agent_length.to_usize() > 0 {
             bytes_vector.extend(&self.user_agent);
         }
         bytes_vector.extend_from_slice(&self.start_height.to_le_bytes());
@@ -99,7 +99,7 @@ impl VersionMessage {
         receiver_address: SocketAddr,
         sender_address: SocketAddr,
     ) -> Result<VersionMessage, MessageError> {
-        let user_agent_length = vec![0];
+        let user_agent_length = VarLenInt::new(0);
         let version_msg = VersionMessage {
             version,
             services: NODE_NETWORK,
@@ -137,7 +137,8 @@ impl VersionMessage {
         if slice[80..].len() <= 0{
             return None;
         }
-        let (user_agent_length, cant_bytes, value) = calculate_variable_length_integer(&slice[80..]);
+        let user_agent_length = VarLenInt::from_bytes(&slice[80..]);
+        let amount_of_bytes = user_agent_length.amount_of_bytes();
 
         let version_msg = VersionMessage {
             version: i32::from_le_bytes(slice[0..4].try_into().ok()?),
@@ -151,7 +152,7 @@ impl VersionMessage {
             sender_port: u16::from_be_bytes(slice[70..72].try_into().ok()?),
             nonce: u64::from_le_bytes(slice[72..80].try_into().ok()?),
             user_agent_length,
-            user_agent: Vec::from(&slice[(80 + cant_bytes)..(slice.len() - 5)]),
+            user_agent: Vec::from(&slice[(80 + amount_of_bytes)..(slice.len() - 5)]),
             start_height: i32::from_le_bytes(
                 slice[(slice.len() - 5)..(slice.len() - 1)]
                     .try_into()
@@ -292,7 +293,7 @@ mod tests {
 
         let mut expected_version_msg =
             VersionMessage::new(70015, receiver_socket, sender_socket)?;
-        expected_version_msg.user_agent_length = vec![253, 4, 0];
+        expected_version_msg.user_agent_length = VarLenInt::from_bytes(&[253,4,0]);
         expected_version_msg.user_agent = Vec::from("test");
 
         let version_msg =

@@ -3,7 +3,7 @@ pub mod handshake;
 pub mod block_downloader;
 pub mod data_handler;
 
-use crate::blockchain::*;
+use crate::blocks::blockchain::*;
 use crate::messages::*;
 use crate::config::*;
 use crate::log::*;

@@ -1,5 +1,5 @@
 use super::utils::*;
-
+use crate::variable_length_integer::VarLenInt;
 
 //const MAX_HASH_COUNT_SIZE: u64 = 0x02000000;
 const GET_BLOCK_HEADERS_MSG_NAME: &str = "getheaders\0\0";
@@ -9,7 +9,7 @@ const GET_BLOCK_HEADERS_MSG_NAME: &str = "getheaders\0\0";
 #[derive(Debug, PartialEq)]
 pub struct GetBlockHeadersMessage {
     version: u32,
-    hash_count: Vec<u8>, //Que pasa si es 0?
+    hash_count: VarLenInt, //Que pasa si es 0?
     block_header_hashes: Vec<[u8; 32]>, //Que pasa si su cantidad es distinta de hash_count?
     stopping_hash: [u8; 32],
 }
@@ -35,7 +35,7 @@ impl Message for GetBlockHeadersMessage{
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.version.to_le_bytes());
 
-        bytes_vector.extend(&self.hash_count);
+        bytes_vector.extend(&self.hash_count.to_bytes());
 
         for i in 0..self.block_header_hashes.len(){
             bytes_vector.extend(&self.block_header_hashes[i as usize]);
@@ -68,8 +68,7 @@ impl GetBlockHeadersMessage{
 
     /// Rreturns an instance of a GetBlockHeadersMessage
     pub fn new(version: u32, block_header_hashes: Vec<[u8;32]>, stopping_hash: [u8; 32]) -> GetBlockHeadersMessage{
-        let mut hash_count = Vec::new();
-        hash_count.push(block_header_hashes.len() as u8); //suponemos que nuca vamos a querer mas de 253 sin incluir
+        let mut hash_count = VarLenInt::new(block_header_hashes.len());
         GetBlockHeadersMessage{
             version,
             hash_count, 
@@ -82,13 +81,12 @@ impl GetBlockHeadersMessage{
     /// is returned.
     fn _from_bytes(slice: &mut [u8]) -> Option<GetBlockHeadersMessage> {
         
-        let (hash_count, cant_bytes, value) = calculate_variable_length_integer(&slice[4..]);
+        let hash_count = VarLenInt::from_bytes(&slice[4..]);
         let stopping_hash_length = slice.len() - 32;
         
         let version = u32::from_le_bytes(slice[0..4].try_into().ok()?);
-        //let block_header_hashes_bytes = Vec::from(&slice[(4 + cant_bytes)..stopping_hash_length]);
         
-        let mut aux = 4 + cant_bytes;
+        let mut aux = 4 + hash_count.amount_of_bytes();
         let mut block_header_hashes :Vec<[u8;32]> = Vec::new();
         while aux < stopping_hash_length{
             let a :[u8;32] = slice[aux..(aux+32)].try_into().ok()?;

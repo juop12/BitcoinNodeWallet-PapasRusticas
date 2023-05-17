@@ -1,6 +1,6 @@
 use super::utils::*;
-use crate::blockchain::BlockHeader;
-
+use crate::blocks::blockchain::BlockHeader;
+use crate::variable_length_integer::*;
 
 const BLOCKHEADER_SIZE: usize = 80;
 const BLOCKHEADERS_MSG_NAME: &str = "headers\0\0\0\0\0";
@@ -9,7 +9,7 @@ const BLOCKHEADERS_MSG_NAME: &str = "headers\0\0\0\0\0";
 /// The BlockHeader struct represents a block header in the Bitcoin network.
 #[derive(Debug, PartialEq)]
 pub struct BlockHeadersMessage {
-    pub count: Vec<u8>,
+    pub count: VarLenInt,
     pub headers: Vec<BlockHeader>,
 }
 
@@ -23,7 +23,7 @@ impl Message for BlockHeadersMessage{
     
     //transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>{
-        let mut bytes_vector = self.count.clone();
+        let mut bytes_vector = self.count.to_bytes();
         for header in &self.headers{
             bytes_vector.extend(header.to_bytes());
             bytes_vector.push(0);
@@ -51,7 +51,7 @@ impl Message for BlockHeadersMessage{
 
 impl BlockHeadersMessage{
 
-    pub fn new(headers: Vec<BlockHeader>, count: Vec<u8>) -> BlockHeadersMessage{
+    pub fn new(headers: Vec<BlockHeader>, count: VarLenInt) -> BlockHeadersMessage{
     //     let mut count = Vec::new();
     //     count.push(headers.len() as u8); //estamos asumiendo que solo van de 253 a menor
         BlockHeadersMessage{
@@ -61,16 +61,16 @@ impl BlockHeadersMessage{
     }
 
     fn _from_bytes(slice: &mut [u8]) -> Option<BlockHeadersMessage> {
-        let (count, amount_of_bytes, value) = calculate_variable_length_integer(&slice);
+        let count = VarLenInt::from_bytes(slice);
         
-        if (value * 81 + count.len()) != slice.len(){
+        if (count.to_usize() * 81 + count.amount_of_bytes()) != slice.len(){
             return None;
         }
         
         let mut headers: Vec<BlockHeader> = Vec::new();
-        let first_header_position = count.len();
+        let first_header_position = count.amount_of_bytes();
 
-        let mut i = count.len();
+        let mut i = count.amount_of_bytes();
         while i < slice.len(){
             let mut block_headers_bytes = Vec::from(&slice[(i)..(i + 80)]);
             let bloc_header = BlockHeader::from_bytes(&mut block_headers_bytes).ok()?;
@@ -127,7 +127,7 @@ mod tests {
         block_headers.push(b_h1);
         block_headers.push(b_h2);
 
-        let (count, _amount_of_bytes, _value) = calculate_variable_length_integer(&expected_bytes);
+        let count = VarLenInt::from_bytes(&expected_bytes);
         let block_headers_message = BlockHeadersMessage::new(block_headers,count);
 
         assert_eq!(block_headers_message.to_bytes(), expected_bytes);
@@ -141,7 +141,7 @@ mod tests {
         block_headers.push(b_h1);
         block_headers.push(b_h2);
 
-        let (count, _amount_of_bytes, _value) = calculate_variable_length_integer(&expected_bytes);
+        let count = VarLenInt::from_bytes(&expected_bytes);
         let expected_block_headers_message = BlockHeadersMessage::new(block_headers, count);
 
         let block_headers_message = BlockHeadersMessage::from_bytes(&mut expected_bytes)?;
