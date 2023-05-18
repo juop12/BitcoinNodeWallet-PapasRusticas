@@ -1,7 +1,6 @@
 use chrono::Utc;
 use rand::prelude::*;
 use bitcoin_hashes::{sha256d, Hash};
-use crate::messages::block_message;
 use crate::variable_length_integer::VarLenInt;
 
 const BLOCKHEADER_SIZE: usize = 80; 
