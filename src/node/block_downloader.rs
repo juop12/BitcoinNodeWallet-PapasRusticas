@@ -1,21 +1,24 @@
+use crate::variable_length_integer::VarLenInt;
+use crate::messages::get_data_message::*;
+use crate::messages::utils::Message;
 use std::net::TcpStream;
+use crate::node::*;
 use std::{
     sync::{mpsc, Arc, Mutex},
     thread,
 };
-use crate::messages::get_data_message::*;
-use crate::messages::utils::Message;
-use crate::node::*;
-use crate::variable_length_integer::VarLenInt;
-/// Struct that represents a worker thread in the thread pool.
+
+
+type Bundle = Box<Vec<[u8;32]>>;
+
+
 #[derive(Debug)]
+/// Struct that represents a worker thread in the thread pool.
 struct Worker {
     id: usize,
     thread: thread::JoinHandle<()>,
     stream: TcpStream,
 }
-
-type Bundle = Box<Vec<[u8;32]>>;
 
 impl Worker {
     ///Creates a worker which attempts to execute tasks received trough the channel in a loop
@@ -79,16 +82,12 @@ impl Worker {
     }
 }
 
-/// Struct that represents a thread pool.
-#[derive(Debug)]
-pub struct BlockDownloader{
-    workers: Vec<Worker>,
-    sender: mpsc::Sender<Bundle>,
-    missed_bundles_receiver: mpsc::Receiver<Bundle>,
-}
 
-/// Enum that contains the possible errors that can occur when running the thread pool.
+//=====================================================================================
+
+
 #[derive(Debug)]
+/// Enum that contains the possible errors that can occur when running the thread pool.
 pub enum BlockDownloaderError {
     ErrorInvalidCreationSize,
     ErrorSendingToThread,
@@ -98,13 +97,22 @@ pub enum BlockDownloaderError {
     ErrorJoiningThread,
 }
 
+#[derive(Debug)]
+/// Struct that represents a thread pool.
+pub struct BlockDownloader{
+    workers: Vec<Worker>,
+    sender: mpsc::Sender<Bundle>,
+    missed_bundles_receiver: mpsc::Receiver<Bundle>,
+}
+
 impl BlockDownloader{
     /// Creates a new thread pool with the specified size, it must be greater than zero.
-    pub fn new(out_bound_connections : &Vec<TcpStream>, block_chain :&Arc<Mutex<Vec<Block>>>)->Result<BlockDownloader, BlockDownloaderError>{
+    pub fn new(out_bound_connections : &Vec<TcpStream>, block_chain :&Arc<Mutex<Vec<Block>>>) -> Result<BlockDownloader, BlockDownloaderError>{
         let connections_ammount = out_bound_connections.len();
         if connections_ammount == 0{
             return Err(BlockDownloaderError::ErrorInvalidCreationSize);
         }   
+        
         let (sender, receiver) = mpsc::channel();
         let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
         

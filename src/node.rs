@@ -3,6 +3,7 @@ pub mod handshake;
 pub mod block_downloader;
 pub mod data_handler;
 
+use crate::blocks::UTxOut;
 use crate::blocks::blockchain::*;
 use crate::messages::*;
 use crate::config::*;
@@ -39,28 +40,27 @@ pub enum NodeError {
 }
 
 /* 
-impl BTCError for NodeError{
+    impl BTCError for NodeError{
 
-    fn decode(&self) -> String{
-        let message = match self {
-            NodeError::ErrorConnectingToPeer => "",
-            NodeError::ErrorSendingMessageInHandshake => "",
-            NodeError::ErrorReceivingMessageInHandshake => "",
-            NodeError::ErrorReceivedUnknownMessage => "",
-            NodeError::ErrorInterpretingMessageCommandName => "",
-            NodeError::ErrorUnknownCommandName => "",
-            NodeError::ErrorSendingMessageInIBD => "",
-            NodeError::ErrorIteratingStreams => "",
-            NodeError::ErrorReceivingHeadersMessageInIBD => "",
-            NodeError::ErrorReceivingMessageHeader => "", 
-            NodeError::ErrorReceivingHeadersMessageHeaderInIBD => "",
-        };
+        fn decode(&self) -> String{
+            let message = match self {
+                NodeError::ErrorConnectingToPeer => "",
+                NodeError::ErrorSendingMessageInHandshake => "",
+                NodeError::ErrorReceivingMessageInHandshake => "",
+                NodeError::ErrorReceivedUnknownMessage => "",
+                NodeError::ErrorInterpretingMessageCommandName => "",
+                NodeError::ErrorUnknownCommandName => "",
+                NodeError::ErrorSendingMessageInIBD => "",
+                NodeError::ErrorIteratingStreams => "",
+                NodeError::ErrorReceivingHeadersMessageInIBD => "",
+                NodeError::ErrorReceivingMessageHeader => "", 
+                NodeError::ErrorReceivingHeadersMessageHeaderInIBD => "",
+            };
 
-        message.to_string()
-    }
-} 
+            message.to_string()
+        }
+    } 
 */
-
 
 /// Struct that represents the bitcoin node
 pub struct Node {
@@ -69,6 +69,7 @@ pub struct Node {
     tcp_streams: Vec<TcpStream>,
     block_headers: Vec<BlockHeader>,
     blockchain: Vec<Block>,
+    utxo_set: Vec<UTxOut>,
     logger: Logger,
 }
 
@@ -82,6 +83,7 @@ impl Node {
             tcp_streams: Vec::new(),
             block_headers: Vec::new(),
             blockchain: Vec::new(),
+            utxo_set: Vec::new(),
             logger,
         }
     }
@@ -129,40 +131,6 @@ impl Node {
     pub fn get_blockchain(&self) -> &Vec<Block>{
         &self.blockchain
     }
-    /*
-            fn handle_received_verack_message(&self, message_bytes: Vec<u8>)-> Result<(), NodeError>{
-                let vm = match VersionMessage::from_bytes(message_bytes) {
-                    Ok(version_message) => version_message,
-                    Err(_) => return Err(NodeError::ErrorReceiving)
-                }
-            }
-
-            fn handle_received_version_message(&self, message_bytes: Vec<u8>)-> Result<(), NodeError> {
-
-            }
-
-            fn receive_message(&self, mut stream: TcpStream)-> Result<(), NodeError>{
-                let hm = self.receive_header_message(&stream)?;
-
-                let mut message_bytes = Vec::with_capacity(hm.get_payload_size() as usize);
-                match stream.read_exact(&mut message_bytes) {
-                    Ok(_) => {}
-                    Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
-                };
-
-                let command_name = match hm.get_command_name(){
-                    Ok(string) => string.as_str(),
-                    Err(_) => return Err(NodeError::ErrorUnknownCommandName),
-                };
-                //handle
-                match command_name {
-                    "version\0\0\0\0\0" => self.handle_received_version_message(message_bytes),
-                    "verack\0\0\0\0\0\0" => self.handle_received_verack_message(message_bytes),
-                    _ => return Err(NodeError::ErrorUnknownCommandName),
-                };
-                Ok(())
-            }
-    */
 }
 
 ///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.

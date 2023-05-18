@@ -1,9 +1,17 @@
 use crate::variable_length_integer::VarLenInt;
 
+
 const MIN_BYTES_TX_IN :usize = 41;
 const MIN_BYTES_TX_OUT :usize = 9;
 const MIN_BYTES_TRANSACTION: usize = 10;
 const OUTPOINT_BYTES :usize = 36;
+
+
+pub struct UTxOut {
+    // Outpoint, una referencia a la transaccion anterior.
+    tx_id: Outpoint,
+    tx_out: TxOut,
+}
 
 /// Struct that represents the Outpoint, that is used in the TxIn struct.
 #[derive(Debug, PartialEq)]
@@ -18,7 +26,7 @@ pub struct TxIn {
     previous_output: Outpoint,
     script_length: VarLenInt,
     signature_script: Vec<u8>,
-    sequence: u32,
+    sequence: u32, // u32::MAX; Se usa el maximo u32.
 }
 
 /// Struct that represents the TxOut used in the struct Transaction
@@ -37,7 +45,7 @@ pub struct Transaction {
     tx_in: Vec<TxIn>,
     tx_out_count: VarLenInt,
     tx_out: Vec<TxOut>,
-    lock_time: u32,
+    lock_time: u32, // siempre va 0.
 }
 
 /// Enum that represents the possible errors that can occur while creating a transaction
@@ -49,9 +57,29 @@ pub enum TransactionError {
     ErrorCreatingOutpointFromBytes,
 }
 
+impl UTxOut {
+    pub fn new(tx_id: Outpoint, tx_out: TxOut) -> UTxOut{
+        UTxOut{
+            tx_id,
+            tx_out,
+        }
+    } 
+
+    pub fn to_tx_in(&self) -> TxIn{
+
+        let tx_id = Outpoint::new(self.tx_id.hash, self.tx_id.index);
+
+        TxIn::new(
+            tx_id,
+            self.tx_out.pk_script.clone(),
+            u32::MAX,
+        )
+    }
+}
+
 impl Outpoint{
     ///Creates a new Outpoint
-    fn new(hash: [u8;32], index: u32)->Outpoint{
+    fn new(hash: [u8;32], index: u32) -> Outpoint{
         Outpoint{hash, index}
     }
 
@@ -127,7 +155,6 @@ impl TxOut {
         self.to_bytes().len()
     }
 }
-
 
 impl TxIn{
     /// Creates a new TxIn
