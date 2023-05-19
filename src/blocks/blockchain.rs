@@ -1,6 +1,7 @@
 use chrono::Utc;
 use rand::prelude::*;
 use bitcoin_hashes::{sha256d, Hash};
+use crate::blocks::transaction::*;
 use crate::variable_length_integer::VarLenInt;
 use crate::blocks::transaction::*;
 
@@ -146,7 +147,7 @@ impl Block{
         let mut i = 0;
         while i < left_transactions.len() {
             let transaction = Transaction::from_bytes(&left_transactions[i..]).ok()?;
-            i+= transaction.amount_of_bytes();
+            i+= transaction.ammount_of_bytes();
             transactions.push(transaction);
         }
 
@@ -163,6 +164,10 @@ impl Block{
 
     pub fn get_header(&self) -> &BlockHeader {
         &self.header
+    }
+
+    pub fn transactions(&self) -> &Vec<Transaction> {
+        &self.transactions
     }
 }
 
