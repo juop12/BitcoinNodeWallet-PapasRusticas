@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use crate::messages::*;
 use crate::config::*;
 use crate::log::*;
+use crate::messages::utils::MessageError;
 use std::{
     io::{Read, Write},
     net::{SocketAddr, ToSocketAddrs, TcpStream},
@@ -28,7 +29,6 @@ pub enum NodeError {
     ErrorReceivingMessageInHandshake,
     ErrorReceivedUnknownMessage,
     ErrorInterpretingMessageCommandName,
-    ErrorUnknownCommandName,
     ErrorSendingMessageInIBD,
     ErrorIteratingStreams,
     ErrorReceivingHeadersMessageInIBD,
@@ -40,29 +40,6 @@ pub enum NodeError {
     ErrorSavingDataToDisk,
     ErrorLoadingDataFromDisk,
 }
-
-/* 
-    impl BTCError for NodeError{
-
-        fn decode(&self) -> String{
-            let message = match self {
-                NodeError::ErrorConnectingToPeer => "",
-                NodeError::ErrorSendingMessageInHandshake => "",
-                NodeError::ErrorReceivingMessageInHandshake => "",
-                NodeError::ErrorReceivedUnknownMessage => "",
-                NodeError::ErrorInterpretingMessageCommandName => "",
-                NodeError::ErrorUnknownCommandName => "",
-                NodeError::ErrorSendingMessageInIBD => "",
-                NodeError::ErrorIteratingStreams => "",
-                NodeError::ErrorReceivingHeadersMessageInIBD => "",
-                NodeError::ErrorReceivingMessageHeader => "", 
-                NodeError::ErrorReceivingHeadersMessageHeaderInIBD => "",
-            };
-
-            message.to_string()
-        }
-    } 
-*/
 
 /// Struct that represents the bitcoin node
 pub struct Node {
@@ -133,6 +110,42 @@ impl Node {
     pub fn get_blockchain(&self) -> &Vec<Block>{
         &self.blockchain
     }
+            
+    ///Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
+    fn receive_message (&mut self, stream_index: usize) -> Result<String, NodeError>{
+        let mut stream = &self.tcp_streams[stream_index];
+        let block_headers_msg_h = receive_message_header(&mut stream)?;
+        println!("\n{}", block_headers_msg_h.get_command_name());
+        
+        let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
+        match stream.read_exact(&mut msg_bytes) {
+            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
+            Ok(_) => {}
+        }
+
+        match block_headers_msg_h.get_command_name().as_str(){
+            "ping\0\0\0\0\0\0\0\0" => self.handle_ping(stream_index, &block_headers_msg_h, msg_bytes),
+            "inv\0\0\0\0\0\0\0\0\0" => {},
+            "block\0\0\0\0\0\0" => {},
+            "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, stream_index)?,
+            //"block\0\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
+            _ => {},
+        };
+        Ok(block_headers_msg_h.get_command_name())
+    }
+
+    fn handle_ping(&self, stream_index: usize, header_message: &HeaderMessage, nonce: Vec<u8>){
+        if nonce.len() != 8{
+            return
+        }
+        let mut stream = &self.tcp_streams[stream_index];
+
+        let mut pong_bytes = header_message.to_bytes();
+        pong_bytes.extend(nonce);
+        pong_bytes[5] = b'o';
+        //p manejar desp
+        stream.write(&pong_bytes);
+    }
 }
 
 ///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
@@ -147,6 +160,8 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T,) -> Result<Header
         Err(_) => Err(NodeError::ErrorReceivingMessageHeader),
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {

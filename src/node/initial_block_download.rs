@@ -46,7 +46,7 @@ impl Node {
     }
 
     ///Handles the headers message by hashing the last received header and asking for more headers
-    fn handle_block_headers_message(&mut self, mut msg_bytes :Vec<u8>, sync_node_index: usize)-> Result<(), NodeError>{
+    pub fn handle_block_headers_message(&mut self, mut msg_bytes :Vec<u8>, sync_node_index: usize)-> Result<(), NodeError>{
         let block_headers_msg = match BlockHeadersMessage::from_bytes(&mut msg_bytes){
             Ok(block_headers_message) => block_headers_message,
             Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
@@ -57,28 +57,6 @@ impl Node {
         
         self.block_headers.extend(received_block_headers);
         Ok(())
-    }
-    
-    ///Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
-    pub fn receive_message (&mut self, sync_node_index: usize) -> Result<String, NodeError>{
-        let mut stream = &self.tcp_streams[sync_node_index];
-        let block_headers_msg_h = receive_message_header(&mut stream)?;
-        //println!("\n\n{}", block_headers_msg_h.get_command_name());
-        
-        let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
-        match stream.read_exact(&mut msg_bytes) {
-            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
-            Ok(_) => {}
-        }
-
-        match block_headers_msg_h.get_command_name().as_str(){
-            "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, sync_node_index)?,
-            //"block\0\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
-            _ => {},
-        }
-
-        Ok(block_headers_msg_h.get_command_name())
-
     }
 
     ///Creates a block downloader and returns it. On error returns NodeError
@@ -112,8 +90,7 @@ impl Node {
             headers_received += 2000;
             last_hash = self.block_headers[self.block_headers.len()-1].hash();
 
-            //si no lee nada falla sin el if
-            if headers_received == self.block_headers.len(){
+            if i == self.block_headers.len(){
                 break;
             }
 
@@ -187,10 +164,10 @@ impl Node {
         let (mut block_downloader, safe_new_blocks) = self.create_block_downloader()?;
         
         let mut i = 0;
-        while let Err(_) = self.download_headers_and_blocks(&block_downloader, i) {
+        while self.download_headers_and_blocks(&block_downloader, 0).is_err() {
             i+=1;
+            self.tcp_streams.swap(0, i);
         }
-        self.tcp_streams.swap(0, i);
 
         match block_downloader.finish_downloading(){
             Ok(_) => {
@@ -225,7 +202,7 @@ mod tests{
     use std::{
         sync::{Arc, Mutex},
     };
-
+    use crate::blocks::proof::*;
     //test unitario de descargaqr un solo header
     
     #[test]
@@ -280,11 +257,16 @@ mod tests{
 
         block_downloader.finish_downloading().unwrap();
         
-        let a = safe_block_chain.lock().unwrap();
-        println!("{}", a.len());
-        assert!(a.len() == 2000);
+        let blocks = safe_block_chain.lock().unwrap();
+        println!("{}", blocks.len());
+        for block in blocks.iter() { 
+            if !validate_proof_of_work(&block.get_header()) {
+                println!("No pude validar la proof of work");
+            }
+        }
+        assert!(blocks.len() == 2000);
         Ok(())
-        //node.receive_message(sync_node_index);
+        //node.receive_headers_message(sync_node_index);
     }
     
     

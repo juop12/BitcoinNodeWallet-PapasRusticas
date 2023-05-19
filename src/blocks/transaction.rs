@@ -202,7 +202,7 @@ impl Transaction {
             tx_in: tx_in_vector,
             tx_out_count: VarLenInt::new(tx_out_vector.len()),
             tx_out: tx_out_vector,
-            lock_time: 0,
+            lock_time: lock_time,
         }
     }
 
@@ -257,8 +257,8 @@ impl Transaction {
             tx_out.push(tx);
         }
         
-        let (lock_time_bytes, _slice) = slice.split_at(4);
-        let lock_time = u32::from_le_bytes(slice.try_into().ok()?);
+        let (lock_time_bytes, slice) = slice.split_at(4);
+        let lock_time = u32::from_le_bytes(lock_time_bytes.try_into().ok()?);
 
         Some(Transaction {
             version,
@@ -269,9 +269,8 @@ impl Transaction {
             lock_time,
         })
     }
-
     pub fn ammount_of_bytes(&self) -> usize{
-        return self.to_bytes().len();
+        self.to_bytes().len()
     }
 
     pub fn hash(&self) -> [u8;32]{

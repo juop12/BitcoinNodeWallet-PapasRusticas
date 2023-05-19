@@ -1,25 +1,17 @@
-use crate::variable_length_integer::VarLenInt;
-use crate::messages::get_data_message::*;
+use crate::blocks::validate_proof_of_work;
+use crate::messages::get_data_message::;
 use crate::messages::utils::Message;
-use std::net::TcpStream;
-use crate::node::*;
-use std::{
-    sync::{mpsc, Arc, Mutex},
-    thread,
-};
-
-
-type Bundle = Box<Vec<[u8;32]>>;
-
-
-#[derive(Debug)]
+use crate::node::;
+use crate::variable_length_integer::VarLenInt;
 /// Struct that represents a worker thread in the thread pool.
+#[derive(Debug)]
 struct Worker {
     id: usize,
     thread: thread::JoinHandle<()>,
     stream: TcpStream,
 }
 
+type Bundle = Box<Vec<[u8;32]>>;
 impl Worker {
     ///Creates a worker which attempts to execute tasks received trough the channel in a loop
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Bundle>>>, mut stream: TcpStream, locked_block_chain: Arc<Mutex<Vec<Block>>>, missed_bundles_sender: mpsc::Sender<Bundle>) -> Result<Worker, BlockDownloaderError> {
@@ -33,15 +25,19 @@ impl Worker {
                 Ok(rec_lock) => {
                     match rec_lock.recv() {
                         Ok(bundle) => bundle,
-                        Err(_) => return,
+                        Err(_) => {
+                            return;
+                        },
                     }
                 },
-                Err(_) => return,
+                Err(_) => {
+                    return;
+                },
             };
 
             //si se recibe un vector vacio 
             if bundle.is_empty(){
-                return
+                return;
             }
 
             let a = *bundle.clone();
@@ -50,7 +46,7 @@ impl Worker {
                 Ok(blocks) => blocks,
                 Err(_) => {
                     let _ = missed_bundles_sender.send(Box::new(a));
-                    return;
+                        return;
                     }
             };
 
@@ -62,7 +58,7 @@ impl Worker {
                 },
                 Err(_) => {
                     let _ = missed_bundles_sender.send(Box::new(a));
-                    return;
+                        return;
                     }
             };
         });
@@ -137,9 +133,10 @@ impl BlockDownloader{
         }
         let box_bundle = Box::new(bundle);
 
-        match self.sender.send(box_bundle) {
+        match self.sender.send(box_bundle){
             Ok(_) => Ok(()),
-            Err(_) => Err(BlockDownloaderError::ErrorSendingToThread),
+            Err(_err) => {
+                return Err(BlockDownloaderError::ErrorSendingToThread);},
         }
     }
 
@@ -189,7 +186,7 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
         Ok(msg_h) => msg_h,
         Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
     };
-    
+
     let mut msg_bytes = vec![0; block_msg_h.get_payload_size() as usize];
     match stream.read_exact(&mut msg_bytes) {
         Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
@@ -219,7 +216,7 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
 fn send_get_data_message_for_blocks(hashes :Vec<[u8; 32]>, stream: &mut TcpStream)->Result<(), BlockDownloaderError>{
     let count = VarLenInt::new(hashes.len());
     
-    let get_data_message = GetDataMessage::create_message_inventory_block_type(hashes, count);
+    let get_data_message = GetDataMessage::create_message_inventory_block_type(hashes);
     
     match get_data_message.send_to(stream) {
         Ok(_) => Ok(()),
@@ -234,7 +231,9 @@ fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut Tcp
     let mut blocks :Vec<Block> = Vec::new();
     for _ in 0..amount_of_hashes{
         let received_message = receive_block_message(stream)?;
-        blocks.push(received_message.block);
+        if validate_proof_of_work(&received_message.block.get_header()){
+            blocks.push(received_message.block);
+        }
     }
     
     Ok(blocks)

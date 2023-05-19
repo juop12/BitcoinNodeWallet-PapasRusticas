@@ -18,7 +18,10 @@ pub enum MessageError {
     ErrorHeadersBlockMessage,
     ErrorCreatingGetDataMessage,
     ErrorSendingGetDataMessage,
-    ErrorCreatingBlockMessage
+    ErrorCreatingInvMessage,
+    ErrorSendingInvMessage,
+    ErrorCreatingBlockMessage,
+    ErrorSendingPongMessages
 }
 
 //Hacer un wrapper para send to,cosa de que solo se pueda mandar un tcpStream?
