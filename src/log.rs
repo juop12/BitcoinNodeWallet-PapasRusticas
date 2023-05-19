@@ -10,7 +10,7 @@ use std::thread;
 #[derive(Debug)]
 pub enum LoggerError{
     ErrorOpeningFile,
-    ErrorSendingMessage,
+    ErrorLoggingMessage,
 }
 
 /// This struct has the responsability to write to a file.
@@ -67,14 +67,15 @@ impl Logger {
         }
     */
 
-    /// Writes a text to the log, on error returns ErrorSendingMessage.
+    /// Writes a text to the log, on error returns ErrorLoggingMessage.
     pub fn log(&self, text: String) -> Result<(), LoggerError>{
         if let Err(_) = self.tx.send(text){
-            return Err(LoggerError::ErrorSendingMessage);
+            return Err(LoggerError::ErrorLoggingMessage);
         };
 
         Ok(())
     }
+
 }
 
 /*
@@ -98,7 +99,6 @@ fn _open_log_handler(path: &str) -> Result<File, LoggerError> {
 mod tests {
     use super::*;
     use std::io::{BufReader, BufRead};
-
 
     const LOGFILE: &str = "test_log.txt";
     const STOP: &str = "stop";

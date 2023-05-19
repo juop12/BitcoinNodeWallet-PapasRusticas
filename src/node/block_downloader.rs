@@ -3,6 +3,7 @@ use std::{
     sync::{mpsc, Arc, Mutex},
     thread,
 };
+use crate::blocks::validate_proof_of_work;
 use crate::messages::get_data_message::*;
 use crate::messages::utils::Message;
 use crate::node::*;
@@ -208,7 +209,7 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
 fn send_get_data_message_for_blocks(hashes :Vec<[u8; 32]>, stream: &mut TcpStream)->Result<(), BlockDownloaderError>{
     let count = VarLenInt::new(hashes.len());
     
-    let get_data_message = GetDataMessage::create_message_inventory_block_type(hashes, count);
+    let get_data_message = GetDataMessage::create_message_inventory_block_type(hashes);
     
     match get_data_message.send_to(stream) {
         Ok(_) => Ok(()),
@@ -223,6 +224,7 @@ fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut Tcp
     let mut blocks :Vec<Block> = Vec::new();
     for _ in 0..amount_of_hashes{
         let received_message = receive_block_message(stream)?;
+        validate_proof_of_work(&received_message.block.get_header());
         blocks.push(received_message.block);
     }
     

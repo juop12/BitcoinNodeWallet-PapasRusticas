@@ -90,9 +90,14 @@ impl BlockHeader{
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
 
+    pub fn get_n_bits(&self) -> u32 {
+        self.n_bits
+    }
+
     pub fn time(&self) -> u32{
         self.time.clone()
     }
+
 }
 
 impl Block{
@@ -142,6 +147,10 @@ impl Block{
 
     pub fn time(&self) -> u32{
         self.header.time()
+    }
+
+    pub fn get_header(&self) -> &BlockHeader {
+        &self.header
     }
 }
 

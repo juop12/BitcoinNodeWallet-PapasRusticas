@@ -196,7 +196,7 @@ impl Transaction {
             tx_in: tx_in_vector,
             tx_out_count: VarLenInt::new(tx_out_vector.len()),
             tx_out: tx_out_vector,
-            lock_time: 0,
+            lock_time: lock_time,
         }
     }
 
