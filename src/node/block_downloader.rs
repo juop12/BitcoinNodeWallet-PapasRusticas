@@ -1,8 +1,14 @@
+use std::net::TcpStream;
+use std::{
+    sync::{mpsc, Arc, Mutex},
+    thread,
+};
 use crate::blocks::validate_proof_of_work;
-use crate::messages::get_data_message::;
+use crate::messages::get_data_message::*;
 use crate::messages::utils::Message;
-use crate::node::;
+use crate::node::*;
 use crate::variable_length_integer::VarLenInt;
+
 /// Struct that represents a worker thread in the thread pool.
 #[derive(Debug)]
 struct Worker {
