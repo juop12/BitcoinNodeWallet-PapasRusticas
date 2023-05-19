@@ -1,10 +1,10 @@
 use crate::variable_length_integer::VarLenInt;
 use bitcoin_hashes::{sha256d, Hash};
-
 const MIN_BYTES_TX_IN :usize = 41;
 const MIN_BYTES_TX_OUT :usize = 9;
 const MIN_BYTES_TRANSACTION: usize = 10;
 const OUTPOINT_BYTES :usize = 36;
+
 
 /// Struct that represents the Outpoint, that is used in the TxIn struct.
 #[derive(Debug, PartialEq)]
@@ -19,7 +19,7 @@ pub struct TxIn {
     previous_output: Outpoint,
     script_length: VarLenInt,
     signature_script: Vec<u8>,
-    sequence: u32,
+    sequence: u32, // u32::MAX; Se usa el maximo u32.
 }
 
 /// Struct that represents the TxOut used in the struct Transaction
@@ -38,7 +38,7 @@ pub struct Transaction {
     tx_in: Vec<TxIn>,
     tx_out_count: VarLenInt,
     tx_out: Vec<TxOut>,
-    lock_time: u32,
+    lock_time: u32, // siempre va 0.
 }
 
 /// Enum that represents the possible errors that can occur while creating a transaction
@@ -52,12 +52,12 @@ pub enum TransactionError {
 
 impl Outpoint{
     ///Creates a new Outpoint
-    fn new(hash: [u8;32], index: u32)->Outpoint{
+    pub fn new(hash: [u8;32], index: u32) -> Outpoint{
         Outpoint{hash, index}
     }
 
     ///Returns the contents of Outpoint as a bytes vecotr
-    fn to_bytes(&self)-> Vec<u8>{
+    pub fn to_bytes(&self)-> Vec<u8>{
         let mut bytes = Vec::from(self.hash);
         bytes.extend(self.index.to_le_bytes());
         bytes
@@ -129,7 +129,6 @@ impl TxOut {
     }
 }
 
-
 impl TxIn{
     /// Creates a new TxIn
     pub fn new(previous_output: Outpoint, signature_script: Vec<u8>, sequence: u32) -> TxIn {
@@ -185,6 +184,10 @@ impl TxIn{
     /// Returns the amount of bytes needed to represent the TxIn
     fn amount_of_bytes(&self) -> usize{
         self.to_bytes().len()
+    }
+
+    pub fn previous_output(&self) -> &Outpoint{
+        &self.previous_output
     }
 }
 
@@ -264,13 +267,20 @@ impl Transaction {
             lock_time,
         })
     }
-
-    pub fn amount_of_bytes(&self) -> usize{
+    pub fn ammount_of_bytes(&self) -> usize{
         self.to_bytes().len()
     }
 
     pub fn hash(&self) -> [u8;32]{
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
+    }
+
+    pub fn tx_out(&self) -> &Vec<TxOut>{
+        &self.tx_out
+    }
+
+    pub fn tx_in(&self) -> &Vec<TxIn>{
+        &self.tx_in
     }
 }
 
