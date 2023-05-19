@@ -31,30 +31,7 @@ impl Node {
                 }
             }
         }
-
-    /* 
-        for block in self.blockchain.values(){
-            for tx in block.get_transactions(){
-                for (i, tx_out) in tx.tx_out().iter().enumerate(){
-                    let hash = tx.hash();
-                    let outpoint = Outpoint::new(hash, i as u32);
-                    let outpoint_bytes = outpoint.to_bytes();
-                    utxo_set.insert(outpoint_bytes, tx_out);
-                }
-            }
-        }
         
-        for block in self.blockchain.values(){
-            for tx in block.get_transactions(){
-                for tx_in in tx.tx_in().iter(){
-
-                    let outpoint_bytes = tx_in.previous_output().to_bytes();
-
-                    utxo_set.remove(&outpoint_bytes);
-                }
-            }
-        } 
-    */
         Some(utxo_set)
     }
 }
