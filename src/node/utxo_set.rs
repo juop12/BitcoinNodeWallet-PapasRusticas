@@ -9,8 +9,8 @@ impl Node {
 
         let mut utxo_set = HashMap::new();
 
-        for block in &self.blockchain{
-            for tx in block.transactions(){
+        for block in self.blockchain.values(){
+            for tx in block.get_transactions(){
                 for (i, tx_out) in tx.tx_out().iter().enumerate(){
                     let hash = tx.hash();
                     let outpoint = Outpoint::new(hash, i as u32);
@@ -20,8 +20,8 @@ impl Node {
             }
         }
         
-        for block in &self.blockchain{
-            for tx in block.transactions(){
+        for block in self.blockchain.values(){
+            for tx in block.get_transactions(){
                 for tx_in in tx.tx_in().iter(){
 
                     let outpoint_bytes = tx_in.previous_output().to_bytes();
@@ -39,10 +39,6 @@ impl Node {
 #[cfg(test)]
 mod tests{
     use super::*;
-    use crate::node::data_handler::NodeDataHandler;
-    use std::{
-        sync::{Arc, Mutex},
-    };
 
 
     #[test]
@@ -55,6 +51,7 @@ mod tests{
             log_path: String::from("src/node_log.txt"),
             begin_time: 1681084800,
         };
+        
         let mut node = Node::new(config)?;
         node.initial_block_download()?;
         let utxo_set = node.create_utxo_set();

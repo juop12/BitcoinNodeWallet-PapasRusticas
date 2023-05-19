@@ -43,7 +43,7 @@ fn open_file(file_path: &str, read: bool, append: bool)-> Result<File, NodeDataH
         .open(file_path);
     match opened_file{
         Ok(file) => Ok(file),
-        Err(e) => return Err(NodeDataHandlerError::ErrorOpeningFile),
+        Err(_) => return Err(NodeDataHandlerError::ErrorOpeningFile),
     }
 }
 
@@ -151,6 +151,7 @@ impl NodeDataHandler{
         }
         Ok(blocks)
     }
+    
     /// Saves the header (as bytes) passed by parameter in the headers file.
     /// On error returns NodeDataHandlerError
     pub fn save_header(&mut self, header: &BlockHeader) -> Result<(), NodeDataHandlerError>{
@@ -159,7 +160,8 @@ impl NodeDataHandler{
         Ok(())
     }
 
-    /// Receives a vector of headers and saves them in the headers file calling save_header
+    /*
+    ///Receives a vector of headers and saves them in the headers file calling save_header
     /// for each header.
     pub fn save_headers(&mut self, headers: &Vec<BlockHeader>, start: usize) -> Result<(), NodeDataHandlerError>{
         for i in start..headers.len(){
@@ -169,6 +171,8 @@ impl NodeDataHandler{
  
         Ok(())
     }
+    */
+    
     /// Saves the block (as bytes) passed by parameter in the blocks file.
     /// On error returns NodeDataHandlerError
     pub fn save_block(&mut self, block: &Block) -> Result<(), NodeDataHandlerError>{
@@ -177,13 +181,27 @@ impl NodeDataHandler{
         Ok(())
     }
 
+    /*
     /// Receives a vector of blocks and saves them in the blocks file calling save_block
     /// for each block.
-    pub fn save_blocks(&mut self, blocks: &Vec<Block>, start: usize) -> Result<(), NodeDataHandlerError>{
+    pub fn save_blocks(&mut self, blocks: &HashMap<[u8; 32], Block>, start: usize) -> Result<(), NodeDataHandlerError>{
+
         for i in start..blocks.len(){
             let block = &blocks[i];
             self.save_block(block)?;
         }
+        Ok(())
+    }*/
+
+    pub fn save_to_disk(&mut self, blocks: &HashMap<[u8; 32], Block>, headers: &Vec<BlockHeader>, start: usize) -> Result<(), NodeDataHandlerError>{
+        for i in start..headers.len(){
+            let header = &headers[i];
+            self.save_header(header)?;
+            if let Some(block) = blocks.get(&header.hash()){
+                self.save_block(block)?;
+            }
+        }
+ 
         Ok(())
     }
 }
