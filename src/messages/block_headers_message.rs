@@ -96,8 +96,8 @@ mod tests {
         let merkle_hash1 :[u8;32] = *sha256d::Hash::hash(b"test merkle root1").as_byte_array();
         let merkle_hash2 :[u8;32] = *sha256d::Hash::hash(b"test merkle root2").as_byte_array();
         
-        let b_h1 = BlockHeader::new(70015, hash1, merkle_hash1); 
-        let b_h2 = BlockHeader::new(70015, hash2, merkle_hash2);
+        let b_h1 = BlockHeader::new(70015, hash1, merkle_hash1, 0); 
+        let b_h2 = BlockHeader::new(70015, hash2, merkle_hash2, 0);
 
         let mut expected_bytes = Vec::new();
         if double_bytes_for_count{

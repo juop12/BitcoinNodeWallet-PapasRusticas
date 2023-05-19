@@ -259,11 +259,7 @@ mod tests{
         
         let blocks = safe_block_chain.lock().unwrap();
         println!("{}", blocks.len());
-        for block in blocks.iter() { 
-            if !validate_proof_of_work(&block.get_header()) {
-                println!("No pude validar la proof of work");
-            }
-        }
+        
         assert!(blocks.len() == 2000);
         Ok(())
         //node.receive_headers_message(sync_node_index);

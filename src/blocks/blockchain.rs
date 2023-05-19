@@ -35,13 +35,13 @@ pub struct Block {
 
 impl BlockHeader{
 
-    pub fn new(version: i32,prev_hash: [u8; 32],merkle_root_hash: [u8; 32]) -> BlockHeader {
+    pub fn new(version: i32,prev_hash: [u8; 32],merkle_root_hash: [u8; 32], n_bits: u32) -> BlockHeader {
         BlockHeader{
             version,
             prev_hash,
             merkle_root_hash,
             time: Utc::now().timestamp() as u32,
-            n_bits: 0,
+            n_bits,
             nonce: rand::thread_rng().gen(),
         }
     }
@@ -99,21 +99,18 @@ impl BlockHeader{
         self.time.clone()
     }
 
+    pub fn get_merkle_root(&self)->&[u8;32]{
+        &self.merkle_root_hash
+    }
+
 }
 
 impl Block{
 
-    /*
-    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), BlockChainError> {
-        let header_message = self.get_header_message()?;
-        header_message.send_to(receiver_stream)?;
-
-        match receiver_stream.write(self.to_bytes().as_slice()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(BlockChainError::ErrorSendingBlock),
-        }
+    pub fn new(header :BlockHeader, transactions: Vec<Transaction>)-> Block{
+        let transaction_count = VarLenInt::new(transactions.len());
+        Block { header, transaction_count, transactions }
     }
-    */
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = self.header.to_bytes();
@@ -166,7 +163,7 @@ impl Block{
         &self.header
     }
 
-    pub fn transactions(&self) -> &Vec<Transaction> {
+    pub fn get_transactions(&self) -> &Vec<Transaction> {
         &self.transactions
     }
 }

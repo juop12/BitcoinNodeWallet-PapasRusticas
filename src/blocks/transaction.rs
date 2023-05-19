@@ -1,7 +1,5 @@
 use crate::variable_length_integer::VarLenInt;
 use bitcoin_hashes::{sha256d, Hash};
-
-
 const MIN_BYTES_TX_IN :usize = 41;
 const MIN_BYTES_TX_OUT :usize = 9;
 const MIN_BYTES_TRANSACTION: usize = 10;

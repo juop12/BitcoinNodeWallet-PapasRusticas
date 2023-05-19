@@ -3,7 +3,7 @@ use std::{
     sync::{mpsc, Arc, Mutex},
     thread,
 };
-use crate::blocks::validate_proof_of_work;
+use crate::blocks::*;
 use crate::messages::get_data_message::*;
 use crate::messages::utils::Message;
 use crate::node::*;
@@ -238,8 +238,15 @@ fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut Tcp
     for _ in 0..amount_of_hashes{
         let received_message = receive_block_message(stream)?;
         if validate_proof_of_work(&received_message.block.get_header()){
-            blocks.push(received_message.block);
+            if validate_proof_of_inclusion(&received_message.block){
+                blocks.push(received_message.block);
+            }else{
+                println!("\n\nfallos proof of inclusion\n\n");
+            }
+        }else{
+            println!("\n\nfallos proof of work\n\n");
         }
+        
     }
     
     Ok(blocks)
