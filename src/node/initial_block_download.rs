@@ -30,7 +30,7 @@ impl Node {
     }
 
     ///Creates and sends a GetBlockHeadersMessage to the stream, always asking for the maximum amount of headers. On error returns ErrorSendingMessageInIBD
-    fn ibd_send_get_block_headers_message(
+    pub fn ibd_send_get_block_headers_message(
         &self,
         last_hash: [u8; 32],
     ) -> Result<(), NodeError> {
@@ -60,7 +60,7 @@ impl Node {
     }
     
     ///Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
-    fn receive_message (&mut self, sync_node_index: usize) -> Result<String, NodeError>{
+    pub fn receive_message (&mut self, sync_node_index: usize) -> Result<String, NodeError>{
         let mut stream = &self.tcp_streams[sync_node_index];
         let block_headers_msg_h = receive_message_header(&mut stream)?;
         //println!("\n\n{}", block_headers_msg_h.get_command_name());
@@ -156,7 +156,7 @@ impl Node {
         }
     }
 
-    fn load_blocks_and_headers(&mut self, mut data_handler: NodeDataHandler)->Result<NodeDataHandler, NodeError>{
+    pub fn load_blocks_and_headers(&mut self, mut data_handler: NodeDataHandler)->Result<NodeDataHandler, NodeError>{
         let headers = match data_handler.get_all_headers(){
             Ok(headers) => headers,
             Err(_) => return Err(NodeError::ErrorLoadingDataFromDisk),
@@ -206,7 +206,7 @@ impl Node {
                     self.blockchain.push(copied_block);
                 }
             },
-            Err(_) => {return Err(NodeError::ErrorDownloadingBlockBundle)},
+            Err(error) => {return Err(NodeError::ErrorDownloadingBlockBundle)},
         }
     
         println!("# de headers = {}", self.block_headers.len());

@@ -2,9 +2,11 @@ pub mod initial_block_download;
 pub mod handshake;
 pub mod block_downloader;
 pub mod data_handler;
+pub mod utxo_set;
 
-use crate::blocks::UTxOut;
+use crate::blocks::transaction::TxOut;
 use crate::blocks::blockchain::*;
+use std::collections::HashMap;
 use crate::messages::*;
 use crate::config::*;
 use crate::log::*;
@@ -69,7 +71,7 @@ pub struct Node {
     tcp_streams: Vec<TcpStream>,
     block_headers: Vec<BlockHeader>,
     blockchain: Vec<Block>,
-    utxo_set: Vec<UTxOut>,
+    utxo_set: HashMap<Vec<u8>, &'static TxOut>,
     logger: Logger,
 }
 
@@ -83,7 +85,7 @@ impl Node {
             tcp_streams: Vec::new(),
             block_headers: Vec::new(),
             blockchain: Vec::new(),
-            utxo_set: Vec::new(),
+            utxo_set: HashMap::new(),
             logger,
         }
     }

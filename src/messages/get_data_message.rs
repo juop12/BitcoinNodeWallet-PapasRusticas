@@ -1,8 +1,10 @@
-use super::utils::*;
-use crate::messages::*;
 use crate::variable_length_integer::VarLenInt;
+use crate::messages::*;
+use super::utils::*;
+
 
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
+
 
 fn as_block_element(hash: [u8;32]) -> [u8;36]{
     let mut block_element = [0;36];
@@ -16,6 +18,7 @@ pub struct GetDataMessage {
     count: VarLenInt,
     inventory: Vec<[u8;36]>,
 }
+
 impl GetDataMessage{
     pub fn new(inventory: Vec<[u8;36]>, count: VarLenInt) -> GetDataMessage{
         GetDataMessage{
@@ -35,6 +38,7 @@ impl GetDataMessage{
 
 impl Message for GetDataMessage{
     type MessageType = GetDataMessage;
+    
     //Writes the message as bytes in the receiver_stream
     fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
         let header_message = self.get_header_message()?;

@@ -1,4 +1,5 @@
 use crate::variable_length_integer::VarLenInt;
+use bitcoin_hashes::{sha256d, Hash};
 
 
 const MIN_BYTES_TX_IN :usize = 41;
@@ -6,12 +7,6 @@ const MIN_BYTES_TX_OUT :usize = 9;
 const MIN_BYTES_TRANSACTION: usize = 10;
 const OUTPOINT_BYTES :usize = 36;
 
-
-pub struct UTxOut {
-    // Outpoint, una referencia a la transaccion anterior.
-    tx_id: Outpoint,
-    tx_out: TxOut,
-}
 
 /// Struct that represents the Outpoint, that is used in the TxIn struct.
 #[derive(Debug, PartialEq)]
@@ -57,34 +52,14 @@ pub enum TransactionError {
     ErrorCreatingOutpointFromBytes,
 }
 
-impl UTxOut {
-    pub fn new(tx_id: Outpoint, tx_out: TxOut) -> UTxOut{
-        UTxOut{
-            tx_id,
-            tx_out,
-        }
-    } 
-
-    pub fn to_tx_in(&self) -> TxIn{
-
-        let tx_id = Outpoint::new(self.tx_id.hash, self.tx_id.index);
-
-        TxIn::new(
-            tx_id,
-            self.tx_out.pk_script.clone(),
-            u32::MAX,
-        )
-    }
-}
-
 impl Outpoint{
     ///Creates a new Outpoint
-    fn new(hash: [u8;32], index: u32) -> Outpoint{
+    pub fn new(hash: [u8;32], index: u32) -> Outpoint{
         Outpoint{hash, index}
     }
 
     ///Returns the contents of Outpoint as a bytes vecotr
-    fn to_bytes(&self)-> Vec<u8>{
+    pub fn to_bytes(&self)-> Vec<u8>{
         let mut bytes = Vec::from(self.hash);
         bytes.extend(self.index.to_le_bytes());
         bytes
@@ -212,6 +187,10 @@ impl TxIn{
     fn amount_of_bytes(&self) -> usize{
         self.to_bytes().len()
     }
+
+    pub fn previous_output(&self) -> &Outpoint{
+        &self.previous_output
+    }
 }
 
 impl Transaction {
@@ -244,7 +223,7 @@ impl Transaction {
     }
     
     /// If the bytes given can form a valid Transaction, it creates it, if not returns error.
-    fn from_bytes(slice: &[u8])-> Result<Transaction,TransactionError>{
+    pub fn from_bytes(slice: &[u8])-> Result<Transaction,TransactionError>{
         if slice.len() < MIN_BYTES_TRANSACTION{
             return Err(TransactionError::ErrorCreatingTxInFromBytes);
         }
@@ -278,9 +257,7 @@ impl Transaction {
             tx_out.push(tx);
         }
         
-        if slice.len() != 4{
-            return None;
-        }
+        let (lock_time_bytes, _slice) = slice.split_at(4);
         let lock_time = u32::from_le_bytes(slice.try_into().ok()?);
 
         Some(Transaction {
@@ -291,6 +268,22 @@ impl Transaction {
             tx_out,
             lock_time,
         })
+    }
+
+    pub fn ammount_of_bytes(&self) -> usize{
+        return self.to_bytes().len();
+    }
+
+    pub fn hash(&self) -> [u8;32]{
+        *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
+    }
+
+    pub fn tx_out(&self) -> &Vec<TxOut>{
+        &self.tx_out
+    }
+
+    pub fn tx_in(&self) -> &Vec<TxIn>{
+        &self.tx_in
     }
 }
 

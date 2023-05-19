@@ -1,6 +1,7 @@
 use super::utils::*;
 use crate::messages::*;
 use crate::blocks::blockchain::Block;
+use crate::blocks::transaction::Transaction;
 
 pub struct BlockMessage{
     pub block :Block,
@@ -54,9 +55,7 @@ mod test{
         let mut expected_bytes =  block_header_expected_bytes();
         expected_bytes.push(2);
         //temporal hasta que definiamos que son las transacciones
-        for _ in 0..100{
-            expected_bytes.push(0)
-        }
+        let transaction = Transaction::new(70015, Vec::new(), Vec::new(), 0);
         expected_bytes
     }
 

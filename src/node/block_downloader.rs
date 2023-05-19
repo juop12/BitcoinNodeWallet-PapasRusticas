@@ -149,6 +149,7 @@ impl BlockDownloader{
         let cantidad_workers = self.workers.len();
         for _ in 0..cantidad_workers{
             if self.sender.send(Box::new(vec![])).is_err() {
+                println!("Falló en el envio\n");
                 return Err(BlockDownloaderError::ErrorSendingToThread);
             }
 
@@ -159,6 +160,7 @@ impl BlockDownloader{
 
             let end_of_channel :Vec<[u8;32]> = Vec::new();
             if self.sender.send(Box::new(end_of_channel)).is_err(){
+                println!("Falló en el envio al end of channel\n");
                 return Err(BlockDownloaderError::ErrorSendingToThread);
             }
           
@@ -175,6 +177,7 @@ impl BlockDownloader{
                 }
             }
         }
+        
         Ok(())
     }
 
