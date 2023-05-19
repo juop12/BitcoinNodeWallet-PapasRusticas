@@ -82,7 +82,7 @@ mod tests{
         let utxo_set = node.create_utxo_set().unwrap();
 
         println!("utx_set Len:: {}\n\n", utxo_set.len());
-        println!("utx_set:: {:?}\n\n", utxo_set);
+        //println!("utx_set:: {:?}\n\n", utxo_set);
 
         assert!(utxo_set.len() > 0);
         Ok(())
