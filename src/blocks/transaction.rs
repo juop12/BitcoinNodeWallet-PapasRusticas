@@ -217,7 +217,7 @@ impl Transaction {
     }
     
     /// If the bytes given can form a valid Transaction, it creates it, if not returns error.
-    fn from_bytes(slice: &[u8])-> Result<Transaction,TransactionError>{
+    pub fn from_bytes(slice: &[u8])-> Result<Transaction,TransactionError>{
         if slice.len() < MIN_BYTES_TRANSACTION{
             return Err(TransactionError::ErrorCreatingTxInFromBytes);
         }
@@ -251,10 +251,8 @@ impl Transaction {
             tx_out.push(tx);
         }
         
-        if slice.len() != 4{
-            return None;
-        }
-        let lock_time = u32::from_le_bytes(slice.try_into().ok()?);
+        let (lock_time_bytes, slice) = slice.split_at(4);
+        let lock_time = u32::from_le_bytes(lock_time_bytes.try_into().ok()?);
 
         Some(Transaction {
             version,
@@ -264,6 +262,10 @@ impl Transaction {
             tx_out,
             lock_time,
         })
+    }
+
+    pub fn amount_of_bytes(&self) -> usize{
+        self.to_bytes().len()
     }
 }
 

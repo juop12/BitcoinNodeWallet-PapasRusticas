@@ -2,6 +2,7 @@ use chrono::Utc;
 use rand::prelude::*;
 use bitcoin_hashes::{sha256d, Hash};
 use crate::variable_length_integer::VarLenInt;
+use crate::blocks::transaction::*;
 
 const BLOCKHEADER_SIZE: usize = 80; 
 
@@ -28,8 +29,7 @@ pub struct BlockHeader {
 pub struct Block {
     header: BlockHeader,
     transaction_count: VarLenInt, // 0 for now.
-    //transactions: Vec<Transaction>,
-    transactions: Vec<u8>,
+    transactions: Vec<Transaction>,
 }
 
 impl BlockHeader{
@@ -117,7 +117,9 @@ impl Block{
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = self.header.to_bytes();
         bytes_vector.extend_from_slice(&self.transaction_count.to_bytes());
-        bytes_vector.extend_from_slice(&self.transactions);
+        for transaction in &self.transactions{
+            bytes_vector.extend_from_slice(&transaction.to_bytes());
+        }
         bytes_vector
     }
 
@@ -137,11 +139,21 @@ impl Block{
         let (header_bytes, slice) = slice.split_at_mut(BLOCKHEADER_SIZE);
         let header = BlockHeader::from_bytes(header_bytes).ok()?;
         let transaction_count = VarLenInt::from_bytes(slice);
-        let (_count_bytes ,transactions_bytes) = slice.split_at_mut(transaction_count.amount_of_bytes());
+        let (mut _used_bytes ,left_transactions) = slice.split_at_mut(transaction_count.amount_of_bytes());
+
+        let mut transactions = Vec::new();
+        
+        let mut i = 0;
+        while i < left_transactions.len() {
+            let transaction = Transaction::from_bytes(&left_transactions[i..]).ok()?;
+            i+= transaction.amount_of_bytes();
+            transactions.push(transaction);
+        }
+
         Some(Block {
             header,
-            transaction_count, // 0 for now.
-            transactions: Vec::from(transactions_bytes),
+            transaction_count, 
+            transactions,
         })
     } 
 
@@ -175,9 +187,10 @@ mod tests {
         let mut expected_bytes =  block_header_expected_bytes();
         expected_bytes.push(2);
         //temporal hasta que definiamos que son las transacciones
-        for _ in 0..100{
-            expected_bytes.push(0)
-        }
+        let t1 = Transaction::new(70015, Vec::new(), Vec::new(), 123);
+        let t2 = Transaction::new(70015, Vec::new(), Vec::new(), 123);
+        expected_bytes.extend(t1.to_bytes());
+        expected_bytes.extend(t2.to_bytes());
         expected_bytes
     }
 
@@ -217,15 +230,15 @@ mod tests {
             nonce: 14082023,
         };
         let transaction_count = VarLenInt::new(2);
-        let mut transactions:Vec<u8> = Vec::new();
-        for _ in 0..100{
-            transactions.push(0)
-        }
+        let t1 = Transaction::new(70015, Vec::new(), Vec::new(), 123);
+        let t2 = Transaction::new(70015, Vec::new(), Vec::new(), 123);
+        
+        
 
         let block =Block{
             header,
             transaction_count,
-            transactions,
+            transactions: vec![t1, t2],
         };
 
         assert_eq!(block_expected_bytes(), block.to_bytes());

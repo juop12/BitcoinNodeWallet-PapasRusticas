@@ -31,15 +31,19 @@ impl Worker {
                 Ok(rec_lock) => {
                     match rec_lock.recv() {
                         Ok(bundle) => bundle,
-                        Err(_) => return,
+                        Err(_) => {
+                            return;
+                        },
                     }
                 },
-                Err(_) => return,
+                Err(_) => {
+                    return;
+                },
             };
 
             //si se recibe un vector vacio 
             if bundle.is_empty(){
-                return
+                return;
             }
 
             let a = *bundle.clone();
@@ -48,7 +52,7 @@ impl Worker {
                 Ok(blocks) => blocks,
                 Err(_) => {
                     let _ = missed_bundles_sender.send(Box::new(a));
-                    return;
+                        return;
                     }
             };
 
@@ -60,7 +64,7 @@ impl Worker {
                 },
                 Err(_) => {
                     let _ = missed_bundles_sender.send(Box::new(a));
-                    return;
+                        return;
                     }
             };
         });
@@ -130,9 +134,10 @@ impl BlockDownloader{
         }
         let box_bundle = Box::new(bundle);
 
-        match self.sender.send(box_bundle) {
+        match self.sender.send(box_bundle){
             Ok(_) => Ok(()),
-            Err(_) => Err(BlockDownloaderError::ErrorSendingToThread),
+            Err(_err) => {
+                return Err(BlockDownloaderError::ErrorSendingToThread);},
         }
     }
 
@@ -179,7 +184,7 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
         Ok(msg_h) => msg_h,
         Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
     };
-    
+
     let mut msg_bytes = vec![0; block_msg_h.get_payload_size() as usize];
     match stream.read_exact(&mut msg_bytes) {
         Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
@@ -224,8 +229,9 @@ fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut Tcp
     let mut blocks :Vec<Block> = Vec::new();
     for _ in 0..amount_of_hashes{
         let received_message = receive_block_message(stream)?;
-        validate_proof_of_work(&received_message.block.get_header());
-        blocks.push(received_message.block);
+        if validate_proof_of_work(&received_message.block.get_header()){
+            blocks.push(received_message.block);
+        }
     }
     
     Ok(blocks)
