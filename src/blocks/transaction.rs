@@ -1,4 +1,5 @@
 use crate::variable_length_integer::VarLenInt;
+use bitcoin_hashes::{sha256d, Hash};
 
 const MIN_BYTES_TX_IN :usize = 41;
 const MIN_BYTES_TX_OUT :usize = 9;
@@ -266,6 +267,10 @@ impl Transaction {
 
     pub fn amount_of_bytes(&self) -> usize{
         self.to_bytes().len()
+    }
+
+    pub fn hash(&self) -> [u8;32]{
+        *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
 }
 
