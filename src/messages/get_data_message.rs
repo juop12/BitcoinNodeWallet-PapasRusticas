@@ -1,3 +1,4 @@
+
 use super::utils::*;
 pub use crate::messages::inv_message::*;
 
@@ -5,7 +6,6 @@ pub use crate::messages::inv_message::*;
 pub struct GetDataMessage{
     inv: InvMessage
 }
-
 impl GetDataMessage{
     /// Creates an instance of a 
     pub fn new(inventory: Vec<[u8;36]>) -> GetDataMessage{
@@ -19,6 +19,7 @@ impl GetDataMessage{
 
 impl Message for GetDataMessage{
     type MessageType = GetDataMessage;
+    
     //Writes the message as bytes in the receiver_stream
     fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
         let header_message = self.get_header_message()?;

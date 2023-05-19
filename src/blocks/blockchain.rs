@@ -1,6 +1,7 @@
 use chrono::Utc;
 use rand::prelude::*;
 use bitcoin_hashes::{sha256d, Hash};
+use crate::blocks::transaction::*;
 use crate::variable_length_integer::VarLenInt;
 use crate::blocks::transaction::*;
 

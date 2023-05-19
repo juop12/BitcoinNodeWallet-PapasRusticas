@@ -1,11 +1,13 @@
+use crate::node::*;
 use std::{
     fs::{File, OpenOptions}, 
     io::{BufWriter,BufReader, BufRead},
 };
-use crate::node::*;
+
 
 const HEADERS_FILE_PATH: &str = "../data/headers.csv";
 const BLOCK_FILE_PATH: &str = "../data/blocks.csv";
+
 
 /// Struct that handles the data persistance of the node.  It has two readers and two writers, one for each file.
 /// The headers reader and writer are used to read and write the headers file, and the blocks
@@ -78,7 +80,7 @@ fn get_bytes_from_line(line: String)->Result<Vec<u8>, NodeDataHandlerError>{
     for byte_str in line.split(",") {
         match byte_str.parse::<u8>(){
             Ok(byte) => bytes.push(byte),
-            Err(e) => return Err(NodeDataHandlerError::ErrorReadingBytes),
+            Err(_) => return Err(NodeDataHandlerError::ErrorReadingBytes),
         }
     }
     Ok(bytes)
@@ -88,22 +90,22 @@ impl NodeDataHandler{
     /// Creates a new NodeDataHandler. 
     pub fn new() -> Result<NodeDataHandler, NodeDataHandlerError>{
     
-    let read_headers_file = open_file(HEADERS_FILE_PATH, true, false)?;
-    let write_headers_file = open_file(HEADERS_FILE_PATH, false, true)?;
-    let read_blocks_file = open_file(BLOCK_FILE_PATH, true, false)?;
-    let write_blocks_file = open_file(BLOCK_FILE_PATH, false, true)?;
+        let read_headers_file = open_file(HEADERS_FILE_PATH, true, false)?;
+        let write_headers_file = open_file(HEADERS_FILE_PATH, false, true)?;
+        let read_blocks_file = open_file(BLOCK_FILE_PATH, true, false)?;
+        let write_blocks_file = open_file(BLOCK_FILE_PATH, false, true)?;
 
-    let headers_writer = BufWriter::new(write_headers_file);
-    let blocks_writer = BufWriter::new(write_blocks_file);
-    let headers_reader = BufReader::new(read_headers_file);
-    let blocks_reader = BufReader::new(read_blocks_file);
+        let headers_writer = BufWriter::new(write_headers_file);
+        let blocks_writer = BufWriter::new(write_blocks_file);
+        let headers_reader = BufReader::new(read_headers_file);
+        let blocks_reader = BufReader::new(read_blocks_file);
 
-    Ok( NodeDataHandler{
-        headers_reader,
-        blocks_reader,
-        headers_writer,
-        blocks_writer}
-        )
+        Ok(NodeDataHandler{
+            headers_reader,
+            blocks_reader,
+            headers_writer,
+            blocks_writer
+        })
     }
 
     /// Gets all the headers stored on the headers file. This function is only called
@@ -164,9 +166,7 @@ impl NodeDataHandler{
             let header = &headers[i];
             self.save_header(header)?;
         }
-        // for header in headers{
-        //     self.save_header(header)?;
-        // }
+ 
         Ok(())
     }
     /// Saves the block (as bytes) passed by parameter in the blocks file.
