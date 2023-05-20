@@ -224,7 +224,7 @@ fn send_get_data_message_for_blocks(hashes :Vec<[u8; 32]>, stream: &mut TcpStrea
 }
 
 /// Receives a vector of block hashes and a TcpStream, and returns a vector of blocks that were requested to the stream
-fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut TcpStream)-> Result<Vec<Block>, BlockDownloaderError>{
+pub fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut TcpStream)-> Result<Vec<Block>, BlockDownloaderError>{
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     let mut blocks :Vec<Block> = Vec::new();

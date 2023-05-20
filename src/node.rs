@@ -4,8 +4,11 @@ pub mod block_downloader;
 pub mod data_handler;
 pub mod utxo_set;
 
-use crate::blocks::transaction::TxOut;
-use crate::blocks::blockchain::*;
+use crate::blocks::{
+    transaction::TxOut,
+    blockchain::*,
+    proof::*,
+};
 use crate::node::block_downloader::get_blocks_from_bundle;
 use std::collections::HashMap;
 use crate::messages::*;
@@ -43,6 +46,7 @@ pub enum NodeError {
     ErrorSavingDataToDisk,
     ErrorLoadingDataFromDisk,
     ErrorRecevingBroadcastedInventory,
+    ErrorReceivingBroadcastedBlock,
 }
 
 /// Struct that represents the bitcoin node
@@ -136,12 +140,46 @@ impl Node {
         match block_headers_msg_h.get_command_name().as_str(){
             "ping\0\0\0\0\0\0\0\0" => self.handle_ping_message(stream_index, &block_headers_msg_h, msg_bytes),
             "inv\0\0\0\0\0\0\0\0\0" => self.handle_inv_message(msg_bytes, stream_index)?,
-            "block\0\0\0\0\0\0" => {},
+            "block\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
             "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, stream_index)?,
             //"block\0\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
             _ => {},
         };
         Ok(block_headers_msg_h.get_command_name())
+    }
+
+    
+
+    fn handle_block_message(&mut self, mut msg_bytes: Vec<u8>)->Result<(), NodeError>{
+        let block_msg = match BlockMessage::from_bytes(&mut msg_bytes){
+            Ok(block_msg) => block_msg,
+            Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
+        };
+        if validate_proof_of_work(&block_msg.block.get_header()){
+            if validate_proof_of_inclusion(&block_msg.block){
+                self.add_broadcasted_block(block_msg.block)?;
+            }else{
+                println!("\n\nfallos proof of inclusion\n\n");
+            }
+        }else{
+            println!("\n\nfallos proof of work\n\n");
+        }
+        Ok(())
+    }
+
+    fn add_broadcasted_block(&mut self, block: Block)->Result<(),NodeError>{
+        match BlockHeader::from_bytes(&mut block.get_header().to_bytes()){
+            Ok(header) => self.block_headers.push(header),
+            Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
+        };
+        if self.data_handler.save_header(block.get_header()).is_err(){
+            return Err(NodeError::ErrorSavingDataToDisk);
+        }
+        if self.data_handler.save_block(&block).is_err(){
+            return Err(NodeError::ErrorSavingDataToDisk);
+        }
+        self.blockchain.insert(block.get_header().hash(), block);
+        Ok(())
     }
 
     fn handle_inv_message(&mut self, mut msg_bytes: Vec<u8>, stream_index: usize)-> Result<(),NodeError>{
@@ -155,12 +193,7 @@ impl Node {
         match get_blocks_from_bundle(inv_msg.get_block_hashes(), stream){
             Ok(blocks) => {
                 for block in blocks{
-                    if self.data_handler.save_header(block.get_header()).is_err(){
-                        return Err(NodeError::ErrorSavingDataToDisk);
-                    }
-                    if self.data_handler.save_block(&block).is_err(){
-                        return Err(NodeError::ErrorSavingDataToDisk);
-                    }
+                    self.add_broadcasted_block(block)?;
                 }
                 Ok(())
             },
