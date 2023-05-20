@@ -83,7 +83,7 @@ impl Node {
 
         while headers_received == self.block_headers.len(){
             self.ibd_send_get_block_headers_message(last_hash)?;
-            while self.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
+            while self.receive_message(sync_node_index, true)? != "headers\0\0\0\0\0" {
 
             }
             let mut i = headers_received;
@@ -217,7 +217,7 @@ mod tests{
         };
         let mut node = Node::new(config)?;
         node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK)?;
-        while node.receive_message(0)? != "headers\0\0\0\0\0" {
+        while node.receive_message(0, true)? != "headers\0\0\0\0\0" {
 
         }
         
@@ -242,7 +242,7 @@ mod tests{
         let mut block_downloader = BlockDownloader::new(node.get_tcp_streams(), &safe_block_chain).unwrap();
         for _ in 0..1{
             node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK)?;
-            while node.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
+            while node.receive_message(sync_node_index, true)? != "headers\0\0\0\0\0" {
 
             }   
             for j in 0..125{
