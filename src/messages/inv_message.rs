@@ -3,21 +3,20 @@ use crate::variable_length_integer::VarLenInt;
 
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 
-fn as_block_element(hash: [u8;32]) -> [u8;36]{
-    let mut block_element = [0;36];
-    block_element[0..4].copy_from_slice(&BLOCK_IDENTIFIER);
-    block_element[4..36].copy_from_slice(&hash);
-    block_element
+#[derive(Debug)]
+struct Entry{
+    inv_type: [u8;4],
+    hash: [u8;32],
 }
 
 #[derive(Debug)]
 pub struct InvMessage {
     count: VarLenInt,
-    inventory: Vec<[u8;36]>,
+    inventory: Vec<Entry>,
 }
 
 impl InvMessage{
-    pub fn new(inventory: Vec<[u8;36]>) -> InvMessage{
+    fn new(inventory: Vec<Entry>) -> InvMessage{
         InvMessage{
                 count: VarLenInt::new(inventory.len()),
                 inventory,
@@ -25,9 +24,9 @@ impl InvMessage{
     }
 
     pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8;32]>) -> InvMessage{
-        let mut inventory: Vec<[u8;36]> = Vec::new();
-        for entry in inventory_entries{
-            inventory.push(as_block_element(entry))
+        let mut inventory: Vec<Entry> = Vec::new();
+        for hash in inventory_entries{
+            inventory.push(Entry::as_block_entry(hash))
         };
         Self::new(inventory)
     }
@@ -51,8 +50,8 @@ impl Message for InvMessage{
         let mut bytes_vector = Vec::new();
         bytes_vector.extend(&self.count.to_bytes());
        
-        for i in 0..self.inventory.len() {
-            bytes_vector.extend(self.inventory[i]);
+        for entry in &self.inventory {
+            bytes_vector.extend(entry.to_bytes());
         }
         bytes_vector
     }
@@ -65,14 +64,14 @@ impl Message for InvMessage{
             return Err(MessageError::ErrorCreatingInvMessage)
         }
 
-        let mut inventory: Vec<[u8;36]> = Vec::new();
+        let mut inventory: Vec<Entry> = Vec::new();
         let mut i = count.amount_of_bytes();
         while i < slice.len(){
             let aux: [u8;36] = match slice[(i)..(i + 36)].try_into(){
                 Ok(array) => array,
                 Err(_) => return Err(MessageError::ErrorCreatingInvMessage),
             };
-            inventory.push(aux);
+            inventory.push(Entry::from_bytes(aux)?);
             i += 36;
         }
 
@@ -85,6 +84,46 @@ impl Message for InvMessage{
     //Gets the header message corresponding to the corresponding message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
         HeaderMessage::new("inv\0\0\0\0\0\0\0\0\0", &self.to_bytes())
+    }
+}
+
+impl InvMessage{
+    pub fn get_block_hashes(&self)-> Vec<[u8;32]>{
+        let mut block_hashes: Vec<[u8;32]> = Vec::new();
+        for entry in &self.inventory{
+            if entry.is_block_type(){
+                block_hashes.push(entry.hash);
+            }
+        }
+        block_hashes
+    }
+}
+
+impl Entry{
+    fn as_block_entry(hash: [u8;32]) -> Entry{
+        Entry{ inv_type: BLOCK_IDENTIFIER, hash }
+    }
+
+    fn to_bytes(&self)-> Vec<u8>{
+        let mut bytes = Vec::from(self.inv_type);
+        bytes.extend(self.hash);
+        bytes
+    }
+
+    fn from_bytes(bytes: [u8;36])-> Result<Entry, MessageError>{
+        let inv_type: [u8;4] = match bytes[0..4].try_into(){
+            Ok(array) => array,
+            Err(_) => return Err(MessageError::ErrorCreatingInvMessage),
+        };
+        let hash: [u8;32] = match bytes[4..36].try_into(){
+            Ok(array) => array,
+            Err(_) => return Err(MessageError::ErrorCreatingInvMessage),
+        };
+        Ok(Entry{ inv_type, hash})
+    }
+
+    fn is_block_type(&self)-> bool{
+        self.inv_type == BLOCK_IDENTIFIER
     }
 }
 
@@ -105,8 +144,8 @@ mod test{
         }else{
             expected_bytes.push(2);
         }
-        expected_bytes.extend(as_block_element(hash1));
-        expected_bytes.extend(as_block_element(hash2));
+        expected_bytes.extend(Entry::as_block_entry(hash1).to_bytes());
+        expected_bytes.extend(Entry::as_block_entry(hash2).to_bytes());
         (expected_bytes, hash1, hash2)
     }
 
@@ -115,7 +154,7 @@ mod test{
             
         let (expected_bytes, hash1, hash2) = inv_message_expected_bytes(false);
         
-        let hashes  = vec![as_block_element(hash1), as_block_element(hash2),];
+        let hashes  = vec![Entry::as_block_entry(hash1),Entry::as_block_entry(hash2)];
         
         let block_headers_message = InvMessage::new(hashes);
 

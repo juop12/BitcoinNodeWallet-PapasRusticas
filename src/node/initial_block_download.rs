@@ -210,8 +210,8 @@ mod tests{
         let config = Config {
             version: 70015,
             dns_port: 18333,
-            local_host: [127,0,0,1],
-            local_port: 1001,
+            local_host: [127,0,0,3],
+            local_port: 1003,
             log_path: String::from("src/node_log.txt"),
             begin_time: 1681084800,
         };
@@ -230,8 +230,8 @@ mod tests{
         let config = Config {
             version: 70015,
             dns_port: 18333,
-            local_host: [127,0,0,1],
-            local_port: 1001,
+            local_host: [127,0,0,2],
+            local_port: 1002,
             log_path: String::from("src/node_log.txt"),
             begin_time: 1681084800,
         };

@@ -7,10 +7,11 @@ pub struct GetDataMessage{
     inv: InvMessage
 }
 impl GetDataMessage{
+    /*
     /// Creates an instance of a 
     pub fn new(inventory: Vec<[u8;36]>) -> GetDataMessage{
         GetDataMessage{inv: InvMessage::new(inventory)}
-    }
+    }*/
 
     pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8;32]>) -> GetDataMessage{
         GetDataMessage{inv: InvMessage::create_message_inventory_block_type(inventory_entries)}

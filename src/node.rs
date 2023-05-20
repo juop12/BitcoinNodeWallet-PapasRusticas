@@ -6,6 +6,7 @@ pub mod utxo_set;
 
 use crate::blocks::transaction::TxOut;
 use crate::blocks::blockchain::*;
+use crate::node::block_downloader::get_blocks_from_bundle;
 use std::collections::HashMap;
 use crate::messages::*;
 use crate::config::*;
@@ -15,6 +16,8 @@ use std::{
     io::{Read, Write},
     net::{SocketAddr, ToSocketAddrs, TcpStream},
 };
+
+use self::data_handler::NodeDataHandler;
 
 
 const MESSAGE_HEADER_SIZE: usize = 24;
@@ -39,6 +42,7 @@ pub enum NodeError {
     ErrorCreatingNode,
     ErrorSavingDataToDisk,
     ErrorLoadingDataFromDisk,
+    ErrorRecevingBroadcastedInventory,
 }
 
 /// Struct that represents the bitcoin node
@@ -49,13 +53,14 @@ pub struct Node {
     block_headers: Vec<BlockHeader>,
     blockchain: HashMap<[u8;32], Block>, //Vec<Block>, 
     utxo_set: HashMap<[u8;32], &'static TxOut>,
+    data_handler: NodeDataHandler,
     logger: Logger,
 }
 
 impl Node {
 
     /// It creates and returns a Node with the default values
-    fn _new(version: i32, local_host: [u8; 4], local_port: u16, logger: Logger) -> Node {
+    fn _new(version: i32, local_host: [u8; 4], local_port: u16, logger: Logger, data_handler: NodeDataHandler) -> Node {
         Node {
             version,
             sender_address: SocketAddr::from((local_host, local_port)),
@@ -63,6 +68,7 @@ impl Node {
             block_headers: Vec::new(),
             blockchain: HashMap::new(),
             utxo_set: HashMap::new(),
+            data_handler,
             logger,
         }
     }
@@ -75,7 +81,11 @@ impl Node {
             Ok(logger) => logger,
             Err(_) => return Err(NodeError::ErrorCreatingNode),
         };
-        let mut node = Node::_new(config.version, config.local_host, config.local_port, logger);
+        let data_handler = match NodeDataHandler::new(){
+            Ok(handler) => handler,
+            Err(_) => return Err(NodeError::ErrorCreatingNode),
+        };
+        let mut node = Node::_new(config.version, config.local_host, config.local_port, logger, data_handler);
         let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
         
         for addr in address_vector {
@@ -124,8 +134,8 @@ impl Node {
         }
 
         match block_headers_msg_h.get_command_name().as_str(){
-            "ping\0\0\0\0\0\0\0\0" => self.handle_ping(stream_index, &block_headers_msg_h, msg_bytes),
-            "inv\0\0\0\0\0\0\0\0\0" => {},
+            "ping\0\0\0\0\0\0\0\0" => self.handle_ping_message(stream_index, &block_headers_msg_h, msg_bytes),
+            "inv\0\0\0\0\0\0\0\0\0" => self.handle_inv_message(msg_bytes, stream_index)?,
             "block\0\0\0\0\0\0" => {},
             "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, stream_index)?,
             //"block\0\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
@@ -134,7 +144,31 @@ impl Node {
         Ok(block_headers_msg_h.get_command_name())
     }
 
-    fn handle_ping(&self, stream_index: usize, header_message: &HeaderMessage, nonce: Vec<u8>){
+    fn handle_inv_message(&mut self, mut msg_bytes: Vec<u8>, stream_index: usize)-> Result<(),NodeError>{
+        let inv_msg = match InvMessage::from_bytes(&mut msg_bytes){
+            Ok(msg) => msg,
+            Err(_) => return Err(NodeError::ErrorRecevingBroadcastedInventory),
+        };
+
+        let stream = &mut self.tcp_streams[stream_index];
+
+        match get_blocks_from_bundle(inv_msg.get_block_hashes(), stream){
+            Ok(blocks) => {
+                for block in blocks{
+                    if self.data_handler.save_header(block.get_header()).is_err(){
+                        return Err(NodeError::ErrorSavingDataToDisk);
+                    }
+                    if self.data_handler.save_block(&block).is_err(){
+                        return Err(NodeError::ErrorSavingDataToDisk);
+                    }
+                }
+                Ok(())
+            },
+            Err(_) => Err(NodeError::ErrorDownloadingBlockBundle),
+        }
+    }
+
+    fn handle_ping_message(&self, stream_index: usize, header_message: &HeaderMessage, nonce: Vec<u8>){
         if nonce.len() != 8{
             return
         }
@@ -176,9 +210,10 @@ mod tests {
 
 
     #[test]
-    fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address() {
+    fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address(){
         let logger = Logger::from_path("test_log.txt").unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
+        let data_handler = NodeDataHandler::new().unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler);
         let address_vector = node.peer_discovery("does_not_exist", DNS_PORT);
 
         assert!(address_vector.is_empty());
@@ -187,7 +222,8 @@ mod tests {
     #[test]
     fn peer_discovery_test_2_returns_ip_vector_when_receiving_valid_dns() {
         let logger = Logger::from_path("test_log.txt").unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
+        let data_handler = NodeDataHandler::new().unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler);
         let address_vector = node.peer_discovery(DNS_ADDRESS, DNS_PORT);
 
         assert!(!address_vector.is_empty());
@@ -198,7 +234,8 @@ mod tests {
         let mut stream = MockTcpStream::new();
 
         let logger = Logger::from_path("test_log.txt").unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger);
+        let data_handler = NodeDataHandler::new().unwrap();
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler);
 
         let expected_hm =
             HeaderMessage::new("test message", &Vec::from("test".as_bytes())).unwrap();
