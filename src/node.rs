@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use crate::messages::*;
 use crate::config::*;
 use crate::log::*;
-use crate::messages::utils::MessageError;
+//use crate::messages::utils::MessageError;
 use std::{
     io::{Read, Write},
     net::{SocketAddr, ToSocketAddrs, TcpStream},
@@ -47,8 +47,8 @@ pub struct Node {
     sender_address: SocketAddr,
     tcp_streams: Vec<TcpStream>,
     block_headers: Vec<BlockHeader>,
-    blockchain: Vec<Block>,
-    utxo_set: HashMap<Vec<u8>, &'static TxOut>,
+    blockchain: HashMap<[u8;32], Block>, //Vec<Block>, 
+    utxo_set: HashMap<[u8;32], &'static TxOut>,
     logger: Logger,
 }
 
@@ -61,7 +61,7 @@ impl Node {
             sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
             block_headers: Vec::new(),
-            blockchain: Vec::new(),
+            blockchain: HashMap::new(),
             utxo_set: HashMap::new(),
             logger,
         }
@@ -107,7 +107,7 @@ impl Node {
         &self.tcp_streams
     }
 
-    pub fn get_blockchain(&self) -> &Vec<Block>{
+    pub fn get_blockchain(&self) -> &HashMap<[u8; 32], Block>{
         &self.blockchain
     }
             
@@ -152,7 +152,7 @@ impl Node {
 /// On error returns ErrorReceivingMessage
 pub fn receive_message_header<T: Read + Write>(stream: &mut T,) -> Result<HeaderMessage, NodeError> {
     let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
-    if let Err(error) = stream.read_exact(&mut header_bytes){
+    if let Err(_) = stream.read_exact(&mut header_bytes){
         return Err(NodeError::ErrorReceivingMessageHeader);
     };
     match HeaderMessage::from_bytes(&mut header_bytes) {

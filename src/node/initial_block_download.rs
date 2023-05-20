@@ -12,8 +12,8 @@ const HASHEDGENESISBLOCK: [u8; 32] = [
     0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
     0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
 ];// 0x64 | [u8; 32] 
-const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
-const MAX_RECEIVED_HEADERS: usize = 2000;
+//const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
+//const MAX_RECEIVED_HEADERS: usize = 2000;
 const MAX_BLOCK_BUNDLE: usize = 16;
 const STARTING_BLOCK_TIME: u32 = 1681084800; // https://www.epochconverter.com/, 2023-04-10 00:00:00 GMT
 
@@ -53,7 +53,7 @@ impl Node {
         };
         //println!("Recibimos {:?} headers", block_headers_msg.count);
         let received_block_headers = block_headers_msg.headers;
-        let quantity_received = received_block_headers.len();
+        //let quantity_received = received_block_headers.len();
         
         self.block_headers.extend(received_block_headers);
         Ok(())
@@ -61,9 +61,9 @@ impl Node {
 
     ///Creates a block downloader and returns it. On error returns NodeError
     fn create_block_downloader(&self) -> Result<(BlockDownloader, Arc<Mutex<Vec<Block>>>), NodeError>{
-        let mut new_blocks :Vec<Block> = Vec::new();
+        let new_blocks :Vec<Block> = Vec::new();
         let safe_new_blocks = Arc::new(Mutex::from(new_blocks));
-        let mut block_downloader = BlockDownloader::new(&self.tcp_streams, &safe_new_blocks);
+        let block_downloader = BlockDownloader::new(&self.tcp_streams, &safe_new_blocks);
         match block_downloader{
             Ok(block_downloader) => Ok((block_downloader, safe_new_blocks)),
             Err(_) => Err(NodeError::ErrorCreatingBlockDownloader),
@@ -123,14 +123,12 @@ impl Node {
 
     /// Writes the necessary headers and data into disk, to be able to continue the IBD from the last point. On error returns NodeError
     /// Both are written starting from the given positions.
-    fn store_data_in_disk(&self, mut data_handler: NodeDataHandler, headers_starting_position: usize, blocks_starting_position: usize) -> Result<(), NodeError>{
-        if data_handler.save_headers(&self.block_headers, headers_starting_position).is_err(){
+    fn store_data_in_disk(&self, mut data_handler: NodeDataHandler, headers_starting_position: usize) -> Result<(), NodeError>{
+        
+        if data_handler.save_to_disk(&self.blockchain, &self.block_headers, headers_starting_position).is_err(){
             return Err(NodeError::ErrorSavingDataToDisk);
         }
-        match data_handler.save_blocks(&self.blockchain, blocks_starting_position) {
-            Ok(_) => Ok(()),
-            Err(_) => return Err(NodeError::ErrorSavingDataToDisk),
-        }
+        Ok(())
     }
 
     pub fn load_blocks_and_headers(&mut self, mut data_handler: NodeDataHandler)->Result<NodeDataHandler, NodeError>{
@@ -144,7 +142,9 @@ impl Node {
             Err(_) => return Err(NodeError::ErrorLoadingDataFromDisk),
         };
 
-        self.blockchain.extend(blocks);
+        for block in blocks{
+            _ = self.blockchain.insert(block.get_header().hash(), block);
+        }
         self.block_headers.extend(headers);
         Ok(data_handler)
     }
@@ -159,7 +159,6 @@ impl Node {
         };
         data_handler = self.load_blocks_and_headers(data_handler)?;
         let new_headers_starting_position = self.block_headers.len();
-        let new_blocks_starting_position = self.blockchain.len();
 
         let (mut block_downloader, safe_new_blocks) = self.create_block_downloader()?;
         
@@ -180,16 +179,17 @@ impl Node {
                         Ok(block) => block,
                         Err(_) => return Err(NodeError::ErrorDownloadingBlockBundle),
                     };
-                    self.blockchain.push(copied_block);
+                    
+                    _ = self.blockchain.insert(copied_block.get_header().hash(), copied_block);
                 }
             },
-            Err(error) => {return Err(NodeError::ErrorDownloadingBlockBundle)},
+            Err(_) => {return Err(NodeError::ErrorDownloadingBlockBundle)},
         }
     
         println!("# de headers = {}", self.block_headers.len());
         println!("# de bloques descargados = {}", self.blockchain.len());
         
-        self.store_data_in_disk(data_handler, new_headers_starting_position, new_blocks_starting_position);
+        self.store_data_in_disk(data_handler, new_headers_starting_position)?;
 
         Ok(())
         

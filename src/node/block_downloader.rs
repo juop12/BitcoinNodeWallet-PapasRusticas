@@ -7,13 +7,13 @@ use crate::blocks::*;
 use crate::messages::get_data_message::*;
 use crate::messages::utils::Message;
 use crate::node::*;
-use crate::variable_length_integer::VarLenInt;
+//use crate::variable_length_integer::VarLenInt;
 
 /// Struct that represents a worker thread in the thread pool.
 #[derive(Debug)]
 struct Worker {
-    id: usize,
     thread: thread::JoinHandle<()>,
+    id: usize,
     stream: TcpStream,
 }
 
@@ -151,8 +151,9 @@ impl BlockDownloader{
     pub fn finish_downloading(&mut self)->Result<(), BlockDownloaderError>{
         let cantidad_workers = self.workers.len();
         for _ in 0..cantidad_workers{
-            if self.sender.send(Box::new(vec![])).is_err() {
-                println!("Falló en el envio\n");
+            let end_of_channel :Vec<[u8;32]> = Vec::new();
+            if self.sender.send(Box::new(end_of_channel)).is_err(){
+                println!("Falló en el envio al end of channel\n");
                 return Err(BlockDownloaderError::ErrorSendingToThread);
             }
 
@@ -160,13 +161,6 @@ impl BlockDownloader{
                 //println!("represoesar {:?}", *bundle);
                 self.download_block_bundle(*bundle)?;
             }
-
-            let end_of_channel :Vec<[u8;32]> = Vec::new();
-            if self.sender.send(Box::new(end_of_channel)).is_err(){
-                println!("Falló en el envio al end of channel\n");
-                return Err(BlockDownloaderError::ErrorSendingToThread);
-            }
-          
             
             let mut joined_a_worker = false;
             
@@ -220,7 +214,6 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
 /// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
 /// Returns an error if it was not possible to send the message.
 fn send_get_data_message_for_blocks(hashes :Vec<[u8; 32]>, stream: &mut TcpStream)->Result<(), BlockDownloaderError>{
-    let count = VarLenInt::new(hashes.len());
     
     let get_data_message = GetDataMessage::create_message_inventory_block_type(hashes);
     
