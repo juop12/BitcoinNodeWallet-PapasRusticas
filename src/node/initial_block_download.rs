@@ -83,7 +83,7 @@ impl Node {
 
         while headers_received == self.block_headers.len(){
             self.ibd_send_get_block_headers_message(last_hash)?;
-            while self.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
+            while self.receive_message(sync_node_index, true)? != "headers\0\0\0\0\0" {
 
             }
             let mut i = headers_received;
@@ -210,14 +210,14 @@ mod tests{
         let config = Config {
             version: 70015,
             dns_port: 18333,
-            local_host: [127,0,0,1],
-            local_port: 1001,
+            local_host: [127,0,0,3],
+            local_port: 1003,
             log_path: String::from("src/node_log.txt"),
             begin_time: 1681084800,
         };
         let mut node = Node::new(config)?;
         node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK)?;
-        while node.receive_message(0)? != "headers\0\0\0\0\0" {
+        while node.receive_message(0, true)? != "headers\0\0\0\0\0" {
 
         }
         
@@ -230,8 +230,8 @@ mod tests{
         let config = Config {
             version: 70015,
             dns_port: 18333,
-            local_host: [127,0,0,1],
-            local_port: 1001,
+            local_host: [127,0,0,2],
+            local_port: 1002,
             log_path: String::from("src/node_log.txt"),
             begin_time: 1681084800,
         };
@@ -242,7 +242,7 @@ mod tests{
         let mut block_downloader = BlockDownloader::new(node.get_tcp_streams(), &safe_block_chain).unwrap();
         for _ in 0..1{
             node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK)?;
-            while node.receive_message(sync_node_index)? != "headers\0\0\0\0\0" {
+            while node.receive_message(sync_node_index, true)? != "headers\0\0\0\0\0" {
 
             }   
             for j in 0..125{
