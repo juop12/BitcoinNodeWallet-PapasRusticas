@@ -1,5 +1,5 @@
 use super::utils::*;
-use crate::variable_length_integer::VarLenInt;
+use crate::utils::variable_length_integer::VarLenInt;
 
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 
@@ -130,7 +130,7 @@ impl Entry{
 #[cfg(test)]
 mod test{
     use super::*;
-    use crate::mock_tcp_stream::MockTcpStream;
+    use crate::utils::mock_tcp_stream::MockTcpStream;
     use bitcoin_hashes::{sha256d, Hash};
 
     fn inv_message_expected_bytes(double_bytes_for_count :bool) -> (Vec<u8>, [u8;32], [u8;32]){

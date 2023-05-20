@@ -5,17 +5,16 @@ pub mod data_handler;
 pub mod utxo_set;
 pub mod handle_messages;
 
+use crate::node::block_downloader::get_blocks_from_bundle;
+use crate::utils::{config::*, log::*};
+use crate::messages::*;
 use crate::blocks::{
     transaction::TxOut,
     blockchain::*,
     proof::*,
 };
-use crate::node::block_downloader::get_blocks_from_bundle;
+
 use std::collections::HashMap;
-use crate::messages::*;
-use crate::config::*;
-use crate::log::*;
-//use crate::messages::utils::MessageError;
 use std::{
     io::{Read, Write},
     net::{SocketAddr, ToSocketAddrs, TcpStream},
@@ -55,10 +54,10 @@ pub struct Node {
     version: i32,
     sender_address: SocketAddr,
     tcp_streams: Vec<TcpStream>,
-    block_headers: Vec<BlockHeader>,
-    blockchain: HashMap<[u8;32], Block>, //Vec<Block>, 
-    utxo_set: HashMap<[u8;32], &'static TxOut>,
     data_handler: NodeDataHandler,
+    block_headers: Vec<BlockHeader>,
+    blockchain: HashMap<[u8;32], Block>,
+    utxo_set: HashMap<[u8;32], &'static TxOut>,
     logger: Logger,
 }
 
@@ -171,7 +170,7 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T,) -> Result<Header
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mock_tcp_stream::*;
+    use crate::utils::mock_tcp_stream::*;
 
 
     const VERSION: i32 = 70015;

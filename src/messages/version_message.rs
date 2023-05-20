@@ -2,7 +2,7 @@ use super::utils::*;
 use std::net::{IpAddr, SocketAddr};
 use rand::prelude::*;
 use chrono::Utc;
-use crate::variable_length_integer::VarLenInt;
+use crate::utils::variable_length_integer::VarLenInt;
 
 const NODE_NETWORK: u64 = 0x01;
 const VERSION_MSG_NAME: &str = "version\0\0\0\0\0";
@@ -168,7 +168,7 @@ impl VersionMessage {
 mod tests {
     use super::*;
     use std::net::Ipv4Addr;
-    use crate::mock_tcp_stream::MockTcpStream;
+    use crate::utils::mock_tcp_stream::MockTcpStream;
 
 
     const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];

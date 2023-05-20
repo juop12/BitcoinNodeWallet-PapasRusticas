@@ -1,6 +1,6 @@
-use proyecto::config::*;
+use proyecto::utils::config::*;
+// use proyecto::utils::log::*;
 use proyecto::node::*;
-use proyecto::log::*;
 use std::env;
 
 
@@ -17,5 +17,5 @@ fn main() {
         Err(error) => return eprintln!("{:?}", error),
     };
 
-    Node::new(config);
+    _ = Node::new(config);
 }

@@ -107,7 +107,7 @@ impl Node {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mock_tcp_stream::*;
+    use crate::utils::mock_tcp_stream::*;
     use bitcoin_hashes::{sha256d, Hash};
 
 

@@ -48,7 +48,7 @@ impl BlockMessage{
 #[cfg(test)]
 mod test{
     use super::*;
-    use crate::mock_tcp_stream::MockTcpStream;
+    use crate::utils::mock_tcp_stream::MockTcpStream;
     use bitcoin_hashes::{sha256d, Hash};
     
     fn block_expected_bytes()->Vec<u8>{

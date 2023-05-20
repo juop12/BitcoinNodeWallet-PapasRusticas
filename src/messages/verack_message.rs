@@ -44,7 +44,7 @@ impl VerACKMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mock_tcp_stream::MockTcpStream;
+    use crate::utils::mock_tcp_stream::MockTcpStream;
 
 
     const START_STRING_TEST_NET: [u8; 4] = [0x0b, 0x11, 0x09, 0x07];
