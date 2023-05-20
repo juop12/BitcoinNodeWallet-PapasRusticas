@@ -5,22 +5,24 @@ pub mod data_handler;
 pub mod utxo_set;
 pub mod handle_messages;
 
-use crate::node::block_downloader::get_blocks_from_bundle;
-use crate::utils::{config::*, log::*};
+use self::block_downloader::get_blocks_from_bundle;
+use self::data_handler::NodeDataHandler;
 use crate::messages::*;
 use crate::blocks::{
     transaction::TxOut,
     blockchain::*,
     proof::*,
 };
-
-use std::collections::HashMap;
+use crate::utils::{
+    config::*,
+    log::*
+};
 use std::{
     io::{Read, Write},
+    collections::HashMap,
     net::{SocketAddr, ToSocketAddrs, TcpStream},
 };
 
-use self::data_handler::NodeDataHandler;
 
 
 const MESSAGE_HEADER_SIZE: usize = 24;

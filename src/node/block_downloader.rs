@@ -1,13 +1,16 @@
-use std::net::TcpStream;
+use crate::messages::{
+    get_data_message::*,
+    not_found_message::*,
+    utils::Message,
+};
+use crate::node::*;
+
 use std::{
     sync::{mpsc, Arc, Mutex},
+    net::TcpStream,
     thread,
 };
-use crate::blocks::*;
-use crate::messages::get_data_message::*;
-use crate::messages::utils::Message;
-use crate::node::*;
-//use crate::variable_length_integer::VarLenInt;
+
 
 /// Struct that represents a worker thread in the thread pool.
 #[derive(Debug)]
@@ -46,14 +49,21 @@ impl Worker {
                 return;
             }
 
-            let a = *bundle.clone();
+            let aux_bundle = *bundle.clone();
             
             let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream) {
                 Ok(blocks) => blocks,
-                Err(_) => {
-                    let _ = missed_bundles_sender.send(Box::new(a));
-                        return;
-                    }
+                Err(error) => {
+                        // handlear el send.
+                        if missed_bundles_sender.send(Box::new(aux_bundle)).is_err(){
+                            //log 
+                        }
+                        if let BlockDownloaderError::BundleNotFound = error{
+                            continue;
+                        } else{
+                            return;
+                        }
+                }
             };
 
             match locked_block_chain.lock(){
@@ -63,7 +73,7 @@ impl Worker {
                     }
                 },
                 Err(_) => {
-                    let _ = missed_bundles_sender.send(Box::new(a));
+                    let _ = missed_bundles_sender.send(Box::new(aux_bundle));
                         return;
                     }
             };
@@ -97,6 +107,9 @@ pub enum BlockDownloaderError {
     ErrorSendingMessageBlockDownloader,
     ErrorCreatingWorker,
     ErrorJoiningThread,
+    ErrorValidatingBlock,
+    ErrorReceivingNotFoundMessage,
+    BundleNotFound,
 }
 
 #[derive(Debug)]
@@ -201,8 +214,12 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
             }
         },
         "notfound\0\0\0\0" =>{
-            println!("Hubo un not found");
-            todo!();
+            let not_found_msg = match NotFoundMessage::from_bytes(&mut msg_bytes){
+                Ok(block_msg) => block_msg,
+                Err(_) => return Err(BlockDownloaderError::ErrorReceivingNotFoundMessage),
+            };
+            
+            return Err(BlockDownloaderError::BundleNotFound);
         },
         _ => return receive_block_message(stream),
     };
@@ -235,9 +252,11 @@ pub fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut
                 blocks.push(received_message.block);
             }else{
                 println!("\n\nfallos proof of inclusion\n\n");
+                return Err(BlockDownloaderError::ErrorValidatingBlock);
             }
         }else{
             println!("\n\nfallos proof of work\n\n");
+            return Err(BlockDownloaderError::ErrorValidatingBlock);
         }
         
     }
