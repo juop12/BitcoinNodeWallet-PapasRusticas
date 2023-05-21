@@ -26,7 +26,7 @@ impl Message for BlockMessage {
     }
 
     /// Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError>{
         match Block::from_bytes(slice){
             Ok(block) => Ok(BlockMessage {block})  ,
             Err(_) => return Err(MessageError::ErrorCreatingBlockMessage)

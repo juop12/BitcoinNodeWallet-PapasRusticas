@@ -57,7 +57,7 @@ impl BlockHeader{
         bytes_vector
     }
 
-    pub fn from_bytes(slice: &mut [u8]) -> Result<BlockHeader, BlockChainError> {
+    pub fn from_bytes(slice: &[u8]) -> Result<BlockHeader, BlockChainError> {
         if slice.len() != BLOCKHEADER_SIZE {
             return Err(BlockChainError::ErrorCreatingBlockHeader);
         }
@@ -68,7 +68,7 @@ impl BlockHeader{
         }
     }
 
-    fn _from_bytes(slice: &mut [u8]) -> Option<BlockHeader> {
+    fn _from_bytes(slice: &[u8]) -> Option<BlockHeader> {
 
         let version = i32::from_le_bytes(slice[0..4].try_into().ok()?);
         let prev_hash = slice[4..36].try_into().ok()?;
@@ -121,7 +121,7 @@ impl Block{
         bytes_vector
     }
 
-    pub fn from_bytes(slice: &mut [u8]) -> Result<Block, BlockChainError> {
+    pub fn from_bytes(slice: &[u8]) -> Result<Block, BlockChainError> {
         if slice.len() < BLOCKHEADER_SIZE {
             return Err(BlockChainError::ErrorCreatingBlock);
         }
@@ -132,12 +132,12 @@ impl Block{
         }
     }
 
-    fn _from_bytes(slice: &mut [u8]) -> Option<Block> {
+    fn _from_bytes(slice: &[u8]) -> Option<Block> {
 
-        let (header_bytes, slice) = slice.split_at_mut(BLOCKHEADER_SIZE);
+        let (header_bytes, slice) = slice.split_at(BLOCKHEADER_SIZE);
         let header = BlockHeader::from_bytes(header_bytes).ok()?;
         let transaction_count = VarLenInt::from_bytes(slice);
-        let (mut _used_bytes ,left_transactions) = slice.split_at_mut(transaction_count.amount_of_bytes());
+        let (mut _used_bytes ,left_transactions) = slice.split_at(transaction_count.amount_of_bytes());
 
         let mut transactions = Vec::new();
         

@@ -46,7 +46,7 @@ impl Message for GetBlockHeadersMessage{
     }
 
     //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError>{
         if slice.len() <= 0{
             return Err(MessageError::ErrorCreatingGetBlockHeadersMessage);
         }
@@ -79,7 +79,7 @@ impl GetBlockHeadersMessage{
 
     /// Receives a slice of bytes and returns a GetBlockHeadersMessage. If anything fails, None
     /// is returned.
-    fn _from_bytes(slice: &mut [u8]) -> Option<GetBlockHeadersMessage> {
+    fn _from_bytes(slice: &[u8]) -> Option<GetBlockHeadersMessage> {
         
         let hash_count = VarLenInt::from_bytes(&slice[4..]);
         let stopping_hash_length = slice.len() - 32;

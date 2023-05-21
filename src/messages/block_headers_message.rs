@@ -32,7 +32,7 @@ impl Message for BlockHeadersMessage{
     }
 
     //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError>{
             if slice.len() <= 0{
                 return Err(MessageError::ErrorCreatingBlockHeadersMessage);
             }
@@ -60,7 +60,7 @@ impl BlockHeadersMessage{
         }
     }
 
-    fn _from_bytes(slice: &mut [u8]) -> Option<BlockHeadersMessage> {
+    fn _from_bytes(slice: &[u8]) -> Option<BlockHeadersMessage> {
         let count = VarLenInt::from_bytes(slice);
         
         if (count.to_usize() * 81 + count.amount_of_bytes()) != slice.len(){

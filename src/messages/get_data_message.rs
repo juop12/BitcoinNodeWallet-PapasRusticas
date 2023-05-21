@@ -39,7 +39,7 @@ impl Message for GetDataMessage{
     }
 
     //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError>{
         let inv = match InvMessage::from_bytes(slice){
             Ok(inv_message) => inv_message,
             Err(_) => return Err(MessageError::ErrorCreatingGetDataMessage)

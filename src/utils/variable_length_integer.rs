@@ -30,7 +30,7 @@ impl VarLenInt{
         VarLenInt { bytes }
     }
 
-    pub fn from_bytes(slice :& [u8])-> VarLenInt{
+    pub fn from_bytes(slice : &[u8])-> VarLenInt{
         let mut bytes = Vec::new();
         let mut amount_of_bytes = 1;
         if slice[0] == 0xfd{

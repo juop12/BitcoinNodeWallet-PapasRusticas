@@ -67,6 +67,12 @@ impl Logger {
         }
     */
 
+    /// Writes a text to the log, on error tries to write the error on the log.
+    pub fn log(&self, text: String){
+        _ = self.tx.send(text);
+    }
+    
+    /* 
     /// Writes a text to the log, on error returns ErrorLoggingMessage.
     pub fn log(&self, text: String) -> Result<(), LoggerError>{
         if let Err(_) = self.tx.send(text){
@@ -74,7 +80,8 @@ impl Logger {
         };
 
         Ok(())
-    }
+    } 
+    */
 
 }
 

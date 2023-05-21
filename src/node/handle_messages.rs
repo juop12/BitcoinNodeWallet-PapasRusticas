@@ -7,6 +7,7 @@ impl Node {
             Ok(block_msg) => block_msg,
             Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
         };
+
         if validate_proof_of_work(&block_msg.block.get_header()){
             if validate_proof_of_inclusion(&block_msg.block){
                 self.add_broadcasted_block(block_msg.block)?;
@@ -16,6 +17,7 @@ impl Node {
         }else{
             println!("\n\nfallos proof of work\n\n");
         }
+        
         Ok(())
     }
 
@@ -51,6 +53,23 @@ impl Node {
         stream.write(&pong_bytes);
     }
     
+    pub fn handle_version_message(&self,stream_index: usize, msg_bytes: Vec<u8>) -> Result<(), NodeError>{
+        let stream = &self.tcp_streams[stream_index];
+
+        match VersionMessage::from_bytes(&msg_bytes) {
+            Ok(_) => self.handshake_send_verack_message(stream),
+            Err(_) => Err(NodeError::ErrorReceivingMessageInHandshake),
+        }       
+    }
+
+    pub fn handle_verack_message(&self, hm: &HeaderMessage)-> Result<(), NodeError>{
+        if hm.get_payload_size() != 0 && hm.get_command_name() != "verack\0\0\0\0\0\0" {
+            return Err(NodeError::ErrorSendingMessageInHandshake);
+        }
+        
+        Ok(())
+    }
+
     fn add_broadcasted_block(&mut self, block: Block)->Result<(),NodeError>{
         match BlockHeader::from_bytes(&mut block.get_header().to_bytes()){
             Ok(header) => self.block_headers.push(header),

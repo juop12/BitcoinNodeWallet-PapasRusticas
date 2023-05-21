@@ -22,7 +22,7 @@ impl Message for VerACKMessage {
     }
 
     /// Returns a VerACKMessage if the slice of bytes is empty, otherwise returns a MessageError.
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError> {
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError> {
         if !slice.is_empty() {
             return Err(MessageError::ErrorCreatingVerAckMessage);
         }

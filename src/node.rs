@@ -128,10 +128,11 @@ impl Node {
     }
             
     ///Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
-    fn receive_message (&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
+    fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
         let mut stream = &self.tcp_streams[stream_index];
         let block_headers_msg_h = receive_message_header(&mut stream)?;
-        println!("\n{}", block_headers_msg_h.get_command_name());
+        
+        self.logger.log(block_headers_msg_h.get_command_name());
         
         let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
         match stream.read_exact(&mut msg_bytes) {
@@ -148,19 +149,22 @@ impl Node {
             },
             "block\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
             "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, stream_index)?,
-            //"block\0\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
             _ => {},
         };
+
         Ok(block_headers_msg_h.get_command_name())
     }
 }
+
 ///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
 /// On error returns ErrorReceivingMessage
 pub fn receive_message_header<T: Read + Write>(stream: &mut T,) -> Result<HeaderMessage, NodeError> {
     let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
+    
     if let Err(_) = stream.read_exact(&mut header_bytes){
         return Err(NodeError::ErrorReceivingMessageHeader);
     };
+
     match HeaderMessage::from_bytes(&mut header_bytes) {
         Ok(header_message) => Ok(header_message),
         Err(_) => Err(NodeError::ErrorReceivingMessageHeader),
@@ -204,10 +208,6 @@ mod tests {
     #[test]
     fn node_test_1_receive_header_message() -> Result<(), NodeError> {
         let mut stream = MockTcpStream::new();
-
-        let logger = Logger::from_path("test_log.txt").unwrap();
-        let data_handler = NodeDataHandler::new().unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler);
 
         let expected_hm =
             HeaderMessage::new("test message", &Vec::from("test".as_bytes())).unwrap();

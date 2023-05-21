@@ -74,7 +74,7 @@ impl Message for VersionMessage {
     /// returns a Result with either a VersionMessage if everything went Ok or a MessageError
     /// if the call to _from failed. The slice must be at least 86 bytes long (the minimum
     /// length of a VersionMessage)
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError> {
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError> {
         if slice.len() < MINIMAL_VERSION_MESSAGE_SIZE {
             return Err(MessageError::ErrorCreatingVersionMessage);
         }
@@ -133,7 +133,7 @@ impl VersionMessage {
     /// Implementation of the trait _from for VersionMessage. Recieves a slice of bytes and
     /// returns an Option with either a VersionMessage if everything went Ok or None if any step
     /// in the middle of the conversion from bytes to VersionMessage fields failed.
-    fn _from_bytes(slice: &mut [u8]) -> Option<VersionMessage> {
+    fn _from_bytes(slice: &[u8]) -> Option<VersionMessage> {
         if slice[80..].len() <= 0{
             return None;
         }

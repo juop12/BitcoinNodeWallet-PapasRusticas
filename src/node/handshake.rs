@@ -11,7 +11,7 @@ impl Node {
     }
 
     ///Sends the version message as bytes to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
-    fn handshake_send_version_message<T: Read + Write>(
+    pub fn handshake_send_version_message<T: Read + Write>(
         &self,
         receiving_addrs: SocketAddr,
         mut stream: T,
@@ -53,7 +53,7 @@ impl Node {
     }
 
     ///Sends the verack message to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
-    fn handshake_send_verack_message<T: Read + Write>(
+    pub fn handshake_send_verack_message<T: Read + Write>(
         &self,
         mut stream: T,
     ) -> Result<(), NodeError> {
