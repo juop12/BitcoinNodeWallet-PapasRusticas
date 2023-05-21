@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 use std::net::{IpAddr, SocketAddr};
 use rand::prelude::*;
 use chrono::Utc;

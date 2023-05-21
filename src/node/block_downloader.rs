@@ -1,9 +1,12 @@
-use crate::messages::{
-    get_data_message::*,
-    not_found_message::*,
-    utils::Message,
+use crate::{
+    messages::{
+        get_data_message::*,
+        not_found_message::*,
+        message_trait::Message,
+    },
+    node::*,
+    utils::btc_errors::BlockDownloaderError,
 };
-use crate::node::*;
 
 use std::{
     sync::{mpsc, Arc, Mutex},
@@ -102,22 +105,6 @@ impl Worker {
 
 
 //=====================================================================================
-
-
-#[derive(Debug)]
-/// Enum that contains the possible errors that can occur when running the thread pool.
-pub enum BlockDownloaderError {
-    ErrorInvalidCreationSize,
-    ErrorSendingToThread,
-    ErrorReceivingBlockMessage,
-    ErrorSendingMessageBlockDownloader,
-    ErrorCreatingWorker,
-    ErrorWrokerPaniced,
-    ErrorValidatingBlock,
-    ErrorReceivingNotFoundMessage,
-    BundleNotFound,
-    ErrorAllWorkersFailed,
-}
 
 #[derive(Debug)]
 /// Struct that represents a thread pool.

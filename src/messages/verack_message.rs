@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 
 
 const VERACK_MSG_NAME: &str = "verack\0\0\0\0\0\0";

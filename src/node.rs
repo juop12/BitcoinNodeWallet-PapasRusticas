@@ -7,15 +7,18 @@ pub mod handle_messages;
 
 use self::block_downloader::get_blocks_from_bundle;
 use self::data_handler::NodeDataHandler;
-use crate::messages::*;
-use crate::blocks::{
-    transaction::TxOut,
-    blockchain::*,
-    proof::*,
-};
-use crate::utils::{
-    config::*,
-    log::*
+use crate::{
+    messages::*,
+    blocks::{
+        transaction::TxOut,
+        blockchain::*,
+        proof::*,
+    },
+    utils::{
+        config::*,
+        log::*
+    },
+    utils::btc_errors::NodeError,
 };
 use std::{
     io::{Read, Write},
@@ -27,29 +30,6 @@ use std::{
 
 const MESSAGE_HEADER_SIZE: usize = 24;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
-
-
-/// Struct that represents the errors that can occur in the Node
-#[derive(Debug)]
-pub enum NodeError {
-    ErrorConnectingToPeer,
-    ErrorSendingMessageInHandshake,
-    ErrorReceivingMessageInHandshake,
-    ErrorReceivedUnknownMessage,
-    ErrorInterpretingMessageCommandName,
-    ErrorSendingMessageInIBD,
-    ErrorIteratingStreams,
-    ErrorReceivingHeadersMessageInIBD,
-    ErrorReceivingMessageHeader,
-    ErrorReceivingHeadersMessageHeaderInIBD,
-    ErrorCreatingBlockDownloader,
-    ErrorDownloadingBlockBundle,
-    ErrorCreatingNode,
-    ErrorSavingDataToDisk,
-    ErrorLoadingDataFromDisk,
-    ErrorRecevingBroadcastedInventory,
-    ErrorReceivingBroadcastedBlock,
-}
 
 /// Struct that represents the bitcoin node
 pub struct Node {

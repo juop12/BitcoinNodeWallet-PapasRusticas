@@ -1,5 +1,5 @@
 pub use crate::messages::inv_message::*;
-use super::utils::*;
+use super::message_trait::*;
 
 
 const NOTFOUND_MSG_NAME: &str = "notfound\0\0\0\0";

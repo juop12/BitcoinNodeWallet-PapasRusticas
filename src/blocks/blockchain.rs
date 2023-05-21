@@ -1,20 +1,15 @@
 use chrono::Utc;
 use rand::prelude::*;
 use bitcoin_hashes::{sha256d, Hash};
-use crate::blocks::transaction::*;
-use crate::utils::variable_length_integer::VarLenInt;
-use crate::blocks::transaction::*;
+use crate::{
+    blocks::transaction::*,
+    utils::{
+        variable_length_integer::VarLenInt,
+        btc_errors::BlockChainError,
+    }
+};
 
 const BLOCKHEADER_SIZE: usize = 80; 
-
-
-#[derive(Debug)]
-pub enum BlockChainError {
-    ErrorCreatingBlock,
-    ErrorSendingBlock,
-    ErrorCreatingBlockHeader,
-    ErrorSendingBlockHeader,
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockHeader {

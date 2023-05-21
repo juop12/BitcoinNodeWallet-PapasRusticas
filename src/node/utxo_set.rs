@@ -4,7 +4,6 @@ use crate::node::*;
 
 impl Node {
 
-
     pub fn create_utxo_set(&self) -> Option<HashMap<Vec<u8>, &TxOut>>{
 
         let mut utxo_set = HashMap::new();

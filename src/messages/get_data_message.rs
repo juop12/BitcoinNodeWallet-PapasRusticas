@@ -1,5 +1,5 @@
 
-use super::utils::*;
+use super::message_trait::*;
 pub use crate::messages::inv_message::*;
 
 /// Represents the GetDataMessage as an InvMessage because it is equally implemented

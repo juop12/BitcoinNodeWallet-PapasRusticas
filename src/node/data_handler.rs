@@ -1,4 +1,7 @@
-use crate::node::*;
+use crate::{
+    node::*,
+    utils::btc_errors::NodeDataHandlerError,
+};
 use std::{
     fs::{File, OpenOptions}, 
     io::{BufWriter,BufReader, BufRead},
@@ -18,18 +21,6 @@ pub struct NodeDataHandler {
     blocks_reader: BufReader<File>,
     headers_writer: BufWriter<File>,
     blocks_writer: BufWriter<File>,
-}
-
-/// Enum that represents the errors that can occur in the NodeDataHandler
-#[derive(Debug)]
-pub enum NodeDataHandlerError {
-    ErrorCreatingNodeDataHandler,
-    ErrorOpeningFile,
-    ErrorWritingInFile,
-    ErrorFlushingWriter,
-    ErrorReadingHeaders,
-    ErrorReadingBlocks,
-    ErrorReadingBytes,
 }
 
 /// Opens the file in the given path with the given permissions of reading and appending

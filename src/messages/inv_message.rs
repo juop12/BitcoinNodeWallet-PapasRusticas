@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 use crate::utils::variable_length_integer::VarLenInt;
 
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];

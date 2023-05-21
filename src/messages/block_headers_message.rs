@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 use crate::blocks::blockchain::BlockHeader;
 use crate::utils::variable_length_integer::*;
 

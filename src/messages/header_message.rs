@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 use bitcoin_hashes::{sha256d, Hash};
 
 

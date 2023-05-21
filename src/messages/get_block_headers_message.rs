@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 use crate::utils::variable_length_integer::VarLenInt;
 
 //const MAX_HASH_COUNT_SIZE: u64 = 0x02000000;

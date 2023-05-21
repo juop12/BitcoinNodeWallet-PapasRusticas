@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 use crate::messages::*;
 use crate::blocks::blockchain::Block;
 use crate::blocks::transaction::Transaction;

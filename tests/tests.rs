@@ -2,6 +2,7 @@ mod test {
     use proyecto::utils::config::*;
     use proyecto::node::*;
     use proyecto::utils::log::*;
+    use proyecto::utils::btc_errors::NodeError;
 
 
     const BEGIN_TIME_EPOCH: u32 = 1681084800; // 2023-04-10

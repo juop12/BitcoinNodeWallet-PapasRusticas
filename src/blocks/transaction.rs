@@ -1,10 +1,13 @@
-use crate::utils::variable_length_integer::VarLenInt;
 use bitcoin_hashes::{sha256d, Hash};
+use crate::utils::{
+    variable_length_integer::VarLenInt,
+    btc_errors::TransactionError,
+};
+
 const MIN_BYTES_TX_IN :usize = 41;
 const MIN_BYTES_TX_OUT :usize = 9;
 const MIN_BYTES_TRANSACTION: usize = 10;
 const OUTPOINT_BYTES :usize = 36;
-
 
 /// Struct that represents the Outpoint, that is used in the TxIn struct.
 #[derive(Debug, PartialEq)]
@@ -39,15 +42,6 @@ pub struct Transaction {
     tx_out_count: VarLenInt,
     tx_out: Vec<TxOut>,
     lock_time: u32, // siempre va 0.
-}
-
-/// Enum that represents the possible errors that can occur while creating a transaction
-#[derive(Debug, PartialEq)]
-pub enum TransactionError {
-    ErrorCreatingTransaction,
-    ErrorCreatingTxInFromBytes,
-    ErrorCreatingTxOutFromBytes,
-    ErrorCreatingOutpointFromBytes,
 }
 
 impl Outpoint{
