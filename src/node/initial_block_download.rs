@@ -123,21 +123,21 @@ impl Node {
 
     /// Writes the necessary headers and data into disk, to be able to continue the IBD from the last point. On error returns NodeError
     /// Both are written starting from the given positions.
-    fn store_data_in_disk(&self, mut data_handler: NodeDataHandler, headers_starting_position: usize) -> Result<(), NodeError>{
+    fn store_data_in_disk(&mut self, headers_starting_position: usize) -> Result<(), NodeError>{
         
-        if data_handler.save_to_disk(&self.blockchain, &self.block_headers, headers_starting_position).is_err(){
+        if self.data_handler.save_to_disk(&self.blockchain, &self.block_headers, headers_starting_position).is_err(){
             return Err(NodeError::ErrorSavingDataToDisk);
         }
         Ok(())
     }
 
-    pub fn load_blocks_and_headers(&mut self, mut data_handler: NodeDataHandler)->Result<NodeDataHandler, NodeError>{
-        let headers = match data_handler.get_all_headers(){
+    pub fn load_blocks_and_headers(&mut self)->Result<(), NodeError>{
+        let headers = match self.data_handler.get_all_headers(){
             Ok(headers) => headers,
             Err(_) => return Err(NodeError::ErrorLoadingDataFromDisk),
         };
 
-        let blocks = match data_handler.get_all_blocks(){
+        let blocks = match self.data_handler.get_all_blocks(){
             Ok(blocks) => blocks,
             Err(_) => return Err(NodeError::ErrorLoadingDataFromDisk),
         };
@@ -146,24 +146,20 @@ impl Node {
             _ = self.blockchain.insert(block.get_header().hash(), block);
         }
         self.block_headers.extend(headers);
-        Ok(data_handler)
+        Ok(())
     }
 
     ///Asks the node for the block headers starting from the given block hash, and then downloads the blocks
     ///starting from the given time. On error returns NodeError
     pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
         
-        let mut data_handler = match NodeDataHandler::new(){
-            Ok(handler) => handler,
-            Err(_) => return Err(NodeError::ErrorSavingDataToDisk),
-        };
-        data_handler = self.load_blocks_and_headers(data_handler)?;
+        self.load_blocks_and_headers()?;
         let new_headers_starting_position = self.block_headers.len();
 
         let (mut block_downloader, safe_new_blocks) = self.create_block_downloader()?;
         
         let mut i = 0;
-        while self.download_headers_and_blocks(&block_downloader, 0).is_err() {
+        while self.download_headers_and_blocks(&block_downloader, 0).is_err() && i<self.tcp_streams.len(){
             i+=1;
             self.tcp_streams.swap(0, i);
         }
@@ -189,7 +185,7 @@ impl Node {
         println!("# de headers = {}", self.block_headers.len());
         println!("# de bloques descargados = {}", self.blockchain.len());
         
-        self.store_data_in_disk(data_handler, new_headers_starting_position)?;
+        self.store_data_in_disk(new_headers_starting_position)?;
 
         Ok(())
         

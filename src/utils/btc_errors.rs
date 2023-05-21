@@ -119,6 +119,9 @@ pub enum NodeError {
     ErrorLoadingDataFromDisk,
     ErrorRecevingBroadcastedInventory,
     ErrorReceivingBroadcastedBlock,
+    ErrorReceivingPing,
+    ErrorSendingPong,
+    ErrorReceivingMessage,
 }
 
 impl BtcError for NodeError {}

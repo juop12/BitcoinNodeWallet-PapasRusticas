@@ -112,16 +112,17 @@ impl Node {
         let mut stream = &self.tcp_streams[stream_index];
         let block_headers_msg_h = receive_message_header(&mut stream)?;
         
+        println!("\nrecibi {}", block_headers_msg_h.get_command_name());
         self.logger.log(block_headers_msg_h.get_command_name());
         
         let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
         match stream.read_exact(&mut msg_bytes) {
-            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
+            Err(_) => return Err(NodeError::ErrorReceivingMessage),
             Ok(_) => {}
         }
 
         match block_headers_msg_h.get_command_name().as_str(){
-            "ping\0\0\0\0\0\0\0\0" => self.handle_ping_message(stream_index, &block_headers_msg_h, msg_bytes),
+            "ping\0\0\0\0\0\0\0\0" => self.handle_ping_message(stream_index, &block_headers_msg_h, msg_bytes)?,
             "inv\0\0\0\0\0\0\0\0\0" => {
                 if !ibd {
                     self.handle_inv_message(msg_bytes, stream_index)?;

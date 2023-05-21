@@ -2,7 +2,6 @@ pub use std::io::{Read, Write};
 pub use super::HeaderMessage;
 pub use crate::utils::btc_errors::MessageError;
 
-//Hacer un wrapper para send to,cosa de que solo se pueda mandar un tcpStream?
 pub trait Message {
     type MessageType;
     /// Writes the message as bytes in the receiver_stream
