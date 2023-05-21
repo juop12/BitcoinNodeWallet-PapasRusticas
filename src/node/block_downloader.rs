@@ -15,7 +15,7 @@ use std::{
 /// Struct that represents a worker thread in the thread pool.
 #[derive(Debug)]
 struct Worker {
-    thread: thread::JoinHandle<()>,
+    thread: thread::JoinHandle<bool>,
     id: usize,
     stream: TcpStream,
 }
@@ -35,18 +35,18 @@ impl Worker {
                     match rec_lock.recv() {
                         Ok(bundle) => bundle,
                         Err(_) => {
-                            return;
+                            return false;
                         },
                     }
                 },
                 Err(_) => {
-                    return;
+                    return false;
                 },
             };
 
             //si se recibe un vector vacio 
             if bundle.is_empty(){
-                return;
+                return true;
             }
 
             let aux_bundle = *bundle.clone();
@@ -61,7 +61,7 @@ impl Worker {
                         if let BlockDownloaderError::BundleNotFound = error{
                             continue;
                         } else{
-                            return;
+                            return false;
                         }
                 }
             };
@@ -74,18 +74,24 @@ impl Worker {
                 },
                 Err(_) => {
                     let _ = missed_bundles_sender.send(Box::new(aux_bundle));
-                        return;
+                        return false;
                     }
             };
         });
+        
         Ok(Worker { id, thread, stream: stream_cpy })
     }
 
     ///Joins the thread of the worker, returning an error if it was not possible to join it.
-    fn join_thread(self)->Result<(), BlockDownloaderError>{
+    fn join_thread(self)->Result<Option<TcpStream>, BlockDownloaderError>{
         match self.thread.join(){
-            Ok(()) => Ok(()),
-            Err(_) => Err(BlockDownloaderError::ErrorJoiningThread),
+            Ok(clean) => {
+                if clean{
+                    return Ok(Some(self.stream));
+                }
+                Ok(None)
+            },
+            Err(_) => Err(BlockDownloaderError::ErrorWrokerPaniced),
         }
     }
 
@@ -106,10 +112,11 @@ pub enum BlockDownloaderError {
     ErrorReceivingBlockMessage,
     ErrorSendingMessageBlockDownloader,
     ErrorCreatingWorker,
-    ErrorJoiningThread,
+    ErrorWrokerPaniced,
     ErrorValidatingBlock,
     ErrorReceivingNotFoundMessage,
     BundleNotFound,
+    ErrorAllWorkersFailed,
 }
 
 #[derive(Debug)]
@@ -163,6 +170,7 @@ impl BlockDownloader{
     ///a way to stop the threads execution. On error, it returns BlockDownloaderError.
     pub fn finish_downloading(&mut self)->Result<(), BlockDownloaderError>{
         let cantidad_workers = self.workers.len();
+        let mut working_peer_conection = None;
         for _ in 0..cantidad_workers{
             let end_of_channel :Vec<[u8;32]> = Vec::new();
             if self.sender.send(Box::new(end_of_channel)).is_err(){
@@ -180,12 +188,24 @@ impl BlockDownloader{
             while !joined_a_worker{
                 let worker = self.workers.remove(0);
                 if worker.is_finished(){
-                    worker.join_thread()?;
+                    let stream_op = worker.join_thread()?;
+                    if working_peer_conection.is_none(){
+                        working_peer_conection = stream_op;
+                    };
                     joined_a_worker = true;
                 }else{
                     self.workers.push(worker);
                 }
             }
+        }
+
+        let mut stream = match working_peer_conection{
+            Some(stream) => stream,
+            None => return Err(BlockDownloaderError::ErrorAllWorkersFailed),
+        };
+
+        while let Ok(bundle) = self.missed_bundles_receiver.try_recv(){
+            get_blocks_from_bundle(*bundle, &mut stream)?;
         }
         
         Ok(())

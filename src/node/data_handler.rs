@@ -5,8 +5,8 @@ use std::{
 };
 
 
-const HEADERS_FILE_PATH: &str = "../data/headers.csv";
-const BLOCK_FILE_PATH: &str = "../data/blocks.csv";
+const HEADERS_FILE_PATH: &str = "data/headers.csv";
+const BLOCK_FILE_PATH: &str = "data/blocks.csv";
 
 
 /// Struct that handles the data persistance of the node.  It has two readers and two writers, one for each file.
