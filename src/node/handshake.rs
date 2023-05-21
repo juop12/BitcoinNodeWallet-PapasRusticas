@@ -27,31 +27,6 @@ impl Node {
         }
     }
 
-    ///Reads from the stream first a header message, and then reads as many bytes as tat header indicated. With this latter batch of
-    ///bytes it tries to return a VersionMessage interpreting bytes according to bitcoin protocol. On error returns ErrorReceivingMessageInHandshake
-    fn handshake_receive_version_message<T: Read + Write>(
-        &self,
-        mut stream: T,
-    ) -> Result<VersionMessage, NodeError> {
-        let hm = receive_message_header(&mut stream)?;
-
-        if hm.get_command_name() != "version\0\0\0\0\0" {
-            return Err(NodeError::ErrorReceivingMessageInHandshake);
-        }
-
-        let mut received_vm_bytes = vec![0; hm.get_payload_size() as usize];
-
-        match stream.read_exact(&mut received_vm_bytes) {
-            Ok(_) => {}
-            Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
-        };
-
-        match VersionMessage::from_bytes(&mut received_vm_bytes) {
-            Ok(version_message) => Ok(version_message),
-            Err(_) => Err(NodeError::ErrorReceivingMessageInHandshake),
-        }
-    }
-
     ///Sends the verack message to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
     pub fn handshake_send_verack_message<T: Read + Write>(
         &self,
@@ -68,38 +43,57 @@ impl Node {
         }
     }
 
+
+    ///Reads from the stream first a header message, and then reads as many bytes as tat header indicated. With this latter batch of
+    ///bytes it tries to return a VersionMessage interpreting bytes according to bitcoin protocol. On error returns ErrorReceivingMessageInHandshake
+
     ///Reads a header from the stream, if that header represents a version_ack_message then returns VerACKMessage.
     /// On error returns ErrorSendingMessageInHandshake
-    fn handshake_receive_verack_message<T: Read + Write>(
-        &self,
-        stream: &mut T,
-    ) -> Result<VerACKMessage, NodeError> {
-        let hm = receive_message_header(stream)?;
+    fn handshake_receive_verack_or_version_message<T: Read + Write>(&self,mut stream: T) -> Result<String, NodeError> {
+        let hm = receive_message_header(&mut stream)?;
 
-        if hm.get_payload_size() == 0 && hm.get_command_name() == "verack\0\0\0\0\0\0" {
-            //no se si falta hacer el segundo chequeo
-            match VerACKMessage::new() {
-                Ok(message) => return Ok(message),
-                Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
-            }
+        let mut received_vm_bytes = vec![0; hm.get_payload_size() as usize];
+        match stream.read_exact(&mut received_vm_bytes) {
+            Ok(_) => {}
+            Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
+        };
+        
+        self.logger.log(hm.get_command_name());
+        let cmd_name = hm.get_command_name();
+
+        match cmd_name.as_str(){
+            "version\0\0\0\0\0" => match VersionMessage::from_bytes(&mut received_vm_bytes) {
+                    Ok(_) => Ok(cmd_name),
+                    Err(_) => Err(NodeError::ErrorReceivingMessageInHandshake),
+                },
+            "verack\0\0\0\0\0\0" =>{
+                if hm.get_payload_size() == 0{
+                    Ok(cmd_name)
+                }else{
+                    Err(NodeError::ErrorReceivingMessageInHandshake)
+                }
+            },
+            _ => Err(NodeError::ErrorReceivingMessageInHandshake),
         }
-
-        Err(NodeError::ErrorSendingMessageInHandshake)
     }
 
-    ///Does peer conection protocol acording to the bitcoin network. Sends a VersionMessage, recieves one, sends a VerACKMessage then receives one.
-    ///If everything works returns a tcpstream,
+    /// Does peer conection protocol acording to the bitcoin network. Sends a VersionMessage,
+    /// and it receives a VersionMessage and a VerAckMessage, not in any order on particular.
+    /// If everything works well returns a tcpstream, which lets us communicate with the peer._err
     pub fn handshake(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> {
-        let mut tcp_stream = self.connect_to_peer(receiving_addrs)?;
+        let tcp_stream = self.connect_to_peer(receiving_addrs)?;
 
         self.handshake_send_version_message(receiving_addrs, &tcp_stream)?;
 
-        self.handshake_receive_version_message(&tcp_stream)?;
+        let first_msg_name = self.handshake_receive_verack_or_version_message(&tcp_stream)?;
+        let second_msg_name = self.handshake_receive_verack_or_version_message(&tcp_stream)?;
+
+        if first_msg_name == second_msg_name{
+            return Err(NodeError::ErrorReceivingMessageInHandshake);
+        }
 
         self.handshake_send_verack_message(&tcp_stream)?;
-
-        self.handshake_receive_verack_message(&mut tcp_stream)?;
-
+        
         Ok(tcp_stream)
     }
 }
@@ -180,9 +174,9 @@ mod tests {
         stream.read_buffer = expected_hm.to_bytes();
         stream.read_buffer.extend(expected_vm.to_bytes());
 
-        let received_vm = node.handshake_receive_version_message(&mut stream)?;
+        let received_mg = node.handshake_receive_verack_or_version_message(&mut stream)?;
 
-        assert_eq!(received_vm.to_bytes(), expected_vm.to_bytes());
+        assert_eq!(received_mg, "version\0\0\0\0\0");
         Ok(())
     }
 
@@ -208,8 +202,8 @@ mod tests {
         let verack_hm = expected_verack_msg.get_header_message().unwrap();
         stream.read_buffer = verack_hm.to_bytes();
 
-        let received_verack_msg = node.handshake_receive_verack_message(&mut stream)?;
-        assert_eq!(received_verack_msg, expected_verack_msg);
+        let received_msg = node.handshake_receive_verack_or_version_message(&mut stream)?;
+        assert_eq!(received_msg, "verack\0\0\0\0\0\0");
         Ok(())
     }
 }

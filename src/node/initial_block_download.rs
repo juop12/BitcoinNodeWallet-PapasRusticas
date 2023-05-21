@@ -158,11 +158,7 @@ impl Node {
 
         let (mut block_downloader, safe_new_blocks) = self.create_block_downloader()?;
         
-        let mut i = 0;
-        while self.download_headers_and_blocks(&block_downloader, 0).is_err() && i<self.tcp_streams.len(){
-            i+=1;
-            self.tcp_streams.swap(0, i);
-        }
+        self.download_headers_and_blocks(&block_downloader, 0)?;
 
         match block_downloader.finish_downloading(){
             Ok(_) => {

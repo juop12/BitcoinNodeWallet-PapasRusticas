@@ -12,7 +12,13 @@ impl Node {
 
         for header in &self.block_headers[starting_position..]{
             let hash = header.hash();
-            let block = self.blockchain.get(&hash)?;
+            let block = match self.blockchain.get(&hash){
+                Some(block) => block,
+                None => {
+                    self.logger.log(String::from("Colud not find block"));
+                    continue;
+                }
+            };
 
             for tx in block.get_transactions(){
                 for (index, tx_out) in tx.tx_out().iter().enumerate(){

@@ -68,6 +68,7 @@ pub enum BlockDownloaderError {
     ErrorReceivingNotFoundMessage,
     BundleNotFound,
     ErrorAllWorkersFailed,
+    ErrorCreatingBlockDownloader,
 }
 
 impl BtcError for BlockDownloaderError {}
