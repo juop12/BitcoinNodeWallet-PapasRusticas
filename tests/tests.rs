@@ -1,7 +1,7 @@
 mod test {
-    use proyecto::config::*;
+    use proyecto::utils::config::*;
     use proyecto::node::*;
-    use proyecto::log::*;
+    use proyecto::utils::log::*;
 
 
     const BEGIN_TIME_EPOCH: u32 = 1681084800; // 2023-04-10

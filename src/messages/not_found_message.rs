@@ -1,26 +1,17 @@
-
-use super::utils::*;
 pub use crate::messages::inv_message::*;
+use super::utils::*;
 
-/// Represents the GetDataMessage as an InvMessage because it is equally implemented
-pub struct GetDataMessage{
+
+const NOTFOUND_MSG_NAME: &str = "notfound\0\0\0\0";
+
+
+/// Represents the NotFoundMessage as an InvMessage because it is equally implemented
+pub struct NotFoundMessage{
     inv: InvMessage
 }
 
-impl GetDataMessage{
-    /*
-    /// Creates an instance of a 
-    pub fn new(inventory: Vec<[u8;36]>) -> GetDataMessage{
-        GetDataMessage{inv: InvMessage::new(inventory)}
-    }*/
-
-    pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8;32]>) -> GetDataMessage{
-        GetDataMessage{inv: InvMessage::create_message_inventory_block_type(inventory_entries)}
-    }
-}
-
-impl Message for GetDataMessage{
-    type MessageType = GetDataMessage;
+impl Message for NotFoundMessage{
+    type MessageType = NotFoundMessage;
     
     //Writes the message as bytes in the receiver_stream
     fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
@@ -29,7 +20,7 @@ impl Message for GetDataMessage{
 
         match receiver_stream.write(self.to_bytes().as_slice()) {
             Ok(_) => Ok(()),
-            Err(_) => Err(MessageError::ErrorSendingGetDataMessage),
+            Err(_) => Err(MessageError::ErrorsendingNotFoundMessage),
        }
     }
 
@@ -42,13 +33,13 @@ impl Message for GetDataMessage{
     fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
         let inv = match InvMessage::from_bytes(slice){
             Ok(inv_message) => inv_message,
-            Err(_) => return Err(MessageError::ErrorCreatingGetDataMessage)
+            Err(_) => return Err(MessageError::ErrorCreatingNotFoundMessage)
         };
-        Ok(GetDataMessage{inv})
+        Ok(NotFoundMessage{inv})
     }
 
     //Gets the header message corresponding to the corresponding message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
-        HeaderMessage::new("getdata\0\0\0\0\0", &self.to_bytes())
+        HeaderMessage::new(NOTFOUND_MSG_NAME, &self.to_bytes())
     }
 }

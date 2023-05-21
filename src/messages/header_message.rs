@@ -125,7 +125,7 @@ impl HeaderMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mock_tcp_stream::MockTcpStream;
+    use crate::utils::mock_tcp_stream::MockTcpStream;
 
 
     // Auxiliar functions

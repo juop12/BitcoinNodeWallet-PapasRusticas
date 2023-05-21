@@ -7,6 +7,7 @@ pub mod utils;
 pub mod inv_message;
 pub mod block_message;
 pub mod get_data_message;
+pub mod not_found_message;
 
 pub use version_message::VersionMessage;
 pub use verack_message::VerACKMessage;
@@ -17,3 +18,4 @@ pub use utils::Message;
 pub use inv_message::InvMessage;
 pub use get_data_message::GetDataMessage;
 pub use block_message::BlockMessage;
+pub use not_found_message::NotFoundMessage;

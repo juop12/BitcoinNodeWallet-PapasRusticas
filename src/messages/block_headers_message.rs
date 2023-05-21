@@ -1,6 +1,6 @@
 use super::utils::*;
 use crate::blocks::blockchain::BlockHeader;
-use crate::variable_length_integer::*;
+use crate::utils::variable_length_integer::*;
 
 const BLOCKHEADER_SIZE: usize = 80;
 const BLOCKHEADERS_MSG_NAME: &str = "headers\0\0\0\0\0";

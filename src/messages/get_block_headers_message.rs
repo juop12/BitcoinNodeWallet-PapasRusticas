@@ -1,5 +1,5 @@
 use super::utils::*;
-use crate::variable_length_integer::VarLenInt;
+use crate::utils::variable_length_integer::VarLenInt;
 
 //const MAX_HASH_COUNT_SIZE: u64 = 0x02000000;
 const GET_BLOCK_HEADERS_MSG_NAME: &str = "getheaders\0\0";
@@ -110,7 +110,7 @@ impl GetBlockHeadersMessage{
 mod tests {
     use super::*;
     use bitcoin_hashes::{sha256d, Hash};
-    use crate::mock_tcp_stream::MockTcpStream;
+    use crate::utils::mock_tcp_stream::MockTcpStream;
 
 
     // Auxiliar functions
