@@ -143,6 +143,17 @@ impl Node {
 
         Ok(block_headers_msg_h.get_command_name())
     }
+
+    pub fn run(&mut self){
+        loop{
+            for i in 0..self.tcp_streams.len(){
+                match self.receive_message(i,false){
+                    Ok(command_name) => println!("Received message with command name: {}", command_name),
+                    Err(_) => {},
+                }
+            }
+        }
+    }
 }
 
 ///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.

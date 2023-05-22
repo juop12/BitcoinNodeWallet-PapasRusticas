@@ -12,6 +12,7 @@ impl Node {
 
         let starting_position = self.block_headers.len() - self.blockchain.len();
 
+        let mut i = 0;
         for header in &self.block_headers[starting_position..]{
             let hash = header.hash();
             let block = match self.blockchain.get(&hash){
@@ -28,6 +29,7 @@ impl Node {
                     let outpoint = Outpoint::new(tx.hash(), index as u32);
                     let tx_out_outpoint_bytes = outpoint.to_bytes();
                     utxo_set.insert(tx_out_outpoint_bytes, tx_out);
+                    i += 1;
                 }
 
                 for tx_in in tx.tx_in().iter(){
@@ -38,12 +40,11 @@ impl Node {
                 }
             }
         }
-        
+
         self.logger.log(format!("UTxO Set created with {} utxo", utxo_set.len()));
         Some(utxo_set)
     }
 }
-
 
 #[cfg(test)]
 mod tests{
@@ -67,7 +68,6 @@ mod tests{
         let utxo_set = node.create_utxo_set().unwrap();
 
         println!("utx_set Len:: {}\n\n", utxo_set.len());
-        //println!("utx_set:: {:?}\n\n", utxo_set);
 
         assert!(utxo_set.len() > 0);
         Ok(())

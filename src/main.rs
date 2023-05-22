@@ -17,5 +17,28 @@ fn main() {
         Err(error) => return eprintln!("{:?}", error),
     };
 
-    _ = Node::new(config);
+    let mut node = match Node::new(config){
+        Ok(node) => node,
+        Err(error) => return eprintln!("{:?}", error),
+    };
+
+    match node.initial_block_download(){
+        Ok(_) => {
+            println!("IBD completed");
+        },
+        Err(err) => {
+            println!("IBD failed: {:?}", err);
+        },
+    };
+
+    match node.create_utxo_set(){
+        Some(utxo_set) => {
+            println!("utxo_set Len:: {}\n\n", utxo_set.len());
+        },
+        None => {
+            println!("utxo_set is None");
+        },
+    };
+
+    node.run();
 }
