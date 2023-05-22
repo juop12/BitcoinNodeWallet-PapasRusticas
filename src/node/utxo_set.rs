@@ -4,6 +4,8 @@ use crate::node::*;
 
 impl Node {
 
+    ///Creates the utxo set from the blockchain and returns it.
+    ///Returns None if the blockchain is empty.
     pub fn create_utxo_set(&self) -> Option<HashMap<Vec<u8>, &TxOut>>{
 
         let mut utxo_set = HashMap::new();

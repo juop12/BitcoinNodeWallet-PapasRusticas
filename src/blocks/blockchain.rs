@@ -14,6 +14,7 @@ use chrono::Utc;
 const BLOCKHEADER_SIZE: usize = 80; 
 
 
+/// Struct that represents the header of a block
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockHeader {
     version: i32,
@@ -24,6 +25,7 @@ pub struct BlockHeader {
     nonce: u32,
 }
 
+/// Struct that represents a block
 #[derive(Debug)]
 pub struct Block {
     header: BlockHeader,
@@ -33,6 +35,8 @@ pub struct Block {
 
 impl BlockHeader{
 
+    /// It creates and returns a BlockHeader with the values passed as parameters.
+    /// The time is set to the current time and the nonce is set to a random number.
     pub fn new(version: i32,prev_hash: [u8; 32],merkle_root_hash: [u8; 32], n_bits: u32) -> BlockHeader {
         BlockHeader{
             version,
@@ -44,6 +48,7 @@ impl BlockHeader{
         }
     }
 
+    /// It creates and returns a slice of bytes with the values of the BlockHeader.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.version.to_le_bytes());
@@ -55,6 +60,7 @@ impl BlockHeader{
         bytes_vector
     }
 
+    /// Wrapper for _from_bytes
     pub fn from_bytes(slice: &[u8]) -> Result<BlockHeader, BlockChainError> {
         if slice.len() != BLOCKHEADER_SIZE {
             return Err(BlockChainError::ErrorCreatingBlockHeader);
@@ -66,6 +72,7 @@ impl BlockHeader{
         }
     }
 
+    /// It creates and returns a BlockHeader from a slice of bytes.
     fn _from_bytes(slice: &[u8]) -> Option<BlockHeader> {
 
         let version = i32::from_le_bytes(slice[0..4].try_into().ok()?);
@@ -85,18 +92,22 @@ impl BlockHeader{
         })
     }
 
+    /// It returns the hash of the BlockHeader.
     pub fn hash(&self) -> [u8;32]{
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
 
+    /// It returns the n_bits of the BlockHeader. The n_bits are used to calculate the target threshold.
     pub fn get_n_bits(&self) -> u32 {
         self.n_bits
     }
 
+    /// It returns the time when the BlockHeader was created.    
     pub fn time(&self) -> u32{
         self.time.clone()
     }
 
+    /// It returns the merkle root hash of the BlockHeader.
     pub fn get_merkle_root(&self)->&[u8;32]{
         &self.merkle_root_hash
     }
@@ -104,11 +115,13 @@ impl BlockHeader{
 
 impl Block{
 
+    /// It creates and returns a Block with the values passed as parameters.
     pub fn new(header :BlockHeader, transactions: Vec<Transaction>)-> Block{
         let transaction_count = VarLenInt::new(transactions.len());
         Block { header, transaction_count, transactions }
     }
 
+    /// It returns the Block as a slice of bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = self.header.to_bytes();
         bytes_vector.extend_from_slice(&self.transaction_count.to_bytes());
@@ -118,6 +131,7 @@ impl Block{
         bytes_vector
     }
 
+    /// Wrapper for _from_bytes
     pub fn from_bytes(slice: &[u8]) -> Result<Block, BlockChainError> {
         if slice.len() < BLOCKHEADER_SIZE {
             return Err(BlockChainError::ErrorCreatingBlock);
@@ -129,6 +143,7 @@ impl Block{
         }
     }
 
+    /// It creates and returns a Block from a slice of bytes.
     fn _from_bytes(slice: &[u8]) -> Option<Block> {
 
         let (header_bytes, slice) = slice.split_at(BLOCKHEADER_SIZE);
@@ -152,14 +167,17 @@ impl Block{
         })
     } 
 
+    /// It returns the time when the Block was created.
     pub fn time(&self) -> u32{
         self.header.time()
     }
 
+    /// It returns the header of the block.
     pub fn get_header(&self) -> &BlockHeader {
         &self.header
     }
 
+    /// It returns the transactions of the block.
     pub fn get_transactions(&self) -> &Vec<Transaction> {
         &self.transactions
     }
