@@ -38,6 +38,7 @@ pub struct Node {
     tcp_streams: Vec<TcpStream>,
     data_handler: NodeDataHandler,
     block_headers: Vec<BlockHeader>,
+    starting_block_time: u32,
     blockchain: HashMap<[u8;32], Block>,
     //utxo_set: HashMap<[u8;32], &'static TxOut>,
     logger: Logger,
@@ -46,12 +47,13 @@ pub struct Node {
 impl Node {
 
     /// It creates and returns a Node with the default values
-    fn _new(version: i32, local_host: [u8; 4], local_port: u16, logger: Logger, data_handler: NodeDataHandler) -> Node {
+    fn _new(version: i32, local_host: [u8; 4], local_port: u16, logger: Logger, data_handler: NodeDataHandler,starting_block_time: u32) -> Node {
         Node {
             version,
             sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
             block_headers: Vec::new(),
+            starting_block_time,
             blockchain: HashMap::new(),
             //utxo_set: HashMap::new(),
             data_handler,
@@ -71,7 +73,7 @@ impl Node {
             Ok(handler) => handler,
             Err(_) => return Err(NodeError::ErrorCreatingNode),
         };
-        let mut node = Node::_new(config.version, config.local_host, config.local_port, logger, data_handler);
+        let mut node = Node::_new(config.version, config.local_host, config.local_port, logger, data_handler, config.begin_time);
         let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
         
         for addr in address_vector {
@@ -195,13 +197,14 @@ mod tests {
     const LOCAL_PORT: u16 = 1001; 
     const DNS_PORT: u16 = 18333;
     const VERSION: i32 = 70015;
+    const STARTING_BLOCK_TIME: u32 = 1681084800;
 
 
     #[test]
     fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address(){
         let logger = Logger::from_path("test_log.txt").unwrap();
         let data_handler = NodeDataHandler::new().unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler);
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler, STARTING_BLOCK_TIME);
         let address_vector = node.peer_discovery("does_not_exist", DNS_PORT);
 
         assert!(address_vector.is_empty());
@@ -211,7 +214,7 @@ mod tests {
     fn peer_discovery_test_2_returns_ip_vector_when_receiving_valid_dns() {
         let logger = Logger::from_path("test_log.txt").unwrap();
         let data_handler = NodeDataHandler::new().unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler);
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler,STARTING_BLOCK_TIME);
         let address_vector = node.peer_discovery(DNS_ADDRESS, DNS_PORT);
 
         assert!(!address_vector.is_empty());

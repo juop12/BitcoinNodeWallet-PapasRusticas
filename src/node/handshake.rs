@@ -111,6 +111,7 @@ mod tests {
     const VERSION: i32 = 70015;
     const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
     const LOCAL_PORT: u16 = 1001; 
+    const STARTING_BLOCK_TIME: u32 = 1681084800;
 
 
     // Auxiliar functions
@@ -120,7 +121,7 @@ mod tests {
         let stream = MockTcpStream::new();
         let logger = Logger::from_path("test_log.txt").unwrap();
         let data_handler = NodeDataHandler::new().unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler);
+        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler, STARTING_BLOCK_TIME);
 
         (stream, node)
     }

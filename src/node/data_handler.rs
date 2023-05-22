@@ -66,7 +66,8 @@ fn write_to_file(writer: &mut BufWriter<File>, bytes: &[u8]) -> Result<(), NodeD
     Ok(())
 }
 
-/// -
+/// Receives a line from the file and returns a vector of bytes parsed from it.
+/// On error returns NodeDataHandlerError.
 fn get_bytes_from_line(line: String)->Result<Vec<u8>, NodeDataHandlerError>{
     let mut bytes: Vec<u8> = Vec::new();
     for byte_str in line.split(",") {

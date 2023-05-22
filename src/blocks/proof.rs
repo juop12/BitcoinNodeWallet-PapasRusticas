@@ -38,7 +38,7 @@ pub fn validate_proof_of_work(block_header: &BlockHeader) -> bool {
     true
 }
 
-/// -
+/// Returns a hash of the concatenation of two hashes.
 fn hash_pairs_for_merkle_tree(hash_1: [u8; 32], hash_2: [u8;32]) -> [u8;32]{
     let mut total_hash: Vec<u8> = Vec::from(hash_1);
     total_hash.extend(hash_2);
@@ -47,7 +47,8 @@ fn hash_pairs_for_merkle_tree(hash_1: [u8; 32], hash_2: [u8;32]) -> [u8;32]{
     new_hash.to_byte_array()
 }
 
-/// -
+/// Calculates the merkle root of the header of a block.
+/// Receives the hashes of its transactions, and returns the merkle root.
 fn calculate_merkle_tree_level(mut hash_vector: Vec<[u8; 32]>) -> [u8; 32]{
     if hash_vector.len() == 1 {
         return hash_vector[0]
@@ -64,7 +65,8 @@ fn calculate_merkle_tree_level(mut hash_vector: Vec<[u8; 32]>) -> [u8; 32]{
     return calculate_merkle_tree_level(new_hash_vector);
 }
 
-/// -
+/// Validates the proof of inclusion of a block, by checking if the merkle root of the block
+/// header is equal to the merkle root calculated from its transactions. Returns true if it is valid.
 pub fn validate_proof_of_inclusion(block: &Block)->bool{
     let transactions = block.get_transactions();
     if transactions.len() == 0{

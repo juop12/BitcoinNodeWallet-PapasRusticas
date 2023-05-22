@@ -34,61 +34,12 @@ impl Worker {
         };
 
         let thread = thread::spawn(move || loop {
-            let bundle = match receiver.lock() {
-                Ok(rec_lock) => {
-                    match rec_lock.recv() {
-                        Ok(bundle) => bundle,
-                        Err(error) => {
-                            logger.log(format!("Worker {id} failed: {:?}", error));
-                            return false;
-                        },
-                    }
-                },
-                Err(error) => {
-                    logger.log(format!("Worker {id} failed: {:?}", error));
-                    return false;
-                },
-            };
 
-            //si se recibe un vector vacio 
-            if bundle.is_empty(){
-                return true;
-            }
-
-            let aux_bundle = *bundle.clone();
+            let stop = thread_loop(id, receiver, stream, locked_block_chain, missed_bundles_sender, logger);
             
-            let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream, &logger) {
-                Ok(blocks) => blocks,
-                Err(error) => {
-                        if let Err(error) = missed_bundles_sender.send(Box::new(aux_bundle)){
-                            logger.log(format!("Worker {id} failed: {:?}", error));
-                        }
-                        
-                        if let BlockDownloaderError::BundleNotFound = error{
-                            logger.log(format!("Worker {id} did not find bundle"));
-                            continue;
-                        }else{
-                            logger.log(format!("Worker {id} failed: {:?}", error));
-                            return false;
-                        }
-                }
-            };
-
-            match locked_block_chain.lock(){
-                Ok(mut block_chain) => {
-                    for block in received_blocks{
-                        block_chain.push(block);
-                    }
-                },
-                Err(error) => {
-                    if let Err(error) = missed_bundles_sender.send(Box::new(aux_bundle)){
-                        logger.log(format!("Worker {id} failed: {:?}", error));
-                    };
-
-                    logger.log(format!("Worker {id} failed: {:?}", error));
-                    return false;
-                }
-            };
+            match stop{
+                Some
+            }
         });
         
         Ok(Worker { _id : id, thread, stream: stream_cpy })
@@ -113,11 +64,83 @@ impl Worker {
     }
 }
 
+/// -
+fn get_bundle(id:usize, receiver: &Arc<Mutex<mpsc::Receiver<Bundle>>>, logger: &Logger) ->Option<Bundle>{
+    let bundle = match receiver.lock() {
+        Ok(rec_lock) => {
+            match rec_lock.recv() {
+                Ok(bundle) => bundle,
+                Err(error) => {
+                    logger.log(format!("Worker {id} failed: {:?}", error));
+                    return None
+                },
+            }
+        },
+        Err(error) => {
+            logger.log(format!("Worker {id} failed: {:?}", error));
+            return None;
+        },
+    };
+    Some(bundle)
+}
+
+fn save_blocks(id: usize, locked_block_chain: &Arc<Mutex<Vec<Block>>>, received_blocks: Vec<Block>, missed_bundles_sender: &mpsc::Sender<Bundle>, aux_bundle: Bundle,logger: &Logger) -> bool{
+    match locked_block_chain.lock(){
+        Ok(mut block_chain) => {
+            for block in received_blocks{
+                block_chain.push(block);
+            }
+            true
+        },
+        Err(error) => {
+            if let Err(missed_error) = missed_bundles_sender.send(aux_bundle){
+                logger.log(format!("Worker {id} failed sending missed bundle: {:?}", missed_error));
+            };
+
+            logger.log(format!("Worker {id} failed: {:?}", error));
+            false
+        }
+    }
+}
+
+fn thread_loop(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Bundle>>>, mut stream: TcpStream, locked_block_chain: Arc<Mutex<Vec<Block>>>, missed_bundles_sender: mpsc::Sender<Bundle>, logger: Logger) -> Option<bool>{
+    let bundle = match get_bundle(id, &receiver, &logger){
+        Some(bundle) => bundle,
+        None => return Some(false),
+    };
+
+    //si se recibe un end_of_channel
+    if bundle.is_empty(){
+        return Some(true);
+    }
+
+    let aux_bundle = Box::new(*bundle.clone());
+    
+    let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream, &logger) {
+        Ok(blocks) => blocks,
+        Err(error) => {
+            if let Err(error) = missed_bundles_sender.send(aux_bundle){
+                logger.log(format!("Worker {id} failed sending missed bundle: {:?}", error));
+            }
+            
+            if let BlockDownloaderError::BundleNotFound = error{
+                logger.log(format!("Worker {id} did not find bundle"));
+                return None;
+            }else{
+                logger.log(format!("Worker {id} failed: {:?}", error));
+                return Some(false);
+            }
+        }
+    };
+
+    if !save_blocks(id, &locked_block_chain, received_blocks, &missed_bundles_sender, aux_bundle, &logger){
+        return Some(false);
+    }
+    None
+}
 
 //=====================================================================================
 
-
-/// Struct that represents a thread pool.
 #[derive(Debug)]
 pub struct BlockDownloader{
     workers: Vec<Worker>,
@@ -283,7 +306,6 @@ pub fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut
             logger.log(String::from("A block failed proof of work"));
             return Err(BlockDownloaderError::ErrorValidatingBlock);
         }
-        
     }
     
     Ok(blocks)

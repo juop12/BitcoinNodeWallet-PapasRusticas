@@ -33,7 +33,7 @@ impl Write for MockTcpStream {
         self.write_buffer.write(buf)
     }
 
-    /// -
+    /// Flushes the write buffer, writing all pending data to the underlying stream.
     fn flush(&mut self) -> io::Result<()> {
         self.write_buffer.flush()
     }
