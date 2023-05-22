@@ -19,12 +19,13 @@ pub struct HeaderMessage {
 
 impl Message for HeaderMessage {
     type MessageType = HeaderMessage;
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingHeaderMessage;
 
     /// Sends a header message trough the tcp_stream
     fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
         match receiver_stream.write(self.to_bytes().as_slice()) {
             Ok(_) => Ok(()),
-            Err(_) => Err(MessageError::ErrorSendingHeaderMessage),
+            Err(_) => Err(Self::SENDING_ERROR),
         }
     }
 

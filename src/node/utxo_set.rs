@@ -37,6 +37,7 @@ impl Node {
             }
         }
         
+        self.logger.log(format!("UTxO Set created with {} utxo", utxo_set.len()));
         Some(utxo_set)
     }
 }

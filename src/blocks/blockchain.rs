@@ -1,6 +1,3 @@
-use chrono::Utc;
-use rand::prelude::*;
-use bitcoin_hashes::{sha256d, Hash};
 use crate::{
     blocks::transaction::*,
     utils::{
@@ -9,7 +6,13 @@ use crate::{
     }
 };
 
+use bitcoin_hashes::{sha256d, Hash};
+use rand::prelude::*;
+use chrono::Utc;
+
+
 const BLOCKHEADER_SIZE: usize = 80; 
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockHeader {
@@ -24,7 +27,7 @@ pub struct BlockHeader {
 #[derive(Debug)]
 pub struct Block {
     header: BlockHeader,
-    transaction_count: VarLenInt, // 0 for now.
+    transaction_count: VarLenInt,
     transactions: Vec<Transaction>,
 }
 
@@ -97,7 +100,6 @@ impl BlockHeader{
     pub fn get_merkle_root(&self)->&[u8;32]{
         &self.merkle_root_hash
     }
-
 }
 
 impl Block{
@@ -166,9 +168,12 @@ impl Block{
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use bitcoin_hashes::{sha256d, Hash};
     
+
+    // Auxiliar functions
+    //=================================================================
+
     fn block_header_expected_bytes() -> Vec<u8>{
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&(70015 as i32).to_le_bytes());
@@ -191,6 +196,8 @@ mod tests {
         expected_bytes
     }
 
+    // Tests
+    //=================================================================
 
     #[test]
     fn test_blockheader_1_to_bytes(){

@@ -2,13 +2,25 @@ use crate::node::*;
 
 impl Node {
     
+    ///Handles the headers message by hashing the last received header and asking for more headers
+    pub fn handle_block_headers_message(&mut self, mut msg_bytes :Vec<u8>, sync_node_index: usize)-> Result<(), NodeError>{
+        let block_headers_msg = match BlockHeadersMessage::from_bytes(&mut msg_bytes){
+            Ok(block_headers_message) => block_headers_message,
+            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
+        };
+        //println!("Recibimos {:?} headers", block_headers_msg.count);
+        let received_block_headers = block_headers_msg.headers;
+        //let quantity_received = received_block_headers.len();
+        
+        self.block_headers.extend(received_block_headers);
+        Ok(())
+    }
+
     pub fn handle_block_message(&mut self, mut msg_bytes: Vec<u8>)->Result<(), NodeError>{
         let block_msg = match BlockMessage::from_bytes(&mut msg_bytes){
             Ok(block_msg) => block_msg,
             Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
         };
-
-        
 
         if self.blockchain.contains_key(&block_msg.block.get_header().hash()){
            return Ok(());
@@ -35,7 +47,7 @@ impl Node {
         
         let stream = &mut self.tcp_streams[stream_index];
         
-        match get_blocks_from_bundle(inv_msg.get_block_hashes(), stream){
+        match get_blocks_from_bundle(inv_msg.get_block_hashes(), stream, &self.logger){
             Ok(blocks) => {
                 for block in blocks{
                     if !self.blockchain.contains_key(&block.get_header().hash()){

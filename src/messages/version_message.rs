@@ -32,19 +32,7 @@ pub struct VersionMessage {
 
 impl Message for VersionMessage {
     type MessageType = VersionMessage;
-    /// Implementation of the trait send_to for VersionMessage, recieves a TcpStream and
-    /// returns a Result with either () if everything went Ok or a MessageError if either the
-    /// message creation or sending failed
-    /// For now, the command name is hardcoded, it's value should be set in the config file
-    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
-        let header_message = self.get_header_message()?;
-        header_message.send_to(receiver_stream)?;
-
-        match receiver_stream.write(self.to_bytes().as_slice()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(MessageError::ErrorSendingVersionMessage),
-        }
-    }
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingVersionMessage;
 
     /// Implementation of the trait to_bytes for VersionMessage, returns a vector of bytes
     /// with all the attributes of the struct. Both little and big endian are used, following

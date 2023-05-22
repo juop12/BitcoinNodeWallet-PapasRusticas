@@ -1,8 +1,5 @@
-use super::message_trait::*;
 use crate::utils::variable_length_integer::VarLenInt;
-
-//const MAX_HASH_COUNT_SIZE: u64 = 0x02000000;
-const GET_BLOCK_HEADERS_MSG_NAME: &str = "getheaders\0\0";
+use super::message_trait::*;
 
 
 /// Message used to request a block header from a node.
@@ -17,18 +14,7 @@ pub struct GetBlockHeadersMessage {
 impl Message for GetBlockHeadersMessage{
 
     type MessageType = GetBlockHeadersMessage;
-    
-    /// Sends a HeaderMessage and a GetBlockHeadersMessage through the tcp_stream. On success,
-    /// returns (), otherwise returns an error.
-    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
-        let header_message = self.get_header_message()?;
-        header_message.send_to(receiver_stream)?;
-
-        match receiver_stream.write(self.to_bytes().as_slice()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(MessageError::ErrorSendingGetBlockHeadersMessage),
-       }
-    }
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingGetBlockHeadersMessage;
 
     //transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>{
@@ -60,7 +46,7 @@ impl Message for GetBlockHeadersMessage{
     
     //Gets the header message corresponding to the corresponding message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
-        HeaderMessage::new(GET_BLOCK_HEADERS_MSG_NAME, &self.to_bytes())
+        HeaderMessage::new("getheaders\0\0", &self.to_bytes())
     }
 }
 

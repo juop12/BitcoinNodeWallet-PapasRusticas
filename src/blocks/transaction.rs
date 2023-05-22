@@ -4,10 +4,12 @@ use crate::utils::{
     btc_errors::TransactionError,
 };
 
+
 const MIN_BYTES_TX_IN :usize = 41;
 const MIN_BYTES_TX_OUT :usize = 9;
 const MIN_BYTES_TRANSACTION: usize = 10;
 const OUTPOINT_BYTES :usize = 36;
+
 
 /// Struct that represents the Outpoint, that is used in the TxIn struct.
 #[derive(Debug, PartialEq)]
@@ -155,13 +157,13 @@ impl TxIn{
         let (prev_out_bytes, slice) = slice.split_at(OUTPOINT_BYTES);
         let previous_output = Outpoint::from_bytes(prev_out_bytes)?;
         let script_length = VarLenInt::from_bytes(&slice);
-        let (script_length_bytes, slice) = slice.split_at(script_length.amount_of_bytes());
+        let (_script_length_bytes, slice) = slice.split_at(script_length.amount_of_bytes());
         if slice.len() < script_length.to_usize() + 4{
             return Err(TransactionError::ErrorCreatingTxInFromBytes);
         }
         let (signature_script_bytes, slice) = slice.split_at(script_length.to_usize());
         let signature_script = signature_script_bytes.to_vec();
-        let (sequence_bytes, slice) = slice.split_at(4);
+        let (sequence_bytes, _slice) = slice.split_at(4);
         let sequence = match sequence_bytes.try_into(){
             Ok(sequence_bytes) => u32::from_le_bytes(sequence_bytes),
             Err(_) => return Err(TransactionError::ErrorCreatingTxInFromBytes),
@@ -194,7 +196,7 @@ impl Transaction {
             tx_in: tx_in_vector,
             tx_out_count: VarLenInt::new(tx_out_vector.len()),
             tx_out: tx_out_vector,
-            lock_time: lock_time,
+            lock_time,
         }
     }
 
@@ -249,7 +251,7 @@ impl Transaction {
             tx_out.push(tx);
         }
         
-        let (lock_time_bytes, slice) = slice.split_at(4);
+        let (lock_time_bytes, _slice) = slice.split_at(4);
         let lock_time = u32::from_le_bytes(lock_time_bytes.try_into().ok()?);
 
         Some(Transaction {
@@ -261,6 +263,7 @@ impl Transaction {
             lock_time,
         })
     }
+
     pub fn ammount_of_bytes(&self) -> usize{
         self.to_bytes().len()
     }
@@ -280,10 +283,12 @@ impl Transaction {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Bytes;
-
     use super::*;
     
+
+    // Auxiliar functions
+    //=================================================================
+
     fn outpoint_32_byte_array() -> [u8; 32] {
         [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
     }
@@ -337,6 +342,9 @@ mod tests {
         bytes_vector.extend((0 as u32).to_le_bytes());
         bytes_vector
     }
+
+    // Tests
+    //=================================================================
 
     #[test]
     fn tx_in_test_1_to_bytes() {
@@ -416,7 +424,6 @@ mod tests {
     }
 
     #[test]
-
     fn transaction_test_3_from_bytes_without_tx_in_and_tx_out() -> Result<(), TransactionError> {
         let transaction_bytes = transaction_expected_bytes_without_tx_in_and_tx_out();
         

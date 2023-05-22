@@ -10,7 +10,7 @@ use self::data_handler::NodeDataHandler;
 use crate::{
     messages::*,
     blocks::{
-        transaction::TxOut,
+        //transaction::TxOut,
         blockchain::*,
         proof::*,
     },
@@ -27,9 +27,9 @@ use std::{
 };
 
 
-
 const MESSAGE_HEADER_SIZE: usize = 24;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
+
 
 /// Struct that represents the bitcoin node
 pub struct Node {
@@ -39,7 +39,7 @@ pub struct Node {
     data_handler: NodeDataHandler,
     block_headers: Vec<BlockHeader>,
     blockchain: HashMap<[u8;32], Block>,
-    utxo_set: HashMap<[u8;32], &'static TxOut>,
+    //utxo_set: HashMap<[u8;32], &'static TxOut>,
     logger: Logger,
 }
 
@@ -53,7 +53,7 @@ impl Node {
             tcp_streams: Vec::new(),
             block_headers: Vec::new(),
             blockchain: HashMap::new(),
-            utxo_set: HashMap::new(),
+            //utxo_set: HashMap::new(),
             data_handler,
             logger,
         }
@@ -75,12 +75,20 @@ impl Node {
         let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
         
         for addr in address_vector {
-            if let Ok(tcp_stream) = node.handshake(addr) {
-                node.tcp_streams.push(tcp_stream);
+            match node.handshake(addr) {
+                Ok(tcp_stream) => { 
+                    node.tcp_streams.push(tcp_stream)
+                },
+                Err(error) => node.logger.log_error(&error),
             }
         }
-
-        Ok(node)
+        node.logger.log(format!("Amount of peers conected = {}",node.tcp_streams.len()));
+        
+        if node.tcp_streams.len() < 1{
+            Err(NodeError::ErrorCreatingNode)
+        }else{
+            Ok(node)
+        }
     }
 
     /// Receives a dns address as a String and returns a Vector that contains all the addresses

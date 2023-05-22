@@ -1,12 +1,10 @@
 mod test {
+    use proyecto::utils::btc_errors::NodeError;
     use proyecto::utils::config::*;
     use proyecto::node::*;
-    use proyecto::utils::log::*;
-    use proyecto::utils::btc_errors::NodeError;
 
 
     const BEGIN_TIME_EPOCH: u32 = 1681084800; // 2023-04-10
-
 
      #[test]
     fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes() -> Result<(), NodeError>  {

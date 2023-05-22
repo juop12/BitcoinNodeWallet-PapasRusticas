@@ -12,17 +12,7 @@ pub struct NotFoundMessage{
 
 impl Message for NotFoundMessage{
     type MessageType = NotFoundMessage;
-    
-    //Writes the message as bytes in the receiver_stream
-    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
-        let header_message = self.get_header_message()?;
-        header_message.send_to(receiver_stream)?;
-
-        match receiver_stream.write(self.to_bytes().as_slice()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(MessageError::ErrorsendingNotFoundMessage),
-       }
-    }
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingNotFoundMessage;
 
     //transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>{

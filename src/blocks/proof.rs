@@ -1,8 +1,6 @@
-use std::hash;
-
 use crate::blocks::blockchain::*;
 use bitcoin_hashes::{sha256d, Hash};
-use super::transaction;
+
 
 /// Gets the target threshold of the n_bits specified, in order to 
 fn get_target_threshold(n_bits: u32) -> [u8;32] {
@@ -35,15 +33,16 @@ pub fn validate_proof_of_work(block_header: &BlockHeader) -> bool {
             return false;
         }
     }
+
     true
 }
 
 fn hash_pairs_for_merle_tree(hash_1: [u8; 32], hash_2: [u8;32]) -> [u8;32]{
     let mut total_hash: Vec<u8> = Vec::from(hash_1);
     total_hash.extend(hash_2);
+
     let new_hash = sha256d::Hash::hash(total_hash.as_slice());
     new_hash.to_byte_array()
-    
 }
 
 fn calculate_merkle_tree_level(mut hash_vector: Vec<[u8; 32]>) -> [u8; 32]{
@@ -79,17 +78,24 @@ pub fn validate_proof_of_inclusion(block: &Block)->bool{
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::blocks::BlockHeader;
     use bitcoin_hashes::{sha256d, Hash};
-    use transaction::Transaction;
+    use crate::blocks::{
+        BlockHeader, 
+        transaction::Transaction,
+    };
+
 
     const VALID_HEADER_BYTES: [u8;80] = [
         0,128,154,33,97,0,155,57,119,6,109,83,36,160,202,81,110,211,12,33,242,251,163,225,189,198,99,91,39,0,0,0,0,0,0,0,81,36,107,173,77,174,133,197,186,33,40,129,186,247,243,121,96,34,123,34,217,248,194,216,2,183,11,96,57,6,158,34,104,145,103,100,140,202,39,25,74,168,232,213
     ];
 
+
     // Doing the proof of work test with a valid block header created by us is nearly impossible, because we can 
     // not create a valid block header without knowing the nonce, which is the value generated randomly.
     // The only test here checks if the proof of work is not valid
+
+    // Auxiliar functions
+    //=================================================================
 
     fn get_transactions(lock_time:u32)->Transaction{
         Transaction::new(70015, Vec::new(), Vec::new(), lock_time)
@@ -125,6 +131,9 @@ mod test {
         Block::new(header, transactions)
     }
 
+    // Tests
+    //=================================================================
+
     #[test]
     fn proof_of_work_test_1_invalid_block_header() {
         let hash :[u8;32] = *sha256d::Hash::hash(b"test").as_byte_array();
@@ -135,7 +144,7 @@ mod test {
 
     #[test]
     fn proof_of_work_test_2_valid_block_header(){
-        let header = BlockHeader::from_bytes(&mut VALID_HEADER_BYTES).unwrap();
+        let header = BlockHeader::from_bytes(&VALID_HEADER_BYTES).unwrap();
         assert!(validate_proof_of_work(&header))
     }
 

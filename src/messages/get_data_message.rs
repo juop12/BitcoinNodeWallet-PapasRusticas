@@ -21,17 +21,8 @@ impl GetDataMessage{
 
 impl Message for GetDataMessage{
     type MessageType = GetDataMessage;
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingGetDataMessage;
     
-    //Writes the message as bytes in the receiver_stream
-    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
-        let header_message = self.get_header_message()?;
-        header_message.send_to(receiver_stream)?;
-
-        match receiver_stream.write(self.to_bytes().as_slice()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(MessageError::ErrorSendingGetDataMessage),
-       }
-    }
 
     //transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>{

@@ -1,9 +1,6 @@
-use super::message_trait::*;
-use crate::blocks::blockchain::BlockHeader;
 use crate::utils::variable_length_integer::*;
-
-const BLOCKHEADER_SIZE: usize = 80;
-const BLOCKHEADERS_MSG_NAME: &str = "headers\0\0\0\0\0";
+use crate::blocks::blockchain::BlockHeader;
+use super::message_trait::*;
 
 
 /// The BlockHeader struct represents a block header in the Bitcoin network.
@@ -14,12 +11,8 @@ pub struct BlockHeadersMessage {
 }
 
 impl Message for BlockHeadersMessage{
-
     type MessageType = BlockHeadersMessage;
-    
-    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
-        todo!()
-    }
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingBlockHeadersMessage;
     
     //transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>{
@@ -52,8 +45,6 @@ impl Message for BlockHeadersMessage{
 impl BlockHeadersMessage{
 
     pub fn new(headers: Vec<BlockHeader>, count: VarLenInt) -> BlockHeadersMessage{
-    //     let mut count = Vec::new();
-    //     count.push(headers.len() as u8); //estamos asumiendo que solo van de 253 a menor
         BlockHeadersMessage{
             count,
             headers,
@@ -68,7 +59,6 @@ impl BlockHeadersMessage{
         }
         
         let mut headers: Vec<BlockHeader> = Vec::new();
-        let first_header_position = count.amount_of_bytes();
 
         let mut i = count.amount_of_bytes();
         while i < slice.len(){

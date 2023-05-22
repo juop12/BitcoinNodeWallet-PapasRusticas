@@ -48,9 +48,12 @@ pub enum MessageError {
     ErrorCreatingInvMessage,
     ErrorSendingInvMessage,
     ErrorCreatingBlockMessage,
+    ErrorSendingBlockMessage,
     ErrorSendingPongMessages,
     ErrorCreatingNotFoundMessage,
-    ErrorsendingNotFoundMessage
+    ErrorSendingNotFoundMessage,
+    ErrorSendingBlockHeadersMessage
+
 }
 
 impl BtcError for MessageError {}

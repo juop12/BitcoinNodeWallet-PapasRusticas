@@ -6,7 +6,6 @@ use std::thread;
 
 use super::BtcError;
 
-//use crate::messages::Message;
 
 /// Struct that represents errors that can occur with the log.
 #[derive(Debug)]
@@ -16,12 +15,13 @@ pub enum LoggerError{
 }
 
 /// This struct has the responsability to write to a file.
+#[derive(Debug, Clone)]
 pub struct Logger{
     tx: Sender<String>, 
 }
 
 impl Logger {
-
+    
     /// Creates a new logger from a path, on error returns ErrorOpeningFile.
     pub fn from_path(path: &str) -> Result<Logger, LoggerError> {
 
@@ -54,14 +54,15 @@ impl Logger {
             tx,
         })
     }
+    
+    /// Writes an error as text to the log, nothing happens on error.
+    pub fn log_error<T: BtcError>(&self, error: &T){
+        self.log(error.to_string())
+    }
 
-        pub fn log_error<T: BtcError>(&self, error: &T){
-            self.log(error.to_string())
-        }
-
-    /// Writes a text to the log, on error tries to write the error on the log.
+    /// Writes a text to the log, nothing happens on error.
     pub fn log(&self, text: String){
-        _ = self.tx.send(text);
+        self.tx.send(text);
     }
 
 }
