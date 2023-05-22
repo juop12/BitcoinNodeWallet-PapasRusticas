@@ -1,9 +1,5 @@
 use super::message_trait::*;
 
-
-const VERACK_MSG_NAME: &str = "verack\0\0\0\0\0\0";
-
-
 /// Message used to acknoledge 2 nodes have sent Version Messages.
 #[derive(Debug, PartialEq)]
 pub struct VerACKMessage {}
@@ -11,7 +7,7 @@ pub struct VerACKMessage {}
 impl Message for VerACKMessage {
     type MessageType = VerACKMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingHeaderMessage;
-   
+
     /// Returns an empty vector of bytes, since the VerACKMessage has no payload.
     fn to_bytes(&self) -> Vec<u8> {
         Vec::new()
@@ -27,7 +23,7 @@ impl Message for VerACKMessage {
 
     /// Returns a copy of the header message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError> {
-        HeaderMessage::new(VERACK_MSG_NAME, &self.to_bytes())
+        HeaderMessage::new("verack\0\0\0\0\0\0", &self.to_bytes())
     }
 }
 
@@ -43,9 +39,7 @@ mod tests {
     use super::*;
     use crate::utils::mock_tcp_stream::MockTcpStream;
 
-
     const START_STRING_TEST_NET: [u8; 4] = [0x0b, 0x11, 0x09, 0x07];
-
 
     // Auxiliar functions
     //=================================================================
@@ -75,7 +69,7 @@ mod tests {
 
     #[test]
     fn verack_message_test_2_to_bytes() -> Result<(), MessageError> {
-        let verack_msg= VerACKMessage::new()?;
+        let verack_msg = VerACKMessage::new()?;
 
         let verack_msg_bytes = verack_msg.to_bytes();
 
@@ -100,11 +94,9 @@ mod tests {
         let mut expected_bytes = expected_verack_msg.to_bytes();
         expected_bytes.extend(vec![1, 2, 3, 4]);
 
-        let verack_msg =
-            VerACKMessage::from_bytes(&mut expected_bytes.as_mut_slice()).unwrap_err();
+        let verack_msg = VerACKMessage::from_bytes(&mut expected_bytes.as_mut_slice()).unwrap_err();
 
         assert_eq!(verack_msg, MessageError::ErrorCreatingVerAckMessage);
         Ok(())
     }
-
 }

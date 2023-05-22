@@ -1,12 +1,10 @@
 use super::message_trait::*;
 use bitcoin_hashes::{sha256d, Hash};
 
-
 const MESAGE_HEADER_SIZE: usize = 24;
 const START_STRING_TEST_NET: [u8; 4] = [0x0b, 0x11, 0x09, 0x07];
 const COMMAND_NAME_ERROR: &str = "\0\0\0\0\0\0\0\0\0\0\0\0";
 const COMMAND_NAME_SIZE: usize = 12;
-
 
 /// Struct that represents a header message in the bitcoin protocol
 #[derive(Debug, PartialEq, Clone)]
@@ -51,7 +49,7 @@ impl Message for HeaderMessage {
         }
     }
 
-    //Returns a copy of the header message
+    /// Returns a copy of the header message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError> {
         Ok(self.clone())
     }
@@ -69,10 +67,9 @@ impl HeaderMessage {
         while command_bytes.len() < COMMAND_NAME_SIZE {
             command_bytes.push(0);
         }
-        
+
         let mut command_bytes_fixed_size = [0u8; COMMAND_NAME_SIZE];
         command_bytes_fixed_size.copy_from_slice(command_bytes.as_slice());
-        //let payload_size = size_of_val(payload.as_slice()) as u32;
 
         let payload_size: u32 = payload.len() as u32;
 
@@ -128,7 +125,6 @@ mod tests {
     use super::*;
     use crate::utils::mock_tcp_stream::MockTcpStream;
 
-
     // Auxiliar functions
     //=================================================================
 
@@ -169,10 +165,7 @@ mod tests {
 
         let hm_bytes = hm.to_bytes();
 
-        assert_eq!(
-            hm_bytes,
-            non_empty_header_message_expected_bytes()
-        );
+        assert_eq!(hm_bytes, non_empty_header_message_expected_bytes());
         Ok(())
     }
 
@@ -191,8 +184,7 @@ mod tests {
     fn header_message_test_4_from_bytes_empty_header_message() -> Result<(), MessageError> {
         let expected_hm = HeaderMessage::new("verack\0\0\0\0\0\0", &Vec::new())?;
 
-        let hm =
-            HeaderMessage::from_bytes(&mut expected_hm.to_bytes().as_mut_slice())?;
+        let hm = HeaderMessage::from_bytes(&mut expected_hm.to_bytes().as_mut_slice())?;
 
         assert_eq!(hm, expected_hm);
         Ok(())
@@ -202,8 +194,7 @@ mod tests {
     fn header_message_test_5_from_bytes_non_empty_header_message() -> Result<(), MessageError> {
         let expected_hm = HeaderMessage::new("version\0\0\0\0\0", &vec![1, 2, 3, 4])?;
 
-        let hm =
-            HeaderMessage::from_bytes(&mut expected_hm.to_bytes().as_mut_slice())?;
+        let hm = HeaderMessage::from_bytes(&mut expected_hm.to_bytes().as_mut_slice())?;
 
         assert_eq!(hm, expected_hm);
         Ok(())

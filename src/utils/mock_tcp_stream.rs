@@ -16,6 +16,12 @@ impl MockTcpStream {
     }
 }
 
+impl Default for MockTcpStream {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Read for MockTcpStream {
     /// Reads bytes from the stream until completing the buffer and returns how many bytes were read
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -32,6 +38,7 @@ impl Write for MockTcpStream {
         self.write_buffer.write(buf)
     }
 
+    /// Flushes the write buffer, writing all pending data to the underlying stream.
     fn flush(&mut self) -> io::Result<()> {
         self.write_buffer.flush()
     }
