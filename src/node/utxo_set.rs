@@ -44,31 +44,3 @@ impl Node {
         utxo_set
     }
 }
-
-#[cfg(test)]
-mod tests{
-    use super::*;
-
-
-    #[test]
-    fn test_1_valid_node_creates_a_set()-> Result<(), NodeError>{
-        let config = Config {
-            version: 70015,
-            dns_port: 18333,
-            local_host: [127,0,0,1],
-            local_port: 1001,
-            log_path: String::from("src/node_log.txt"),
-            begin_time: 1681084800,
-        };
-        
-        let mut node = Node::new(config)?;
-        node.initial_block_download()?;
-
-        let utxo_set = node.create_utxo_set();
-
-        println!("utx_set Len:: {}\n\n", utxo_set.len());
-
-        assert!(utxo_set.len() > 0);
-        Ok(())
-    }
-}

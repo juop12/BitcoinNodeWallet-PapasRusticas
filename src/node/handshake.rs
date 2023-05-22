@@ -44,13 +44,7 @@ impl Node {
         }
     }
 
-
-    /// -
-    /// Reads from the stream first a header message, and then reads as many bytes as tat header indicated. With this latter batch of
-    /// bytes it tries to return a VersionMessage interpreting bytes according to bitcoin protocol. On error returns ErrorReceivingMessageInHandshake
-
-    /// Reads a header from the stream, if that header represents a version_ack_message then returns VerACKMessage.
-    /// On error returns ErrorSendingMessageInHandshake
+    /// Receives a message, if it is any other than VersionMessage or VerackMessage it returns ErrorReceivingMessageInHandshake
     fn handshake_receive_verack_or_version_message<T: Read + Write>(&self,mut stream: T) -> Result<String, NodeError> {
         let hm = receive_message_header(&mut stream)?;
 

@@ -1,9 +1,7 @@
 use bitcoin_hashes::{sha256d, Hash};
 use crate::blocks::blockchain::*;
 
-
-/// -
-/// Gets the target threshold of the n_bits specified, in order to 
+/// Gets the target threshold of the n_bits specified
 fn get_target_threshold(n_bits: u32) -> [u8;32] {
     let n_bits_bytes = n_bits.to_le_bytes();
     let (exponent, significand) = n_bits_bytes.split_at(1);
@@ -95,12 +93,6 @@ mod test {
     const VALID_HEADER_BYTES: [u8;80] = [
         0,128,154,33,97,0,155,57,119,6,109,83,36,160,202,81,110,211,12,33,242,251,163,225,189,198,99,91,39,0,0,0,0,0,0,0,81,36,107,173,77,174,133,197,186,33,40,129,186,247,243,121,96,34,123,34,217,248,194,216,2,183,11,96,57,6,158,34,104,145,103,100,140,202,39,25,74,168,232,213
     ];
-
-
-    /// -
-    // Doing the proof of work test with a valid block header created by us is nearly impossible, because we can 
-    // not create a valid block header without knowing the nonce, which is the value generated randomly.
-    // The only test here checks if the proof of work is not valid
 
     // Auxiliar functions
     //=================================================================

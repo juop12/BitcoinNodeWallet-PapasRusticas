@@ -29,8 +29,7 @@ impl Logger {
 
         let (tx, rx) = mpsc::channel();
 
-        thread::spawn(move || {
-            loop {
+        thread::spawn(move || loop {
                 let received: String = match rx.recv(){
                     Ok(msg) => msg,
                     Err(_) => continue,
@@ -48,7 +47,7 @@ impl Logger {
                     break;
                 }
             }
-        });
+        );
 
         Ok(Logger {
             tx,
@@ -62,7 +61,9 @@ impl Logger {
 
     /// Writes a text to the log, nothing happens on error.
     pub fn log(&self, text: String){
-        self.tx.send(text);
+        // no lo handeleamos al error porque si falla el log 
+        // no queremos cortar la ejecucion del programa principal
+        _ = self.tx.send(text);
     }
 }
 
@@ -75,38 +76,3 @@ fn _open_log_handler(path: &str) -> Result<File, LoggerError> {
         Err(_) => Err(LoggerError::ErrorOpeningFile),
     }
 }
-
-/* 
-/// -
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::{BufReader, BufRead};
-
-    const LOGFILE: &str = "test_log.txt";
-    const STOP: &str = "stop";
-
-
-    /* 
-    #[test]
-    fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address() {
-
-
-    }
-    */
-    /*
-    #[test]
-    fn log_test_1_writes_text_correctly() {
-        let logger = Logger::from_path(LOGFILE).unwrap();
-
-        logger.log("prueba".to_string()).unwrap();
-        logger.log(STOP.to_string()).unwrap();
-
-        let file = File::open(LOGFILE).unwrap();
-        let contenido: Vec<String> = BufReader::new(file).lines().flatten().collect();
-
-        assert!((contenido[0] == "prueba") && (contenido[1] == "stop"));
-    }
-    */
-}
-*/

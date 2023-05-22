@@ -147,7 +147,6 @@ impl Node {
         Ok(block_headers_msg_h.get_command_name())
     }
 
-    /// -
     /// Central function that contains the node's information flow.
     pub fn run(&mut self) -> Result<(), NodeError>{   
 

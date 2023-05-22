@@ -35,10 +35,10 @@ impl Worker {
 
         let thread = thread::spawn(move || loop {
 
-            let stop = thread_loop(id, receiver, stream, locked_block_chain, missed_bundles_sender, logger);
+            let stop = thread_loop(id, &receiver, &mut stream, &locked_block_chain, &missed_bundles_sender, &logger);
             
-            match stop{
-                Some
+            if let Some(gracefull_stop) = stop {
+                return gracefull_stop;
             }
         });
         
@@ -64,7 +64,7 @@ impl Worker {
     }
 }
 
-/// -
+/// Gets a bundle from the shared reference and logs the errors
 fn get_bundle(id:usize, receiver: &Arc<Mutex<mpsc::Receiver<Bundle>>>, logger: &Logger) ->Option<Bundle>{
     let bundle = match receiver.lock() {
         Ok(rec_lock) => {
@@ -84,6 +84,7 @@ fn get_bundle(id:usize, receiver: &Arc<Mutex<mpsc::Receiver<Bundle>>>, logger: &
     Some(bundle)
 }
 
+/// Saves the blocks in the shared reference, if unable, loggs the erros and sends the bundle to the missed_bundles channel
 fn save_blocks(id: usize, locked_block_chain: &Arc<Mutex<Vec<Block>>>, received_blocks: Vec<Block>, missed_bundles_sender: &mpsc::Sender<Bundle>, aux_bundle: Bundle,logger: &Logger) -> bool{
     match locked_block_chain.lock(){
         Ok(mut block_chain) => {
@@ -103,7 +104,15 @@ fn save_blocks(id: usize, locked_block_chain: &Arc<Mutex<Vec<Block>>>, received_
     }
 }
 
-fn thread_loop(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Bundle>>>, mut stream: TcpStream, locked_block_chain: Arc<Mutex<Vec<Block>>>, missed_bundles_sender: mpsc::Sender<Bundle>, logger: Logger) -> Option<bool>{
+/// Main loop that worker's thread executes. It gets a bundle from the shared channel, 
+/// gets the blocks from it's peer, and saves them to the shared reference block vector.
+/// If anything fails along the way it loggs acordingly, as well as other things like 
+/// received messages.
+/// It returs an option representing wheter the loop must stop (Some) or continue None. 
+/// The bool stored in Some represents whether the stop is a "Gracefull stop", meaning 
+/// the thread must return true (for example when receiving an end of channel), or an 
+/// "Ungracefull stop" meaning the loop failed at some point
+fn thread_loop(id: usize, receiver: &Arc<Mutex<mpsc::Receiver<Bundle>>>, stream: &mut TcpStream, locked_block_chain: &Arc<Mutex<Vec<Block>>>, missed_bundles_sender: &mpsc::Sender<Bundle>, logger: &Logger) -> Option<bool>{
     let bundle = match get_bundle(id, &receiver, &logger){
         Some(bundle) => bundle,
         None => return Some(false),
@@ -116,7 +125,7 @@ fn thread_loop(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Bundle>>>, mut stre
 
     let aux_bundle = Box::new(*bundle.clone());
     
-    let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream, &logger) {
+    let received_blocks = match get_blocks_from_bundle(*bundle, stream, &logger) {
         Ok(blocks) => blocks,
         Err(error) => {
             if let Err(error) = missed_bundles_sender.send(aux_bundle){

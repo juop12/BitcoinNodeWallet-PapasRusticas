@@ -51,7 +51,9 @@ impl Node {
         }
     }
     
-    /// -
+    /// Requests block_downloader to download block bundles (16 blocks each),
+    /// that were created after the starting_block_time. 
+    /// If at the end we do not have enough to form a full block bundle, then then unrequested block hashes are returned
     fn request_blocks(&mut self, mut i: usize, mut request_block_hashes_bundle: Vec<[u8;32]>, block_downloader: &BlockDownloader, total_amount_of_blocks: &mut usize)->Result<Vec<[u8;32]>, NodeError>{
 
         while i < self.block_headers.len(){
@@ -233,13 +235,9 @@ impl Node {
 mod tests{
     use super::*;
     use std::sync::{Arc, Mutex};
-    
-    
-    /// -
-    //test unitario de descargar un solo header
 
     #[test]
-    fn ibd_test_1_can_download_blocks() -> Result<(), NodeError>{
+    fn ibd_test_1_can_download_headers() -> Result<(), NodeError>{
         let config = Config {
             version: 70015,
             dns_port: 18333,
@@ -261,7 +259,7 @@ mod tests{
     }
 
     #[test]
-    fn ibd_test_2_can_download_blocks() -> Result<(), NodeError>{
+    fn ibd_test_2_can_download_2000_blocks() -> Result<(), NodeError>{
         let config = Config {
             version: 70015,
             dns_port: 18333,
