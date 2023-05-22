@@ -4,7 +4,8 @@ use std::io::Write;
 use std::fs::File;
 use std::thread;
 
-//use crate::messages::Message;
+use super::BtcError;
+
 
 /// Struct that represents errors that can occur with the log.
 #[derive(Debug)]
@@ -14,12 +15,13 @@ pub enum LoggerError{
 }
 
 /// This struct has the responsability to write to a file.
+#[derive(Debug, Clone)]
 pub struct Logger{
     tx: Sender<String>, 
 }
 
 impl Logger {
-
+    
     /// Creates a new logger from a path, on error returns ErrorOpeningFile.
     pub fn from_path(path: &str) -> Result<Logger, LoggerError> {
 
@@ -52,37 +54,18 @@ impl Logger {
             tx,
         })
     }
+    
+    /// Writes an error as text to the log, nothing happens on error.
+    pub fn log_error<T: BtcError>(&self, error: &T){
+        self.log(error.to_string())
+    }
 
-    /*
-        pub fn log_error<T: BTCError>(&self, error: &T) -> Result<(), LoggerError>{
-            let text = error.decode();  
-            self.log(text)
-        }
-    */
-
-    /*
-        pub fn log_message<T: Message>(&self, message: T) -> Result<(), LoggerError>{
-            let text = message.decode();  
-            self.log(text)
-        }
-    */
-
-    /// Writes a text to the log, on error returns ErrorLoggingMessage.
-    pub fn log(&self, text: String) -> Result<(), LoggerError>{
-        if let Err(_) = self.tx.send(text){
-            return Err(LoggerError::ErrorLoggingMessage);
-        };
-
-        Ok(())
+    /// Writes a text to the log, nothing happens on error.
+    pub fn log(&self, text: String){
+        self.tx.send(text);
     }
 
 }
-
-/*
-    pub trait BTCError{
-        fn decode(&self) -> String;
-    }
-*/
 
 /// A handler for opening the log file in write mode, on error returns ErrorOpeningFile
 fn _open_log_handler(path: &str) -> Result<File, LoggerError> {

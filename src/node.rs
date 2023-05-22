@@ -7,15 +7,18 @@ pub mod handle_messages;
 
 use self::block_downloader::get_blocks_from_bundle;
 use self::data_handler::NodeDataHandler;
-use crate::messages::*;
-use crate::blocks::{
-    transaction::TxOut,
-    blockchain::*,
-    proof::*,
-};
-use crate::utils::{
-    config::*,
-    log::*
+use crate::{
+    messages::*,
+    blocks::{
+        //transaction::TxOut,
+        blockchain::*,
+        proof::*,
+    },
+    utils::{
+        config::*,
+        log::*
+    },
+    utils::btc_errors::NodeError,
 };
 use std::{
     io::{Read, Write},
@@ -24,32 +27,9 @@ use std::{
 };
 
 
-
 const MESSAGE_HEADER_SIZE: usize = 24;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
 
-
-/// Struct that represents the errors that can occur in the Node
-#[derive(Debug)]
-pub enum NodeError {
-    ErrorConnectingToPeer,
-    ErrorSendingMessageInHandshake,
-    ErrorReceivingMessageInHandshake,
-    ErrorReceivedUnknownMessage,
-    ErrorInterpretingMessageCommandName,
-    ErrorSendingMessageInIBD,
-    ErrorIteratingStreams,
-    ErrorReceivingHeadersMessageInIBD,
-    ErrorReceivingMessageHeader,
-    ErrorReceivingHeadersMessageHeaderInIBD,
-    ErrorCreatingBlockDownloader,
-    ErrorDownloadingBlockBundle,
-    ErrorCreatingNode,
-    ErrorSavingDataToDisk,
-    ErrorLoadingDataFromDisk,
-    ErrorRecevingBroadcastedInventory,
-    ErrorReceivingBroadcastedBlock,
-}
 
 /// Struct that represents the bitcoin node
 pub struct Node {
@@ -59,7 +39,7 @@ pub struct Node {
     data_handler: NodeDataHandler,
     block_headers: Vec<BlockHeader>,
     blockchain: HashMap<[u8;32], Block>,
-    utxo_set: HashMap<[u8;32], &'static TxOut>,
+    //utxo_set: HashMap<[u8;32], &'static TxOut>,
     logger: Logger,
 }
 
@@ -73,7 +53,7 @@ impl Node {
             tcp_streams: Vec::new(),
             block_headers: Vec::new(),
             blockchain: HashMap::new(),
-            utxo_set: HashMap::new(),
+            //utxo_set: HashMap::new(),
             data_handler,
             logger,
         }
@@ -95,12 +75,20 @@ impl Node {
         let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
         
         for addr in address_vector {
-            if let Ok(tcp_stream) = node.handshake(addr) {
-                node.tcp_streams.push(tcp_stream);
+            match node.handshake(addr) {
+                Ok(tcp_stream) => { 
+                    node.tcp_streams.push(tcp_stream)
+                },
+                Err(error) => node.logger.log_error(&error),
             }
         }
-
-        Ok(node)
+        node.logger.log(format!("Amount of peers conected = {}",node.tcp_streams.len()));
+        
+        if node.tcp_streams.len() < 1{
+            Err(NodeError::ErrorCreatingNode)
+        }else{
+            Ok(node)
+        }
     }
 
     /// Receives a dns address as a String and returns a Vector that contains all the addresses
@@ -128,19 +116,21 @@ impl Node {
     }
             
     ///Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
-    fn receive_message (&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
+    fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
         let mut stream = &self.tcp_streams[stream_index];
         let block_headers_msg_h = receive_message_header(&mut stream)?;
-        println!("\n{}", block_headers_msg_h.get_command_name());
+        
+        println!("\nrecibi {}", block_headers_msg_h.get_command_name());
+        self.logger.log(block_headers_msg_h.get_command_name());
         
         let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
         match stream.read_exact(&mut msg_bytes) {
-            Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
+            Err(_) => return Err(NodeError::ErrorReceivingMessage),
             Ok(_) => {}
         }
 
         match block_headers_msg_h.get_command_name().as_str(){
-            "ping\0\0\0\0\0\0\0\0" => self.handle_ping_message(stream_index, &block_headers_msg_h, msg_bytes),
+            "ping\0\0\0\0\0\0\0\0" => self.handle_ping_message(stream_index, &block_headers_msg_h, msg_bytes)?,
             "inv\0\0\0\0\0\0\0\0\0" => {
                 if !ibd {
                     self.handle_inv_message(msg_bytes, stream_index)?;
@@ -148,9 +138,9 @@ impl Node {
             },
             "block\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
             "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, stream_index)?,
-            //"block\0\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
             _ => {},
         };
+
         Ok(block_headers_msg_h.get_command_name())
     }
 
@@ -165,13 +155,16 @@ impl Node {
         }
     }
 }
+
 ///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
 /// On error returns ErrorReceivingMessage
 pub fn receive_message_header<T: Read + Write>(stream: &mut T,) -> Result<HeaderMessage, NodeError> {
     let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
+    
     if let Err(_) = stream.read_exact(&mut header_bytes){
         return Err(NodeError::ErrorReceivingMessageHeader);
     };
+
     match HeaderMessage::from_bytes(&mut header_bytes) {
         Ok(header_message) => Ok(header_message),
         Err(_) => Err(NodeError::ErrorReceivingMessageHeader),
@@ -215,10 +208,6 @@ mod tests {
     #[test]
     fn node_test_1_receive_header_message() -> Result<(), NodeError> {
         let mut stream = MockTcpStream::new();
-
-        let logger = Logger::from_path("test_log.txt").unwrap();
-        let data_handler = NodeDataHandler::new().unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler);
 
         let expected_hm =
             HeaderMessage::new("test message", &Vec::from("test".as_bytes())).unwrap();

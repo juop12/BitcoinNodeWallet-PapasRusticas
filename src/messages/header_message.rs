@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 use bitcoin_hashes::{sha256d, Hash};
 
 
@@ -19,12 +19,13 @@ pub struct HeaderMessage {
 
 impl Message for HeaderMessage {
     type MessageType = HeaderMessage;
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingHeaderMessage;
 
     /// Sends a header message trough the tcp_stream
     fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
         match receiver_stream.write(self.to_bytes().as_slice()) {
             Ok(_) => Ok(()),
-            Err(_) => Err(MessageError::ErrorSendingHeaderMessage),
+            Err(_) => Err(Self::SENDING_ERROR),
         }
     }
 
@@ -40,7 +41,7 @@ impl Message for HeaderMessage {
 
     /// Receives a slice of bytes and returns a HeaderMessage if everything went Ok or a
     /// MessageError if the conversion from bytes to HeaderMessage failed.
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError> {
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError> {
         if slice.len() != MESAGE_HEADER_SIZE {
             return Err(MessageError::ErrorCreatingHeaderMessage);
         }
@@ -107,7 +108,7 @@ impl HeaderMessage {
     /// Receives a slice of bytes and returns an Option<HeaderMessage>, initialices the fields of
     /// the HeaderMessage with the values in the slice, if any step in the middle of the conversion
     /// fails, returns None.
-    fn _from_bytes(slice: &mut [u8]) -> Option<HeaderMessage> {
+    fn _from_bytes(slice: &[u8]) -> Option<HeaderMessage> {
         let start_string = slice[0..4].try_into().ok()?;
         let command_name = slice[4..16].try_into().ok()?;
         let payload_size = u32::from_le_bytes(slice[16..20].try_into().ok()?);

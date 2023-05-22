@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 
 
 const VERACK_MSG_NAME: &str = "verack\0\0\0\0\0\0";
@@ -10,19 +10,15 @@ pub struct VerACKMessage {}
 
 impl Message for VerACKMessage {
     type MessageType = VerACKMessage;
-    /// Implements the trait send_to for VerACKMessage, sends a VerACKMessage trough the tcp_stream,
-    /// returns an error if the message could not be sent.
-    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
-        let header_message = self.get_header_message()?;
-        header_message.send_to(receiver_stream)
-    }
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingHeaderMessage;
+   
     /// Returns an empty vector of bytes, since the VerACKMessage has no payload.
     fn to_bytes(&self) -> Vec<u8> {
         Vec::new()
     }
 
     /// Returns a VerACKMessage if the slice of bytes is empty, otherwise returns a MessageError.
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError> {
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError> {
         if !slice.is_empty() {
             return Err(MessageError::ErrorCreatingVerAckMessage);
         }

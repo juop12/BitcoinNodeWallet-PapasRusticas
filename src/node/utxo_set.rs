@@ -4,7 +4,8 @@ use crate::node::*;
 
 impl Node {
 
-
+    ///Creates the utxo set from the blockchain and returns it.
+    ///Returns None if the blockchain is empty.
     pub fn create_utxo_set(&self) -> Option<HashMap<Vec<u8>, &TxOut>>{
 
         let mut utxo_set = HashMap::new();
@@ -14,7 +15,13 @@ impl Node {
         let mut i = 0;
         for header in &self.block_headers[starting_position..]{
             let hash = header.hash();
-            let block = self.blockchain.get(&hash)?;
+            let block = match self.blockchain.get(&hash){
+                Some(block) => block,
+                None => {
+                    self.logger.log(String::from("Colud not find block"));
+                    continue;
+                }
+            };
 
             for tx in block.get_transactions(){
                 for (index, tx_out) in tx.tx_out().iter().enumerate(){
@@ -33,7 +40,8 @@ impl Node {
                 }
             }
         }
-        println!(" LA CANTIDAD DE TOTAL DE TX_OUTS ES {i}");
+
+        self.logger.log(format!("UTxO Set created with {} utxo", utxo_set.len()));
         Some(utxo_set)
     }
 }

@@ -1,21 +1,9 @@
 use std::{io::{BufRead, BufReader}, fs::File/* , path::Path */};
 use chrono::{Utc, DateTime};
-
+use super::btc_errors::ConfigError;
 
 const CONFIG_FILENAME : &str = "nodo.conf";
 const PARAMETER_AMOUNT : usize = 6;
-
-
-/// Struct that represents errors that can occur with the config setup.
-#[derive(Debug)]
-pub enum ConfigError{
-    ErrorReadingFile,
-    ErrorFillingAttributes,
-    ErrorMismatchedFileName,
-    ErrorMismatchedQuantityOfParameters,
-    ErrorMismatchedParameters,
-    ErrorParsingDate,
-}
 
 /// Struct that represents a node's configuration parameters.
 #[derive(Debug)]

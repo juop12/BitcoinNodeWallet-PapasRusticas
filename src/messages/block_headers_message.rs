@@ -1,9 +1,6 @@
-use super::utils::*;
-use crate::blocks::blockchain::BlockHeader;
 use crate::utils::variable_length_integer::*;
-
-const BLOCKHEADER_SIZE: usize = 80;
-const BLOCKHEADERS_MSG_NAME: &str = "headers\0\0\0\0\0";
+use crate::blocks::blockchain::BlockHeader;
+use super::message_trait::*;
 
 
 /// The BlockHeader struct represents a block header in the Bitcoin network.
@@ -14,12 +11,8 @@ pub struct BlockHeadersMessage {
 }
 
 impl Message for BlockHeadersMessage{
-
     type MessageType = BlockHeadersMessage;
-    
-    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError>{
-        todo!()
-    }
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingBlockHeadersMessage;
     
     //transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>{
@@ -32,7 +25,7 @@ impl Message for BlockHeadersMessage{
     }
 
     //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError>{
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError>{
             if slice.len() <= 0{
                 return Err(MessageError::ErrorCreatingBlockHeadersMessage);
             }
@@ -52,15 +45,13 @@ impl Message for BlockHeadersMessage{
 impl BlockHeadersMessage{
 
     pub fn new(headers: Vec<BlockHeader>, count: VarLenInt) -> BlockHeadersMessage{
-    //     let mut count = Vec::new();
-    //     count.push(headers.len() as u8); //estamos asumiendo que solo van de 253 a menor
         BlockHeadersMessage{
             count,
             headers,
         }
     }
 
-    fn _from_bytes(slice: &mut [u8]) -> Option<BlockHeadersMessage> {
+    fn _from_bytes(slice: &[u8]) -> Option<BlockHeadersMessage> {
         let count = VarLenInt::from_bytes(slice);
         
         if (count.to_usize() * 81 + count.amount_of_bytes()) != slice.len(){
@@ -68,7 +59,6 @@ impl BlockHeadersMessage{
         }
         
         let mut headers: Vec<BlockHeader> = Vec::new();
-        let first_header_position = count.amount_of_bytes();
 
         let mut i = count.amount_of_bytes();
         while i < slice.len(){

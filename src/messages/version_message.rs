@@ -1,4 +1,4 @@
-use super::utils::*;
+use super::message_trait::*;
 use std::net::{IpAddr, SocketAddr};
 use rand::prelude::*;
 use chrono::Utc;
@@ -32,19 +32,7 @@ pub struct VersionMessage {
 
 impl Message for VersionMessage {
     type MessageType = VersionMessage;
-    /// Implementation of the trait send_to for VersionMessage, recieves a TcpStream and
-    /// returns a Result with either () if everything went Ok or a MessageError if either the
-    /// message creation or sending failed
-    /// For now, the command name is hardcoded, it's value should be set in the config file
-    fn send_to<T: Read + Write>(&self, receiver_stream: &mut T) -> Result<(), MessageError> {
-        let header_message = self.get_header_message()?;
-        header_message.send_to(receiver_stream)?;
-
-        match receiver_stream.write(self.to_bytes().as_slice()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(MessageError::ErrorSendingVersionMessage),
-        }
-    }
+    const SENDING_ERROR: MessageError = MessageError::ErrorSendingVersionMessage;
 
     /// Implementation of the trait to_bytes for VersionMessage, returns a vector of bytes
     /// with all the attributes of the struct. Both little and big endian are used, following
@@ -74,7 +62,7 @@ impl Message for VersionMessage {
     /// returns a Result with either a VersionMessage if everything went Ok or a MessageError
     /// if the call to _from failed. The slice must be at least 86 bytes long (the minimum
     /// length of a VersionMessage)
-    fn from_bytes(slice: &mut [u8]) -> Result<Self::MessageType, MessageError> {
+    fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError> {
         if slice.len() < MINIMAL_VERSION_MESSAGE_SIZE {
             return Err(MessageError::ErrorCreatingVersionMessage);
         }
@@ -133,7 +121,7 @@ impl VersionMessage {
     /// Implementation of the trait _from for VersionMessage. Recieves a slice of bytes and
     /// returns an Option with either a VersionMessage if everything went Ok or None if any step
     /// in the middle of the conversion from bytes to VersionMessage fields failed.
-    fn _from_bytes(slice: &mut [u8]) -> Option<VersionMessage> {
+    fn _from_bytes(slice: &[u8]) -> Option<VersionMessage> {
         if slice[80..].len() <= 0{
             return None;
         }

@@ -1,9 +1,12 @@
-use crate::messages::{
-    get_data_message::*,
-    not_found_message::*,
-    utils::Message,
+use crate::{
+    messages::{
+        get_data_message::*,
+        not_found_message::*,
+        message_trait::Message,
+    },
+    node::*,
+    utils::btc_errors::BlockDownloaderError,
 };
-use crate::node::*;
 
 use std::{
     sync::{mpsc, Arc, Mutex},
@@ -16,14 +19,16 @@ use std::{
 #[derive(Debug)]
 struct Worker {
     thread: thread::JoinHandle<bool>,
-    id: usize,
     stream: TcpStream,
+    id: usize,
 }
 
 type Bundle = Box<Vec<[u8;32]>>;
+
 impl Worker {
+    
     ///Creates a worker which attempts to execute tasks received trough the channel in a loop
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Bundle>>>, mut stream: TcpStream, locked_block_chain: Arc<Mutex<Vec<Block>>>, missed_bundles_sender: mpsc::Sender<Bundle>) -> Result<Worker, BlockDownloaderError> {
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Bundle>>>, mut stream: TcpStream, locked_block_chain: Arc<Mutex<Vec<Block>>>, missed_bundles_sender: mpsc::Sender<Bundle>, logger: Logger) -> Result<Worker, BlockDownloaderError> {
         let stream_cpy = match stream.try_clone(){
             Ok(cloned_stream) => cloned_stream,
             Err(_) => return Err(BlockDownloaderError::ErrorCreatingWorker),
@@ -34,12 +39,14 @@ impl Worker {
                 Ok(rec_lock) => {
                     match rec_lock.recv() {
                         Ok(bundle) => bundle,
-                        Err(_) => {
+                        Err(error) => {
+                            logger.log(format!("Worker {id} failed: {:?}", error));
                             return false;
                         },
                     }
                 },
-                Err(_) => {
+                Err(error) => {
+                    logger.log(format!("Worker {id} failed: {:?}", error));
                     return false;
                 },
             };
@@ -51,16 +58,18 @@ impl Worker {
 
             let aux_bundle = *bundle.clone();
             
-            let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream) {
+            let received_blocks = match get_blocks_from_bundle(*bundle, &mut stream, &logger) {
                 Ok(blocks) => blocks,
                 Err(error) => {
-                        // handlear el send.
-                        if missed_bundles_sender.send(Box::new(aux_bundle)).is_err(){
-                            //log 
+                        if let Err(error) = missed_bundles_sender.send(Box::new(aux_bundle)){
+                            logger.log(format!("Worker {id} failed: {:?}", error));
                         }
+                        
                         if let BlockDownloaderError::BundleNotFound = error{
+                            logger.log(format!("Worker {id} did not find bundle"));
                             continue;
-                        } else{
+                        }else{
+                            logger.log(format!("Worker {id} failed: {:?}", error));
                             return false;
                         }
                 }
@@ -72,10 +81,14 @@ impl Worker {
                         block_chain.push(block);
                     }
                 },
-                Err(_) => {
-                    let _ = missed_bundles_sender.send(Box::new(aux_bundle));
-                        return false;
-                    }
+                Err(error) => {
+                    if let Err(error) = missed_bundles_sender.send(Box::new(aux_bundle)){
+                        logger.log(format!("Worker {id} failed: {:?}", error));
+                    };
+
+                    logger.log(format!("Worker {id} failed: {:?}", error));
+                    return false;
+                }
             };
         });
         
@@ -103,34 +116,20 @@ impl Worker {
 
 //=====================================================================================
 
-
-#[derive(Debug)]
-/// Enum that contains the possible errors that can occur when running the thread pool.
-pub enum BlockDownloaderError {
-    ErrorInvalidCreationSize,
-    ErrorSendingToThread,
-    ErrorReceivingBlockMessage,
-    ErrorSendingMessageBlockDownloader,
-    ErrorCreatingWorker,
-    ErrorWrokerPaniced,
-    ErrorValidatingBlock,
-    ErrorReceivingNotFoundMessage,
-    BundleNotFound,
-    ErrorAllWorkersFailed,
-}
-
 #[derive(Debug)]
 /// Struct that represents a thread pool.
 pub struct BlockDownloader{
     workers: Vec<Worker>,
     sender: mpsc::Sender<Bundle>,
     missed_bundles_receiver: mpsc::Receiver<Bundle>,
+    logger: Logger,
 }
 
 impl BlockDownloader{
+
     /// Creates a new thread pool with the specified size, it must be greater than zero.
-    pub fn new(out_bound_connections : &Vec<TcpStream>, block_chain :&Arc<Mutex<Vec<Block>>>) -> Result<BlockDownloader, BlockDownloaderError>{
-        let connections_ammount = out_bound_connections.len();
+    pub fn new(outbound_connections: &Vec<TcpStream>, header_stream_index: usize, block_chain :&Arc<Mutex<Vec<Block>>>, logger: Logger) -> Result<BlockDownloader, BlockDownloaderError>{
+        let connections_ammount = outbound_connections.len();
         if connections_ammount == 0{
             return Err(BlockDownloaderError::ErrorInvalidCreationSize);
         }   
@@ -140,16 +139,30 @@ impl BlockDownloader{
         
         let receiver = Arc::new(Mutex::new(receiver));
         let mut workers = Vec::with_capacity(connections_ammount);
+        
         //No tomamos el primer tcpStream, porque se usa para descargar headers.
-        for id in 1..connections_ammount {
-            let current_stream = match out_bound_connections[id].try_clone(){
+        for id in 0..connections_ammount {
+            if id == header_stream_index{
+                continue;
+            }
+            
+            let current_stream = match outbound_connections[id].try_clone(){
                 Ok(stream) => stream,
-                Err(_) => return Err(BlockDownloaderError::ErrorCreatingWorker),
+                Err(_) => {
+                    logger.log_error(&BlockDownloaderError::ErrorCreatingWorker);
+                    continue;
+                },
             };
-            let worker = Worker::new(id, receiver.clone(), current_stream, block_chain.clone(), missed_bundles_sender.clone())?;
-            workers.push(worker); // la que estaba en The Rust Book es Arc::clone(&receiver)
+
+            let new_worker = Worker::new(id, receiver.clone(), current_stream, block_chain.clone(), missed_bundles_sender.clone(), logger.clone());
+            
+            match new_worker{
+                Ok(worker) => workers.push(worker),
+                Err(_) => logger.log_error(&BlockDownloaderError::ErrorCreatingWorker),
+            };
         }
-        Ok(BlockDownloader {workers, sender, missed_bundles_receiver})
+
+        Ok(BlockDownloader {workers, sender, missed_bundles_receiver, logger})
     }
     
     ///Receives a function or closure that receives no parameters and executes them in a diferent thread using workers.x
@@ -161,8 +174,7 @@ impl BlockDownloader{
 
         match self.sender.send(box_bundle){
             Ok(_) => Ok(()),
-            Err(_err) => {
-                return Err(BlockDownloaderError::ErrorSendingToThread);},
+            Err(_err) => Err(BlockDownloaderError::ErrorSendingToThread),
         }
     }
 
@@ -174,12 +186,11 @@ impl BlockDownloader{
         for _ in 0..cantidad_workers{
             let end_of_channel :Vec<[u8;32]> = Vec::new();
             if self.sender.send(Box::new(end_of_channel)).is_err(){
-                println!("Falló en el envio al end of channel\n");
+                self.logger.log(format!("Falló en el envio al end of channel"));
                 return Err(BlockDownloaderError::ErrorSendingToThread);
             }
 
             while let Ok(bundle) = self.missed_bundles_receiver.try_recv(){
-                //println!("represoesar {:?}", *bundle);
                 self.download_block_bundle(*bundle)?;
             }
             
@@ -205,20 +216,21 @@ impl BlockDownloader{
         };
 
         while let Ok(bundle) = self.missed_bundles_receiver.try_recv(){
-            get_blocks_from_bundle(*bundle, &mut stream)?;
+            get_blocks_from_bundle(*bundle, &mut stream, &self.logger)?;
         }
         
         Ok(())
     }
-
 }
 
 ///Receives a TcpStream and gets the blocks from the stream, returning a BlockMessage.
-fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDownloaderError>{
+fn receive_block_message(stream: &mut TcpStream, logger: &Logger) -> Result<BlockMessage, BlockDownloaderError>{
     let block_msg_h = match receive_message_header(stream){
         Ok(msg_h) => msg_h,
         Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
     };
+
+    logger.log(block_msg_h.get_command_name());
 
     let mut msg_bytes = vec![0; block_msg_h.get_payload_size() as usize];
     match stream.read_exact(&mut msg_bytes) {
@@ -233,19 +245,11 @@ fn receive_block_message(stream: &mut TcpStream) -> Result<BlockMessage, BlockDo
                 Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
             }
         },
-        "notfound\0\0\0\0" =>{
-            let not_found_msg = match NotFoundMessage::from_bytes(&mut msg_bytes){
-                Ok(block_msg) => block_msg,
-                Err(_) => return Err(BlockDownloaderError::ErrorReceivingNotFoundMessage),
-            };
-            
-            return Err(BlockDownloaderError::BundleNotFound);
-        },
-        _ => return receive_block_message(stream),
+        "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
+        _ => return receive_block_message(stream, logger),
     };
 
     Ok(block_msg)
-
 }
 
 /// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
@@ -261,21 +265,21 @@ fn send_get_data_message_for_blocks(hashes :Vec<[u8; 32]>, stream: &mut TcpStrea
 }
 
 /// Receives a vector of block hashes and a TcpStream, and returns a vector of blocks that were requested to the stream
-pub fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut TcpStream)-> Result<Vec<Block>, BlockDownloaderError>{
+pub fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut TcpStream, logger: &Logger)-> Result<Vec<Block>, BlockDownloaderError>{
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     let mut blocks :Vec<Block> = Vec::new();
     for _ in 0..amount_of_hashes{
-        let received_message = receive_block_message(stream)?;
+        let received_message = receive_block_message(stream, logger)?;
         if validate_proof_of_work(&received_message.block.get_header()){
             if validate_proof_of_inclusion(&received_message.block){
                 blocks.push(received_message.block);
             }else{
-                println!("\n\nfallos proof of inclusion\n\n");
+                logger.log(String::from("A block failed proof of inclusion"));
                 return Err(BlockDownloaderError::ErrorValidatingBlock);
             }
         }else{
-            println!("\n\nfallos proof of work\n\n");
+            logger.log(String::from("A block failed proof of work"));
             return Err(BlockDownloaderError::ErrorValidatingBlock);
         }
         
@@ -283,3 +287,5 @@ pub fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut
     
     Ok(blocks)
 }
+
+
