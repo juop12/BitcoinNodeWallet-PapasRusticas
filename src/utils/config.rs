@@ -109,7 +109,7 @@ fn _open_config_handler(path: &str) -> Result<File, ConfigError> {
     }
 }
 
-/// -
+/// It receives a string representing a date and returns its timestamp at 00:00:00 in case of success, None otherwise.
 fn parse_date(line: &str) -> Option<u32>{
     let complete_date = format!("{}T00:00:00Z", line);
 

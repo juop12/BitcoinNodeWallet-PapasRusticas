@@ -1,5 +1,5 @@
 
-/// Enum that represents the possible errors that can occur when creating a VarLenInt
+/// Enum that represents the possible errors that can occur when creating a VarLenInt.
 pub enum VarLenIntError {
     ErrorIncorrectAmountOfBytes,
 }
@@ -12,7 +12,7 @@ pub struct VarLenInt{
 }
 
 impl VarLenInt{
-    /// -
+    /// Creates a new VarLenInt from a usize.
     pub fn new(value :usize) -> VarLenInt {
         let mut bytes = Vec::new();
         if value < 253 {
@@ -32,7 +32,7 @@ impl VarLenInt{
         VarLenInt { bytes }
     }
 
-    /// -
+    /// Creates a new VarLenInt from a slice of bytes.
     pub fn from_bytes(slice : &[u8])-> VarLenInt{
         let mut bytes = Vec::new();
         let mut amount_of_bytes = 1;
@@ -51,7 +51,7 @@ impl VarLenInt{
         VarLenInt{ bytes }
     }
 
-    /// -
+    /// Returns the value of the VarLenInt as a usize.
     pub fn to_usize(&self)->usize{
         let mut value :usize = self.bytes[0] as usize;
         
@@ -77,12 +77,12 @@ impl VarLenInt{
         return value;
     }
 
-    /// -
+    /// Returns the bytes of the VarLenInt as a vector of u8.
     pub fn to_bytes(&self)-> Vec<u8>{
         self.bytes.clone()
     }
 
-    /// -
+    /// Returns the amount of bytes of the VarLenInt.
     pub fn amount_of_bytes(&self)->usize{
         self.bytes.len()
     }

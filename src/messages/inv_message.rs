@@ -3,6 +3,7 @@ use super::message_trait::*;
 
 
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
+const INVENTORY_ENTRY_SIZE: usize = 36;
 
 
 /// -
@@ -34,24 +35,26 @@ impl Message for InvMessage{
         bytes_vector
     }
 
+    /// -
+    // Creé una constante nueva para evitar números mágicos
     /// Creates the coresponding message, using a slice of bytes, 
-    /// wich must be of the correct size, otherwise an error will be returned.
+    /// which must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError>{
         let count = VarLenInt::from_bytes(&slice);
 
-        if (count.to_usize() * 36 + count.amount_of_bytes()) != slice.len(){
+        if (count.to_usize() * INVENTORY_ENTRY_SIZE + count.amount_of_bytes()) != slice.len(){
             return Err(MessageError::ErrorCreatingInvMessage)
         }
 
         let mut inventory: Vec<Entry> = Vec::new();
         let mut i = count.amount_of_bytes();
         while i < slice.len(){
-            let aux: [u8;36] = match slice[(i)..(i + 36)].try_into(){
+            let aux: [u8;INVENTORY_ENTRY_SIZE] = match slice[(i)..(i + INVENTORY_ENTRY_SIZE)].try_into(){
                 Ok(array) => array,
                 Err(_) => return Err(MessageError::ErrorCreatingInvMessage),
             };
             inventory.push(Entry::from_bytes(aux)?);
-            i += 36;
+            i += INVENTORY_ENTRY_SIZE;
         }
 
         Ok(InvMessage{
@@ -60,14 +63,14 @@ impl Message for InvMessage{
         })
     }
 
-    /// Gets the header message corresponding to the corresponding message
+    /// Gets the header message corresponding to the corresponding message.
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
         HeaderMessage::new("inv\0\0\0\0\0\0\0\0\0", &self.to_bytes())
     }
 }
 
 impl InvMessage{
-    /// -
+    /// Creates a new InvMessage.
     fn new(inventory: Vec<Entry>) -> InvMessage{
         InvMessage{
                 count: VarLenInt::new(inventory.len()),
@@ -75,7 +78,7 @@ impl InvMessage{
         }
     }
 
-    /// -
+    /// Creates a new InvMessage with the given block hashes.
     pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8;32]>) -> InvMessage{
         let mut inventory: Vec<Entry> = Vec::new();
         for hash in inventory_entries{
@@ -97,19 +100,19 @@ impl InvMessage{
 }
 
 impl Entry{
-    /// -
+    /// Returns a new entry with a block identifier and the given hash.
     fn as_block_entry(hash: [u8;32]) -> Entry{
         Entry{ inv_type: BLOCK_IDENTIFIER, hash }
     }
 
-    /// -
+    /// Returns the bytes of the entry.
     fn to_bytes(&self)-> Vec<u8>{
         let mut bytes = Vec::from(self.inv_type);
         bytes.extend(self.hash);
         bytes
     }
 
-    /// -
+    /// Creates a new entry from the given bytes.
     fn from_bytes(bytes: [u8;36])-> Result<Entry, MessageError>{
         let inv_type: [u8;4] = match bytes[0..4].try_into(){
             Ok(array) => array,
@@ -122,7 +125,7 @@ impl Entry{
         Ok(Entry{ inv_type, hash})
     }
 
-    /// -
+    /// Returns true if the entry is a block type.
     fn is_block_type(&self)-> bool{
         self.inv_type == BLOCK_IDENTIFIER
     }

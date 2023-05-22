@@ -127,7 +127,7 @@ impl Node {
         Ok(())
     }
 
-    /// -
+    /// Loads the blocks and headers from disk. On error returns NodeError
     pub fn load_blocks_and_headers(&mut self)->Result<(), NodeError>{
         let headers = match self.data_handler.get_all_headers(){
             Ok(headers) => headers,

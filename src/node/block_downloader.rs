@@ -107,7 +107,7 @@ impl Worker {
         }
     }
 
-    /// -
+    /// Returns true if the thread has finished its execution.
     fn is_finished(&self)->bool{
         self.thread.is_finished()
     }

@@ -74,7 +74,7 @@ impl Message for VersionMessage {
         }
     }
 
-    /// -
+    /// Returns a HeaderMessage with the command "version" and the payload of the VersionMessage
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError> {
         HeaderMessage::new("version\0\0\0\0\0", &self.to_bytes())
     }

@@ -111,7 +111,7 @@ impl Node {
         &self.tcp_streams
     }
 
-    /// -
+    /// Returns a reference to the blockchain HashMap. The key is the block hash and the value is the block.
     pub fn get_blockchain(&self) -> &HashMap<[u8; 32], Block>{
         &self.blockchain
     }
@@ -138,7 +138,7 @@ impl Node {
                 }
             },
             "block\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
-            "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes, stream_index)?,
+            "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes)?,
             _ => {},
         };
 

@@ -44,7 +44,7 @@ impl Message for BlockHeadersMessage{
 
 impl BlockHeadersMessage{
 
-    /// -
+    /// Creates a new BlockHeadersMessage.
     pub fn new(headers: Vec<BlockHeader>, count: VarLenInt) -> BlockHeadersMessage{
         BlockHeadersMessage{
             count,
@@ -52,7 +52,7 @@ impl BlockHeadersMessage{
         }
     }
 
-    /// -
+    /// Creates a new BlockHeadersMessage from a slice of bytes.
     fn _from_bytes(slice: &[u8]) -> Option<BlockHeadersMessage> {
         let count = VarLenInt::from_bytes(slice);
         

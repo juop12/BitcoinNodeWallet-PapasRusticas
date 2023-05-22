@@ -25,7 +25,7 @@ impl Message for GetDataMessage{
         Ok(GetDataMessage{inv})
     }
 
-    /// Gets the header message corresponding to the corresponding message
+    /// Gets the header message corresponding to the corresponding message.
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
         HeaderMessage::new("getdata\0\0\0\0\0", &self.to_bytes())
     }
