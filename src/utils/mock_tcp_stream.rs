@@ -1,6 +1,5 @@
 use std::io::{self, Read, Write};
 
-
 /// Has both read and write buffers to test if the messages are correctly sent
 pub struct MockTcpStream {
     pub read_buffer: Vec<u8>,
@@ -14,6 +13,12 @@ impl MockTcpStream {
             read_buffer: Vec::new(),
             write_buffer: Vec::new(),
         }
+    }
+}
+
+impl Default for MockTcpStream {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

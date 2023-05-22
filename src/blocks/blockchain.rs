@@ -1,18 +1,13 @@
 use crate::{
     blocks::transaction::*,
-    utils::{
-        variable_length_integer::VarLenInt,
-        btc_errors::BlockChainError,
-    }
+    utils::{btc_errors::BlockChainError, variable_length_integer::VarLenInt},
 };
 
 use bitcoin_hashes::{sha256d, Hash};
-use rand::prelude::*;
 use chrono::Utc;
+use rand::prelude::*;
 
-
-const BLOCKHEADER_SIZE: usize = 80; 
-
+const BLOCKHEADER_SIZE: usize = 80;
 
 /// Struct that represents the header of a block
 #[derive(Debug, PartialEq, Clone)]
@@ -33,12 +28,16 @@ pub struct Block {
     transactions: Vec<Transaction>,
 }
 
-impl BlockHeader{
-
+impl BlockHeader {
     /// It creates and returns a BlockHeader with the values passed as parameters.
     /// The time is set to the current time and the nonce is set to a random number.
-    pub fn new(version: i32,prev_hash: [u8; 32],merkle_root_hash: [u8; 32], n_bits: u32) -> BlockHeader {
-        BlockHeader{
+    pub fn new(
+        version: i32,
+        prev_hash: [u8; 32],
+        merkle_root_hash: [u8; 32],
+        n_bits: u32,
+    ) -> BlockHeader {
+        BlockHeader {
             version,
             prev_hash,
             merkle_root_hash,
@@ -74,7 +73,6 @@ impl BlockHeader{
 
     /// It creates and returns a BlockHeader from a slice of bytes.
     fn _from_bytes(slice: &[u8]) -> Option<BlockHeader> {
-
         let version = i32::from_le_bytes(slice[0..4].try_into().ok()?);
         let prev_hash = slice[4..36].try_into().ok()?;
         let merkle_root_hash = slice[36..68].try_into().ok()?;
@@ -93,7 +91,7 @@ impl BlockHeader{
     }
 
     /// It returns the hash of the BlockHeader.
-    pub fn hash(&self) -> [u8;32]{
+    pub fn hash(&self) -> [u8; 32] {
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
 
@@ -103,29 +101,32 @@ impl BlockHeader{
     }
 
     /// It returns the time when the BlockHeader was created.    
-    pub fn time(&self) -> u32{
-        self.time.clone()
+    pub fn time(&self) -> u32 {
+        self.time
     }
 
     /// It returns the merkle root hash of the BlockHeader.
-    pub fn get_merkle_root(&self)->&[u8;32]{
+    pub fn get_merkle_root(&self) -> &[u8; 32] {
         &self.merkle_root_hash
     }
 }
 
-impl Block{
-
+impl Block {
     /// It creates and returns a Block with the values passed as parameters.
-    pub fn new(header :BlockHeader, transactions: Vec<Transaction>)-> Block{
+    pub fn new(header: BlockHeader, transactions: Vec<Transaction>) -> Block {
         let transaction_count = VarLenInt::new(transactions.len());
-        Block { header, transaction_count, transactions }
+        Block {
+            header,
+            transaction_count,
+            transactions,
+        }
     }
 
     /// It returns the Block as a slice of bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = self.header.to_bytes();
         bytes_vector.extend_from_slice(&self.transaction_count.to_bytes());
-        for transaction in &self.transactions{
+        for transaction in &self.transactions {
             bytes_vector.extend_from_slice(&transaction.to_bytes());
         }
         bytes_vector
@@ -145,30 +146,30 @@ impl Block{
 
     /// It creates and returns a Block from a slice of bytes.
     fn _from_bytes(slice: &[u8]) -> Option<Block> {
-
         let (header_bytes, slice) = slice.split_at(BLOCKHEADER_SIZE);
         let header = BlockHeader::from_bytes(header_bytes).ok()?;
         let transaction_count = VarLenInt::from_bytes(slice);
-        let (mut _used_bytes ,left_transactions) = slice.split_at(transaction_count.amount_of_bytes());
+        let (mut _used_bytes, left_transactions) =
+            slice.split_at(transaction_count.amount_of_bytes());
 
         let mut transactions = Vec::new();
-        
+
         let mut i = 0;
         while i < left_transactions.len() {
             let transaction = Transaction::from_bytes(&left_transactions[i..]).ok()?;
-            i+= transaction.ammount_of_bytes();
+            i += transaction.ammount_of_bytes();
             transactions.push(transaction);
         }
 
         Some(Block {
             header,
-            transaction_count, 
+            transaction_count,
             transactions,
         })
-    } 
+    }
 
     /// It returns the time when the Block was created.
-    pub fn time(&self) -> u32{
+    pub fn time(&self) -> u32 {
         self.header.time()
     }
 
@@ -187,12 +188,11 @@ impl Block{
 mod tests {
     use super::*;
     use bitcoin_hashes::{sha256d, Hash};
-    
 
     // Auxiliar functions
     //=================================================================
 
-    fn block_header_expected_bytes() -> Vec<u8>{
+    fn block_header_expected_bytes() -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&(70015 as i32).to_le_bytes());
         bytes_vector.extend_from_slice(sha256d::Hash::hash(b"test").as_byte_array());
@@ -203,8 +203,8 @@ mod tests {
         bytes_vector
     }
 
-    fn block_expected_bytes()->Vec<u8>{
-        let mut expected_bytes =  block_header_expected_bytes();
+    fn block_expected_bytes() -> Vec<u8> {
+        let mut expected_bytes = block_header_expected_bytes();
         expected_bytes.push(2);
         //temporal hasta que definiamos que son las transacciones
         let t1 = Transaction::new(70015, Vec::new(), Vec::new(), 123);
@@ -218,9 +218,9 @@ mod tests {
     //=================================================================
 
     #[test]
-    fn test_blockheader_1_to_bytes(){
-        let block_header = BlockHeader{
-            version: 70015, 
+    fn test_blockheader_1_to_bytes() {
+        let block_header = BlockHeader {
+            version: 70015,
             prev_hash: *sha256d::Hash::hash(b"test").as_byte_array(),
             merkle_root_hash: *sha256d::Hash::hash(b"test merkle root").as_byte_array(),
             time: 0,
@@ -232,19 +232,17 @@ mod tests {
     }
 
     #[test]
-    fn test_blockheader_2_from_bytes(){
+    fn test_blockheader_2_from_bytes() {
         let mut block_header_bytes = block_header_expected_bytes();
         let block_header = BlockHeader::from_bytes(&mut block_header_bytes).unwrap();
 
         assert_eq!(block_header.to_bytes(), block_header_bytes);
-
     }
 
-    
     #[test]
-    fn test_block_1_to_bytes(){
-        let header = BlockHeader{
-            version: 70015, 
+    fn test_block_1_to_bytes() {
+        let header = BlockHeader {
+            version: 70015,
             prev_hash: *sha256d::Hash::hash(b"test").as_byte_array(),
             merkle_root_hash: *sha256d::Hash::hash(b"test merkle root").as_byte_array(),
             time: 0,
@@ -254,10 +252,8 @@ mod tests {
         let transaction_count = VarLenInt::new(2);
         let t1 = Transaction::new(70015, Vec::new(), Vec::new(), 123);
         let t2 = Transaction::new(70015, Vec::new(), Vec::new(), 123);
-        
-        
 
-        let block =Block{
+        let block = Block {
             header,
             transaction_count,
             transactions: vec![t1, t2],
@@ -267,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn test_block2_from_bytes(){
+    fn test_block2_from_bytes() {
         let mut expected_block_bytes = block_expected_bytes();
         let block_header = Block::from_bytes(&mut expected_block_bytes).unwrap();
 

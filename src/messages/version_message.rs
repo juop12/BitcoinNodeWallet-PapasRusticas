@@ -1,13 +1,11 @@
-use crate::utils::variable_length_integer::VarLenInt;
-use std::net::{IpAddr, SocketAddr};
 use super::message_trait::*;
-use rand::prelude::*;
+use crate::utils::variable_length_integer::VarLenInt;
 use chrono::Utc;
-
+use rand::prelude::*;
+use std::net::{IpAddr, SocketAddr};
 
 const NODE_NETWORK: u64 = 0x01;
 const MINIMAL_VERSION_MESSAGE_SIZE: usize = 86;
-
 
 /// Contains all necessary fields, for sending a version message needed for doing a handshake among nodes
 #[derive(Debug, PartialEq)]
@@ -78,7 +76,6 @@ impl Message for VersionMessage {
 }
 
 impl VersionMessage {
-
     /// Constructor for the struct VersionMessage, receives a version and a receiver address (which
     /// includes both the ip and port) and returns an instance of a VersionMessage with all its
     /// necesary attributes initialized, the optional ones are left in blank
@@ -122,7 +119,7 @@ impl VersionMessage {
     /// returns an Option with either a VersionMessage if everything went Ok or None if any step
     /// in the middle of the conversion from bytes to VersionMessage fields failed.
     fn _from_bytes(slice: &[u8]) -> Option<VersionMessage> {
-        if slice[80..].len() <= 0{
+        if slice[80..].is_empty() {
             return None;
         }
         let user_agent_length = VarLenInt::from_bytes(&slice[80..]);
@@ -152,22 +149,19 @@ impl VersionMessage {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::Ipv4Addr;
     use crate::utils::mock_tcp_stream::MockTcpStream;
-
+    use std::net::Ipv4Addr;
 
     const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
     const LOCAL_PORT: u16 = 1001;
 
-
     // Auxiliar functions
     //=================================================================
 
-    fn create_socket() -> (SocketAddr, SocketAddr){
+    fn create_socket() -> (SocketAddr, SocketAddr) {
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
         let sender_socket = SocketAddr::from((LOCAL_HOST, LOCAL_PORT));
 
@@ -231,10 +225,10 @@ mod tests {
                 version_msg.nonce
             )
         );
-        
+
         Ok(())
     }
-    
+
     #[test]
     fn version_message_test_2_to_bytes_with_user_agent() -> Result<(), MessageError> {
         let mut expected_bytes = version_message_with_user_agent_expected_bytes();
@@ -251,7 +245,7 @@ mod tests {
         let mut stream = MockTcpStream::new();
 
         let (receiver_socket, sender_socket) = create_socket();
-        
+
         let version_msg = VersionMessage::new(70015, receiver_socket, sender_socket)?;
         let hm = version_msg.get_header_message()?;
         let mut expected_result = hm.to_bytes();
@@ -280,9 +274,8 @@ mod tests {
     fn version_message_test_5_from_bytes_with_user_agent() -> Result<(), MessageError> {
         let (receiver_socket, sender_socket) = create_socket();
 
-        let mut expected_version_msg =
-            VersionMessage::new(70015, receiver_socket, sender_socket)?;
-        expected_version_msg.user_agent_length = VarLenInt::from_bytes(&[253,4,0]);
+        let mut expected_version_msg = VersionMessage::new(70015, receiver_socket, sender_socket)?;
+        expected_version_msg.user_agent_length = VarLenInt::from_bytes(&[253, 4, 0]);
         expected_version_msg.user_agent = Vec::from("test");
 
         let version_msg =

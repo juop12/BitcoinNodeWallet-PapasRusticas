@@ -1,8 +1,6 @@
 use crate::node::*;
 
-
 impl Node {
-
     /// Returns a tcp stream representing the conection with the peer, if this fails returns ErrorConnectingToPeer
     fn connect_to_peer(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> {
         match TcpStream::connect(receiving_addrs) {
@@ -45,7 +43,10 @@ impl Node {
     }
 
     /// Receives a message, if it is any other than VersionMessage or VerackMessage it returns ErrorReceivingMessageInHandshake
-    fn handshake_receive_verack_or_version_message<T: Read + Write>(&self,mut stream: T) -> Result<String, NodeError> {
+    fn handshake_receive_verack_or_version_message<T: Read + Write>(
+        &self,
+        mut stream: T,
+    ) -> Result<String, NodeError> {
         let hm = receive_message_header(&mut stream)?;
 
         let mut received_vm_bytes = vec![0; hm.get_payload_size() as usize];
@@ -53,22 +54,22 @@ impl Node {
             Ok(_) => {}
             Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
         };
-        
+
         self.logger.log(hm.get_command_name());
         let cmd_name = hm.get_command_name();
 
-        match cmd_name.as_str(){
-            "version\0\0\0\0\0" => match VersionMessage::from_bytes(&mut received_vm_bytes) {
-                    Ok(_) => Ok(cmd_name),
-                    Err(_) => Err(NodeError::ErrorReceivingMessageInHandshake),
-                },
-            "verack\0\0\0\0\0\0" =>{
-                if hm.get_payload_size() == 0{
+        match cmd_name.as_str() {
+            "version\0\0\0\0\0" => match VersionMessage::from_bytes(&received_vm_bytes) {
+                Ok(_) => Ok(cmd_name),
+                Err(_) => Err(NodeError::ErrorReceivingMessageInHandshake),
+            },
+            "verack\0\0\0\0\0\0" => {
+                if hm.get_payload_size() == 0 {
                     Ok(cmd_name)
-                }else{
+                } else {
                     Err(NodeError::ErrorReceivingMessageInHandshake)
                 }
-            },
+            }
             _ => Err(NodeError::ErrorReceivingMessageInHandshake),
         }
     }
@@ -84,16 +85,15 @@ impl Node {
         let first_msg_name = self.handshake_receive_verack_or_version_message(&tcp_stream)?;
         let second_msg_name = self.handshake_receive_verack_or_version_message(&tcp_stream)?;
 
-        if first_msg_name == second_msg_name{
+        if first_msg_name == second_msg_name {
             return Err(NodeError::ErrorReceivingMessageInHandshake);
         }
 
         self.handshake_send_verack_message(&tcp_stream)?;
-        
+
         Ok(tcp_stream)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -101,12 +101,10 @@ mod tests {
     use crate::utils::mock_tcp_stream::*;
     use bitcoin_hashes::{sha256d, Hash};
 
-
     const VERSION: i32 = 70015;
     const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
-    const LOCAL_PORT: u16 = 1001; 
+    const LOCAL_PORT: u16 = 1001;
     const STARTING_BLOCK_TIME: u32 = 1681084800;
-
 
     // Auxiliar functions
     //=================================================================
@@ -115,7 +113,14 @@ mod tests {
         let stream = MockTcpStream::new();
         let logger = Logger::from_path("test_log.txt").unwrap();
         let data_handler = NodeDataHandler::new().unwrap();
-        let node = Node::_new(VERSION, LOCAL_HOST, LOCAL_PORT, logger, data_handler, STARTING_BLOCK_TIME);
+        let node = Node::_new(
+            VERSION,
+            LOCAL_HOST,
+            LOCAL_PORT,
+            logger,
+            data_handler,
+            STARTING_BLOCK_TIME,
+        );
 
         (stream, node)
     }
@@ -163,7 +168,7 @@ mod tests {
 
     #[test]
     fn handshake_test_2_receive_version_message() -> Result<(), NodeError> {
-        let (mut stream, node) = initiate(); 
+        let (mut stream, node) = initiate();
 
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
         let expected_vm =

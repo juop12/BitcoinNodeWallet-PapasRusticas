@@ -1,13 +1,11 @@
 use std::fmt::Debug;
 
-
 /// All errors that can occur in the project must implement this trait.
-pub trait BtcError: Debug{
-    fn to_string(&self)-> String{
+pub trait BtcError: Debug {
+    fn to_string(&self) -> String {
         format!("Error: {:?}", self)
     }
 }
-
 
 /// Enum that represents the possible errors that can occur while creating or sending a block or its header.
 #[derive(Debug)]
@@ -20,7 +18,6 @@ pub enum BlockChainError {
 
 impl BtcError for BlockChainError {}
 
-
 /// Enum that represents the possible errors that can occur while creating a transaction.
 #[derive(Debug, PartialEq)]
 pub enum TransactionError {
@@ -31,7 +28,6 @@ pub enum TransactionError {
 }
 
 impl BtcError for TransactionError {}
-
 
 /// Error Struct for messages, contains customized errors for each type of message (excluding
 /// VerACKMessage) and to diferenciate whether the error occured while instanciation or in
@@ -57,12 +53,10 @@ pub enum MessageError {
     ErrorSendingPongMessages,
     ErrorCreatingNotFoundMessage,
     ErrorSendingNotFoundMessage,
-    ErrorSendingBlockHeadersMessage
-
+    ErrorSendingBlockHeadersMessage,
 }
 
 impl BtcError for MessageError {}
-
 
 /// Enum that contains the possible errors that can occur when running the block downloader.
 #[derive(Debug)]
@@ -82,7 +76,6 @@ pub enum BlockDownloaderError {
 
 impl BtcError for BlockDownloaderError {}
 
-
 /// Enum that represents the errors that can occur in the NodeDataHandler.
 #[derive(Debug)]
 pub enum NodeDataHandlerError {
@@ -97,10 +90,9 @@ pub enum NodeDataHandlerError {
 
 impl BtcError for NodeDataHandlerError {}
 
-
 /// Struct that represents errors that can occur with the config setup.
 #[derive(Debug)]
-pub enum ConfigError{
+pub enum ConfigError {
     ErrorReadingFile,
     ErrorFillingAttributes,
     ErrorMismatchedFileName,
@@ -110,7 +102,6 @@ pub enum ConfigError{
 }
 
 impl BtcError for ConfigError {}
-
 
 /// Struct that represents the errors that can occur in the Node.
 #[derive(Debug)]

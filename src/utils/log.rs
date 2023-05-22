@@ -1,67 +1,61 @@
-use std::sync::{mpsc, mpsc::Sender};
+use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::fs::File;
+use std::sync::{mpsc, mpsc::Sender};
 use std::thread;
 
 use super::BtcError;
 
-
 /// Struct that represents errors that can occur with the log.
 #[derive(Debug)]
-pub enum LoggerError{
+pub enum LoggerError {
     ErrorOpeningFile,
     ErrorLoggingMessage,
 }
 
 /// This struct has the responsability to write to a file.
 #[derive(Debug, Clone)]
-pub struct Logger{
-    tx: Sender<String>, 
+pub struct Logger {
+    tx: Sender<String>,
 }
 
 impl Logger {
-    
     /// Creates a new logger from a path, on error returns ErrorOpeningFile.
     pub fn from_path(path: &str) -> Result<Logger, LoggerError> {
-
         let mut file = _open_log_handler(path)?;
 
         let (tx, rx) = mpsc::channel();
 
         thread::spawn(move || loop {
-                let received: String = match rx.recv(){
-                    Ok(msg) => msg,
-                    Err(_) => continue,
-                };
+            let received: String = match rx.recv() {
+                Ok(msg) => msg,
+                Err(_) => continue,
+            };
 
-                if let Err(_) = write!(file, "{}\n", received){
-                    continue;
-                };
+            if writeln!(file, "{}", received).is_err() {
+                continue;
+            };
 
-                if let Err(_) = file.flush(){
-                    continue;
-                };
+            if file.flush().is_err() {
+                continue;
+            };
 
-                if received == "stop"{
-                    break;
-                }
+            if received == "stop" {
+                break;
             }
-        );
+        });
 
-        Ok(Logger {
-            tx,
-        })
+        Ok(Logger { tx })
     }
-    
+
     /// Writes an error as text to the log, nothing happens on error.
-    pub fn log_error<T: BtcError>(&self, error: &T){
+    pub fn log_error<T: BtcError>(&self, error: &T) {
         self.log(error.to_string())
     }
 
     /// Writes a text to the log, nothing happens on error.
-    pub fn log(&self, text: String){
-        // no lo handeleamos al error porque si falla el log 
+    pub fn log(&self, text: String) {
+        // no lo handeleamos al error porque si falla el log
         // no queremos cortar la ejecucion del programa principal
         _ = self.tx.send(text);
     }
@@ -69,10 +63,8 @@ impl Logger {
 
 /// A handler for opening the log file in write mode, on error returns ErrorOpeningFile
 fn _open_log_handler(path: &str) -> Result<File, LoggerError> {
-    match OpenOptions::new().create(true).write(true).open(path){
-        Ok(file)=> {
-            Ok(file)
-        },
+    match OpenOptions::new().create(true).write(true).open(path) {
+        Ok(file) => Ok(file),
         Err(_) => Err(LoggerError::ErrorOpeningFile),
     }
 }
