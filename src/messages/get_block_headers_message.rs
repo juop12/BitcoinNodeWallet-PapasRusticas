@@ -12,11 +12,10 @@ pub struct GetBlockHeadersMessage {
 }
 
 impl Message for GetBlockHeadersMessage{
-
     type MessageType = GetBlockHeadersMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingGetBlockHeadersMessage;
 
-    //transforms the message to bytes, usig the p2p bitcoin protocol
+    /// Transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>{
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.version.to_le_bytes());
@@ -31,7 +30,7 @@ impl Message for GetBlockHeadersMessage{
         bytes_vector
     }
 
-    //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
+    /// Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError>{
         if slice.len() <= 0{
             return Err(MessageError::ErrorCreatingGetBlockHeadersMessage);
@@ -44,7 +43,7 @@ impl Message for GetBlockHeadersMessage{
         }
     }
     
-    //Gets the header message corresponding to the corresponding message
+    /// Gets the header message corresponding to the corresponding message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
         HeaderMessage::new("getheaders\0\0", &self.to_bytes())
     }
@@ -52,9 +51,9 @@ impl Message for GetBlockHeadersMessage{
 
 impl GetBlockHeadersMessage{
 
-    /// Rreturns an instance of a GetBlockHeadersMessage
+    /// Returns an instance of a GetBlockHeadersMessage
     pub fn new(version: u32, block_header_hashes: Vec<[u8;32]>, stopping_hash: [u8; 32]) -> GetBlockHeadersMessage{
-        let mut hash_count = VarLenInt::new(block_header_hashes.len());
+        let hash_count = VarLenInt::new(block_header_hashes.len());
         GetBlockHeadersMessage{
             version,
             hash_count, 
@@ -63,8 +62,8 @@ impl GetBlockHeadersMessage{
         }
     }
 
-    /// Receives a slice of bytes and returns a GetBlockHeadersMessage. If anything fails, None
-    /// is returned.
+    /// Receives a slice of bytes and returns a GetBlockHeadersMessage. 
+    /// If anything fails, None is returned.
     fn _from_bytes(slice: &[u8]) -> Option<GetBlockHeadersMessage> {
         
         let hash_count = VarLenInt::from_bytes(&slice[4..]);
@@ -91,6 +90,7 @@ impl GetBlockHeadersMessage{
         })
     }
 }
+
 
 #[cfg(test)]
 mod tests {

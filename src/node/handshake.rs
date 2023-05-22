@@ -1,8 +1,9 @@
 use crate::node::*;
 
+
 impl Node {
 
-    ///Returns a tcp stream representing the conection with the peer, if this fails returns ErrorConnectingToPeer
+    /// Returns a tcp stream representing the conection with the peer, if this fails returns ErrorConnectingToPeer
     fn connect_to_peer(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> {
         match TcpStream::connect(receiving_addrs) {
             Ok(tcp_stream) => Ok(tcp_stream),
@@ -10,7 +11,7 @@ impl Node {
         }
     }
 
-    ///Sends the version message as bytes to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
+    /// Sends the version message as bytes to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
     pub fn handshake_send_version_message<T: Read + Write>(
         &self,
         receiving_addrs: SocketAddr,
@@ -27,7 +28,7 @@ impl Node {
         }
     }
 
-    ///Sends the verack message to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
+    /// Sends the verack message to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
     pub fn handshake_send_verack_message<T: Read + Write>(
         &self,
         mut stream: T,
@@ -44,10 +45,11 @@ impl Node {
     }
 
 
-    ///Reads from the stream first a header message, and then reads as many bytes as tat header indicated. With this latter batch of
-    ///bytes it tries to return a VersionMessage interpreting bytes according to bitcoin protocol. On error returns ErrorReceivingMessageInHandshake
+    /// -
+    /// Reads from the stream first a header message, and then reads as many bytes as tat header indicated. With this latter batch of
+    /// bytes it tries to return a VersionMessage interpreting bytes according to bitcoin protocol. On error returns ErrorReceivingMessageInHandshake
 
-    ///Reads a header from the stream, if that header represents a version_ack_message then returns VerACKMessage.
+    /// Reads a header from the stream, if that header represents a version_ack_message then returns VerACKMessage.
     /// On error returns ErrorSendingMessageInHandshake
     fn handshake_receive_verack_or_version_message<T: Read + Write>(&self,mut stream: T) -> Result<String, NodeError> {
         let hm = receive_message_header(&mut stream)?;
@@ -97,6 +99,7 @@ impl Node {
         Ok(tcp_stream)
     }
 }
+
 
 #[cfg(test)]
 mod tests {

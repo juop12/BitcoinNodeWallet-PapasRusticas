@@ -1,5 +1,6 @@
 use crate::node::*;
 
+
 impl Node {
     
     ///Handles the headers message by hashing the last received header and asking for more headers.

@@ -1,7 +1,6 @@
 use crate::{
     messages::{
         get_data_message::*,
-        not_found_message::*,
         message_trait::Message,
     },
     node::*,
@@ -108,6 +107,7 @@ impl Worker {
         }
     }
 
+    /// -
     fn is_finished(&self)->bool{
         self.thread.is_finished()
     }
@@ -116,8 +116,9 @@ impl Worker {
 
 //=====================================================================================
 
-#[derive(Debug)]
+
 /// Struct that represents a thread pool.
+#[derive(Debug)]
 pub struct BlockDownloader{
     workers: Vec<Worker>,
     sender: mpsc::Sender<Bundle>,
@@ -165,7 +166,7 @@ impl BlockDownloader{
         Ok(BlockDownloader {workers, sender, missed_bundles_receiver, logger})
     }
     
-    ///Receives a function or closure that receives no parameters and executes them in a diferent thread using workers.x
+    /// Receives a function or closure that receives no parameters and executes them in a diferent thread using workers.x
     pub fn download_block_bundle(&self, bundle: Vec<[u8; 32]>) -> Result<(), BlockDownloaderError> {
         if bundle.is_empty(){
             return Ok(());
@@ -178,8 +179,8 @@ impl BlockDownloader{
         }
     }
 
-    ///Writes an empty vector to the channel of the workers, so they can finish their execution. It works as
-    ///a way to stop the threads execution. On error, it returns BlockDownloaderError.
+    /// Writes an empty vector to the channel of the workers, so they can finish their execution. It works as
+    /// a way to stop the threads execution. On error, it returns BlockDownloaderError.
     pub fn finish_downloading(&mut self)->Result<(), BlockDownloaderError>{
         let cantidad_workers = self.workers.len();
         let mut working_peer_conection = None;
@@ -223,7 +224,7 @@ impl BlockDownloader{
     }
 }
 
-///Receives a TcpStream and gets the blocks from the stream, returning a BlockMessage.
+/// Receives a TcpStream and gets the blocks from the stream, returning a BlockMessage.
 fn receive_block_message(stream: &mut TcpStream, logger: &Logger) -> Result<BlockMessage, BlockDownloaderError>{
     let block_msg_h = match receive_message_header(stream){
         Ok(msg_h) => msg_h,
@@ -287,5 +288,3 @@ pub fn get_blocks_from_bundle(requested_block_hashes: Vec<[u8;32]>, stream: &mut
     
     Ok(blocks)
 }
-
-

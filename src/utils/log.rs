@@ -64,7 +64,6 @@ impl Logger {
     pub fn log(&self, text: String){
         self.tx.send(text);
     }
-
 }
 
 /// A handler for opening the log file in write mode, on error returns ErrorOpeningFile
@@ -78,6 +77,7 @@ fn _open_log_handler(path: &str) -> Result<File, LoggerError> {
 }
 
 /* 
+/// -
 #[cfg(test)]
 mod tests {
     use super::*;

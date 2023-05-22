@@ -1,43 +1,29 @@
-use super::message_trait::*;
 use crate::utils::variable_length_integer::VarLenInt;
+use super::message_trait::*;
+
 
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 
+
+/// -
 #[derive(Debug)]
 struct Entry{
     inv_type: [u8;4],
     hash: [u8;32],
 }
 
+/// -
 #[derive(Debug)]
 pub struct InvMessage {
     count: VarLenInt,
     inventory: Vec<Entry>,
 }
 
-impl InvMessage{
-    fn new(inventory: Vec<Entry>) -> InvMessage{
-        InvMessage{
-                count: VarLenInt::new(inventory.len()),
-                inventory,
-        }
-    }
-
-    pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8;32]>) -> InvMessage{
-        let mut inventory: Vec<Entry> = Vec::new();
-        for hash in inventory_entries{
-            inventory.push(Entry::as_block_entry(hash))
-        };
-        Self::new(inventory)
-    }
-}
-
 impl Message for InvMessage{
     type MessageType = InvMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingInvMessage;
-        
 
-    //transforms the message to bytes, usig the p2p bitcoin protocol
+    /// transforms the message to bytes, usig the p2p bitcoin protocol
     fn to_bytes(&self) -> Vec<u8>{
         let mut bytes_vector = Vec::new();
         bytes_vector.extend(&self.count.to_bytes());
@@ -48,7 +34,8 @@ impl Message for InvMessage{
         bytes_vector
     }
 
-    //Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
+    /// Creates the coresponding message, using a slice of bytes, 
+    /// wich must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError>{
         let count = VarLenInt::from_bytes(&slice);
 
@@ -73,13 +60,31 @@ impl Message for InvMessage{
         })
     }
 
-    //Gets the header message corresponding to the corresponding message
+    /// Gets the header message corresponding to the corresponding message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>{
         HeaderMessage::new("inv\0\0\0\0\0\0\0\0\0", &self.to_bytes())
     }
 }
 
 impl InvMessage{
+    /// -
+    fn new(inventory: Vec<Entry>) -> InvMessage{
+        InvMessage{
+                count: VarLenInt::new(inventory.len()),
+                inventory,
+        }
+    }
+
+    /// -
+    pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8;32]>) -> InvMessage{
+        let mut inventory: Vec<Entry> = Vec::new();
+        for hash in inventory_entries{
+            inventory.push(Entry::as_block_entry(hash))
+        };
+        Self::new(inventory)
+    }
+
+    /// -
     pub fn get_block_hashes(&self)-> Vec<[u8;32]>{
         let mut block_hashes: Vec<[u8;32]> = Vec::new();
         for entry in &self.inventory{
@@ -92,16 +97,19 @@ impl InvMessage{
 }
 
 impl Entry{
+    /// -
     fn as_block_entry(hash: [u8;32]) -> Entry{
         Entry{ inv_type: BLOCK_IDENTIFIER, hash }
     }
 
+    /// -
     fn to_bytes(&self)-> Vec<u8>{
         let mut bytes = Vec::from(self.inv_type);
         bytes.extend(self.hash);
         bytes
     }
 
+    /// -
     fn from_bytes(bytes: [u8;36])-> Result<Entry, MessageError>{
         let inv_type: [u8;4] = match bytes[0..4].try_into(){
             Ok(array) => array,
@@ -114,16 +122,22 @@ impl Entry{
         Ok(Entry{ inv_type, hash})
     }
 
+    /// -
     fn is_block_type(&self)-> bool{
         self.inv_type == BLOCK_IDENTIFIER
     }
 }
+
 
 #[cfg(test)]
 mod test{
     use super::*;
     use crate::utils::mock_tcp_stream::MockTcpStream;
     use bitcoin_hashes::{sha256d, Hash};
+
+
+    // Auxiliar functions
+    //=================================================================
 
     fn inv_message_expected_bytes(double_bytes_for_count :bool) -> (Vec<u8>, [u8;32], [u8;32]){
         let hash1 :[u8;32] = *sha256d::Hash::hash(b"test1").as_byte_array();
@@ -141,6 +155,9 @@ mod test{
         (expected_bytes, hash1, hash2)
     }
 
+    // Tests
+    //=================================================================
+
     #[test]
     fn inv_test1_to_bytes() -> Result<(), MessageError> {
             
@@ -156,7 +173,7 @@ mod test{
 
     #[test]
     fn inv_test2_cant_create_from_an_incorrect_ammount_of_bytes(){
-        let (mut expected_bytes, hash1, hash2) = inv_message_expected_bytes(false);
+        let (mut expected_bytes, _hash1, _hash2) = inv_message_expected_bytes(false);
         expected_bytes.push(0);
 
         InvMessage::from_bytes(&mut expected_bytes).unwrap_err();
@@ -164,7 +181,7 @@ mod test{
 
     #[test]
     fn inv_test3_message_is_created_properly_from_correct_amount_of_bytes()->Result<(), MessageError>{
-        let (mut expected_bytes, hash1, hash2) = inv_message_expected_bytes(false);
+        let (mut expected_bytes, _hash1, _hash2) = inv_message_expected_bytes(false);
         let inv_message = InvMessage::from_bytes(&mut expected_bytes)?;
 
         assert_eq!(inv_message.to_bytes(), expected_bytes);
@@ -174,7 +191,7 @@ mod test{
     #[test]
     fn get_block_headers_message_test_4_send_to()-> Result<(), MessageError> {
         let mut stream = MockTcpStream::new();
-        let (mut message_bytes, hash1, hash2) = inv_message_expected_bytes(false);
+        let (mut message_bytes, _hash1, _hash2) = inv_message_expected_bytes(false);
         let inv_message = InvMessage::from_bytes(&mut message_bytes)?;
 
         let inv_hm = inv_message.get_header_message()?;

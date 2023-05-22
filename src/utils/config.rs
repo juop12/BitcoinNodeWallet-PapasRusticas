@@ -1,9 +1,14 @@
-use std::{io::{BufRead, BufReader}, fs::File/* , path::Path */};
-use chrono::{Utc, DateTime};
+use std::{
+    io::{BufRead, BufReader},
+    fs::File
+};
 use super::btc_errors::ConfigError;
+use chrono::{Utc, DateTime};
+
 
 const CONFIG_FILENAME : &str = "nodo.conf";
 const PARAMETER_AMOUNT : usize = 6;
+
 
 /// Struct that represents a node's configuration parameters.
 #[derive(Debug)]
@@ -32,13 +37,6 @@ impl Config{
         if begin_time > (Utc::now().timestamp() as u32){
             return Err(ConfigError::ErrorParsingDate);
         }
-
-        /*
-        let path = Path::new(config_fields[4].as_str());
-        if !path.is_file() {
-            return Err(ConfigError::ErrorMismatchedParameters);
-        }
-        */
 
         Ok(())
     }
@@ -111,6 +109,7 @@ fn _open_config_handler(path: &str) -> Result<File, ConfigError> {
     }
 }
 
+/// -
 fn parse_date(line: &str) -> Option<u32>{
     let complete_date = format!("{}T00:00:00Z", line);
 
@@ -203,21 +202,4 @@ mod tests {
         
         assert!(Config::_from(parameters).is_err());
     }
-
-
-    /*
-    #[test]
-    fn config_test_6_log_file_not_found_from_log_path_parameter_cannot_create_config(){
-        let parameters = vec![
-            "70015".to_string(),
-            "53".to_string(),
-            "34".to_string(),
-            "this should be a u16".to_string(),
-            "src/node_log.txt".to_string(),
-            BEGIN_TIME.to_string(),
-        ];
-        
-        assert!(Config::_from(parameters).is_err());
-    }
-    */
 }

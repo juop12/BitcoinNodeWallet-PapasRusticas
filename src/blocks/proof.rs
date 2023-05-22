@@ -1,7 +1,8 @@
-use crate::blocks::blockchain::*;
 use bitcoin_hashes::{sha256d, Hash};
+use crate::blocks::blockchain::*;
 
 
+/// -
 /// Gets the target threshold of the n_bits specified, in order to 
 fn get_target_threshold(n_bits: u32) -> [u8;32] {
     let n_bits_bytes = n_bits.to_le_bytes();
@@ -37,7 +38,8 @@ pub fn validate_proof_of_work(block_header: &BlockHeader) -> bool {
     true
 }
 
-fn hash_pairs_for_merle_tree(hash_1: [u8; 32], hash_2: [u8;32]) -> [u8;32]{
+/// -
+fn hash_pairs_for_merkle_tree(hash_1: [u8; 32], hash_2: [u8;32]) -> [u8;32]{
     let mut total_hash: Vec<u8> = Vec::from(hash_1);
     total_hash.extend(hash_2);
 
@@ -45,6 +47,7 @@ fn hash_pairs_for_merle_tree(hash_1: [u8; 32], hash_2: [u8;32]) -> [u8;32]{
     new_hash.to_byte_array()
 }
 
+/// -
 fn calculate_merkle_tree_level(mut hash_vector: Vec<[u8; 32]>) -> [u8; 32]{
     if hash_vector.len() == 1 {
         return hash_vector[0]
@@ -55,12 +58,13 @@ fn calculate_merkle_tree_level(mut hash_vector: Vec<[u8; 32]>) -> [u8; 32]{
     }
     let mut new_hash_vector = Vec::new();
     for i in 0..hash_vector.len() / 2{
-        let new_hash = hash_pairs_for_merle_tree(hash_vector[2 * i], hash_vector[2*i + 1]);
+        let new_hash = hash_pairs_for_merkle_tree(hash_vector[2 * i], hash_vector[2*i + 1]);
         new_hash_vector.push(new_hash);
     }
     return calculate_merkle_tree_level(new_hash_vector);
 }
 
+/// -
 pub fn validate_proof_of_inclusion(block: &Block)->bool{
     let transactions = block.get_transactions();
     if transactions.len() == 0{
@@ -74,6 +78,7 @@ pub fn validate_proof_of_inclusion(block: &Block)->bool{
     let header_merkle_root = *block.get_header().get_merkle_root();
     calculated_merkle_tree == header_merkle_root
 }
+
 
 #[cfg(test)]
 mod test {
@@ -90,6 +95,7 @@ mod test {
     ];
 
 
+    /// -
     // Doing the proof of work test with a valid block header created by us is nearly impossible, because we can 
     // not create a valid block header without knowing the nonce, which is the value generated randomly.
     // The only test here checks if the proof of work is not valid

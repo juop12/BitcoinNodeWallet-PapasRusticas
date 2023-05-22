@@ -79,6 +79,7 @@ impl Outpoint{
 }
 
 impl TxOut {
+    /// -
     pub fn new(value: i64, pk_script: Vec<u8>) -> TxOut {
         let pk_script_length = VarLenInt::new(pk_script.len());
         TxOut {
@@ -88,7 +89,7 @@ impl TxOut {
         }
     }
 
-    ///Returns the contents of Outpoint as a bytes vecotr
+    /// Returns the contents of Outpoint as a bytes vecotr
     fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.value.to_le_bytes());
@@ -120,6 +121,7 @@ impl TxOut {
         })
     }
 
+    /// -
     fn amount_of_bytes(&self) -> usize{
         self.to_bytes().len()
     }
@@ -182,6 +184,7 @@ impl TxIn{
         self.to_bytes().len()
     }
 
+    /// -
     pub fn previous_output(&self) -> &Outpoint{
         &self.previous_output
     }
@@ -264,6 +267,7 @@ impl Transaction {
         })
     }
 
+    /// -
     pub fn ammount_of_bytes(&self) -> usize{
         self.to_bytes().len()
     }

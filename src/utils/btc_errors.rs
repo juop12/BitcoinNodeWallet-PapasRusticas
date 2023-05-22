@@ -1,12 +1,15 @@
 use std::fmt::Debug;
 
 
+/// -
 pub trait BtcError: Debug{
     fn to_string(&self)-> String{
         format!("Error: {:?}", self)
     }
 }
 
+
+/// -
 #[derive(Debug)]
 pub enum BlockChainError {
     ErrorCreatingBlock,
@@ -16,6 +19,7 @@ pub enum BlockChainError {
 }
 
 impl BtcError for BlockChainError {}
+
 
 /// Enum that represents the possible errors that can occur while creating a transaction
 #[derive(Debug, PartialEq)]
@@ -27,6 +31,7 @@ pub enum TransactionError {
 }
 
 impl BtcError for TransactionError {}
+
 
 /// Error Struct for messages, contains customized errors for each type of message (excluding
 /// VerACKMessage) and to diferenciate whether the error occured while instanciation or in
@@ -58,6 +63,8 @@ pub enum MessageError {
 
 impl BtcError for MessageError {}
 
+
+/// -
 #[derive(Debug)]
 /// Enum that contains the possible errors that can occur when running the block downloader.
 pub enum BlockDownloaderError {
@@ -76,6 +83,7 @@ pub enum BlockDownloaderError {
 
 impl BtcError for BlockDownloaderError {}
 
+
 /// Enum that represents the errors that can occur in the NodeDataHandler
 #[derive(Debug)]
 pub enum NodeDataHandlerError {
@@ -90,6 +98,7 @@ pub enum NodeDataHandlerError {
 
 impl BtcError for NodeDataHandlerError {}
 
+
 /// Struct that represents errors that can occur with the config setup.
 #[derive(Debug)]
 pub enum ConfigError{
@@ -102,6 +111,7 @@ pub enum ConfigError{
 }
 
 impl BtcError for ConfigError {}
+
 
 /// Struct that represents the errors that can occur in the Node
 #[derive(Debug)]

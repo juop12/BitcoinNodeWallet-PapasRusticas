@@ -2,6 +2,7 @@ pub use crate::utils::btc_errors::MessageError;
 pub use std::io::{Read, Write};
 pub use super::HeaderMessage;
 
+
 pub trait Message {
     type MessageType;
     const SENDING_ERROR: MessageError;

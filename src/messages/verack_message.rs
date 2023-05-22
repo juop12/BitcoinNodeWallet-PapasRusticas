@@ -1,9 +1,6 @@
 use super::message_trait::*;
 
 
-const VERACK_MSG_NAME: &str = "verack\0\0\0\0\0\0";
-
-
 /// Message used to acknoledge 2 nodes have sent Version Messages.
 #[derive(Debug, PartialEq)]
 pub struct VerACKMessage {}
@@ -27,7 +24,7 @@ impl Message for VerACKMessage {
 
     /// Returns a copy of the header message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError> {
-        HeaderMessage::new(VERACK_MSG_NAME, &self.to_bytes())
+        HeaderMessage::new("verack\0\0\0\0\0\0", &self.to_bytes())
     }
 }
 

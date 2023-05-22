@@ -111,22 +111,23 @@ impl Node {
         &self.tcp_streams
     }
 
+    /// -
     pub fn get_blockchain(&self) -> &HashMap<[u8; 32], Block>{
         &self.blockchain
     }
-            
-    ///Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
+
+    /// Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
     fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
         let mut stream = &self.tcp_streams[stream_index];
         let block_headers_msg_h = receive_message_header(&mut stream)?;
         
+        //p
         println!("\nrecibi {}", block_headers_msg_h.get_command_name());
         self.logger.log(block_headers_msg_h.get_command_name());
         
         let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
-        match stream.read_exact(&mut msg_bytes) {
-            Err(_) => return Err(NodeError::ErrorReceivingMessage),
-            Ok(_) => {}
+        if let Err(_) = stream.read_exact(&mut msg_bytes){
+            return Err(NodeError::ErrorReceivingMessage);
         }
 
         match block_headers_msg_h.get_command_name().as_str(){
@@ -144,19 +145,31 @@ impl Node {
         Ok(block_headers_msg_h.get_command_name())
     }
 
-    pub fn run(&mut self){
+    /// -
+    /// Central function that contains the node's information flow.
+    pub fn run(&mut self) -> Result<(), NodeError>{   
+
+        match self.initial_block_download(){
+            Ok(_) => self.logger.log(String::from("IBD completed successfully")),
+            Err(error) => {
+                self.logger.log_error(&error);
+                return Err(error);
+            },
+        };
+
+        self.create_utxo_set();
+
         loop{
-            for i in 0..self.tcp_streams.len(){
-                match self.receive_message(i,false){
-                    Ok(command_name) => println!("Received message with command name: {}", command_name),
-                    Err(_) => {},
+            for index in 0..self.tcp_streams.len(){
+                if let Err(error) = self.receive_message(index,false){
+                    self.logger.log_error(&error);
                 }
             }
         }
     }
 }
 
-///Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
+/// Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
 /// On error returns ErrorReceivingMessage
 pub fn receive_message_header<T: Read + Write>(stream: &mut T,) -> Result<HeaderMessage, NodeError> {
     let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
@@ -172,17 +185,16 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T,) -> Result<Header
 }
 
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::utils::mock_tcp_stream::*;
 
 
-    const VERSION: i32 = 70015;
-    const DNS_PORT: u16 = 18333;
     const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
     const LOCAL_PORT: u16 = 1001; 
+    const DNS_PORT: u16 = 18333;
+    const VERSION: i32 = 70015;
 
 
     #[test]

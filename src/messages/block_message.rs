@@ -3,6 +3,7 @@ use super::message_trait::*;
 use crate::messages::*;
 
 
+/// -
 pub struct BlockMessage{
     pub block: Block,
 }
@@ -29,6 +30,7 @@ impl Message for BlockMessage {
         HeaderMessage::new("block", &self.to_bytes())
     }
 }
+
 
 #[cfg(test)]
 mod test{

@@ -66,6 +66,7 @@ fn write_to_file(writer: &mut BufWriter<File>, bytes: &[u8]) -> Result<(), NodeD
     Ok(())
 }
 
+/// -
 fn get_bytes_from_line(line: String)->Result<Vec<u8>, NodeDataHandlerError>{
     let mut bytes: Vec<u8> = Vec::new();
     for byte_str in line.split(",") {
@@ -121,6 +122,7 @@ impl NodeDataHandler{
         }
         Ok(headers)
     }
+
     /// Returns a vector with all the blocks stored in the blocks file.
     /// This function is only called once when the node starts, since dealing with
     /// reading and writing on the same file at the same time can produce
@@ -150,19 +152,6 @@ impl NodeDataHandler{
         write_to_file(&mut self.headers_writer, &header_bytes)?;
         Ok(())
     }
-
-    /*
-    ///Receives a vector of headers and saves them in the headers file calling save_header
-    /// for each header.
-    pub fn save_headers(&mut self, headers: &Vec<BlockHeader>, start: usize) -> Result<(), NodeDataHandlerError>{
-        for i in start..headers.len(){
-            let header = &headers[i];
-            self.save_header(header)?;
-        }
- 
-        Ok(())
-    }
-    */
     
     /// Saves the block (as bytes) passed by parameter in the blocks file.
     /// On error returns NodeDataHandlerError
@@ -171,18 +160,6 @@ impl NodeDataHandler{
         write_to_file(&mut self.blocks_writer, &block_bytes)?;
         Ok(())
     }
-
-    /*
-    /// Receives a vector of blocks and saves them in the blocks file calling save_block
-    /// for each block.
-    pub fn save_blocks(&mut self, blocks: &HashMap<[u8; 32], Block>, start: usize) -> Result<(), NodeDataHandlerError>{
-
-        for i in start..blocks.len(){
-            let block = &blocks[i];
-            self.save_block(block)?;
-        }
-        Ok(())
-    }*/
 
     pub fn save_to_disk(&mut self, blocks: &HashMap<[u8; 32], Block>, headers: &Vec<BlockHeader>, start: usize) -> Result<(), NodeDataHandlerError>{
         for i in start..headers.len(){
@@ -196,7 +173,9 @@ impl NodeDataHandler{
         Ok(())
     }
 }
+
 /*
+/// -
 #[cfg(test)]
 
 mod tests{

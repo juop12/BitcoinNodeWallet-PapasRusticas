@@ -1,5 +1,5 @@
-use super::message_trait::*;
 use bitcoin_hashes::{sha256d, Hash};
+use super::message_trait::*;
 
 
 const MESAGE_HEADER_SIZE: usize = 24;
@@ -51,7 +51,7 @@ impl Message for HeaderMessage {
         }
     }
 
-    //Returns a copy of the header message
+    /// Returns a copy of the header message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError> {
         Ok(self.clone())
     }
@@ -72,7 +72,6 @@ impl HeaderMessage {
         
         let mut command_bytes_fixed_size = [0u8; COMMAND_NAME_SIZE];
         command_bytes_fixed_size.copy_from_slice(command_bytes.as_slice());
-        //let payload_size = size_of_val(payload.as_slice()) as u32;
 
         let payload_size: u32 = payload.len() as u32;
 

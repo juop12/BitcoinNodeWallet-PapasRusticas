@@ -1,3 +1,9 @@
+
+/// Enum that represents the possible errors that can occur when creating a VarLenInt
+pub enum VarLenIntError {
+    ErrorIncorrectAmountOfBytes,
+}
+
 /// Struct that represents a variable length integer. This is used in various places to
 /// represent a type of integer that varies it size depending on its value.
 #[derive(Debug, PartialEq)]
@@ -5,12 +11,8 @@ pub struct VarLenInt{
     bytes: Vec<u8>
 }
 
-/// Enum that represents the possible errors that can occur when creating a VarLenInt
-pub enum VarLenIntError {
-    ErrorIncorrectAmountOfBytes,
-}
-
 impl VarLenInt{
+    /// -
     pub fn new(value :usize) -> VarLenInt {
         let mut bytes = Vec::new();
         if value < 253 {
@@ -30,6 +32,7 @@ impl VarLenInt{
         VarLenInt { bytes }
     }
 
+    /// -
     pub fn from_bytes(slice : &[u8])-> VarLenInt{
         let mut bytes = Vec::new();
         let mut amount_of_bytes = 1;
@@ -48,13 +51,10 @@ impl VarLenInt{
         VarLenInt{ bytes }
     }
 
-    pub fn amount_of_bytes(&self)->usize{
-        self.bytes.len()
-    }
-
+    /// -
     pub fn to_usize(&self)->usize{
         let mut value :usize = self.bytes[0] as usize;
-
+        
         if self.bytes[0] == 0xfd {
             let array: [u8; 2] = [self.bytes[1], self.bytes[2]];
             value = u16::from_le_bytes(array) as usize;
@@ -77,7 +77,13 @@ impl VarLenInt{
         return value;
     }
 
+    /// -
     pub fn to_bytes(&self)-> Vec<u8>{
         self.bytes.clone()
+    }
+
+    /// -
+    pub fn amount_of_bytes(&self)->usize{
+        self.bytes.len()
     }
 }

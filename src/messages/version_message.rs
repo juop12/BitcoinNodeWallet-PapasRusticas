@@ -1,11 +1,11 @@
-use super::message_trait::*;
+use crate::utils::variable_length_integer::VarLenInt;
 use std::net::{IpAddr, SocketAddr};
+use super::message_trait::*;
 use rand::prelude::*;
 use chrono::Utc;
-use crate::utils::variable_length_integer::VarLenInt;
+
 
 const NODE_NETWORK: u64 = 0x01;
-const VERSION_MSG_NAME: &str = "version\0\0\0\0\0";
 const MINIMAL_VERSION_MESSAGE_SIZE: usize = 86;
 
 
@@ -28,6 +28,7 @@ pub struct VersionMessage {
     relay: u8,
 }
 
+/// - ???
 //Hacer refactor para que verifique que recibio la cantidad de datos que corresponde. Ya sea chequeandolo aca o devolviendo la cantidad
 
 impl Message for VersionMessage {
@@ -73,12 +74,14 @@ impl Message for VersionMessage {
         }
     }
 
+    /// -
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError> {
-        HeaderMessage::new(VERSION_MSG_NAME, &self.to_bytes())
+        HeaderMessage::new("version\0\0\0\0\0", &self.to_bytes())
     }
 }
 
 impl VersionMessage {
+
     /// Constructor for the struct VersionMessage, receives a version and a receiver address (which
     /// includes both the ip and port) and returns an instance of a VersionMessage with all its
     /// necesary attributes initialized, the optional ones are left in blank
@@ -152,6 +155,7 @@ impl VersionMessage {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -186,7 +190,6 @@ mod tests {
         bytes_vector.extend_from_slice(&LOCAL_PORT.to_be_bytes());
         bytes_vector.extend_from_slice(&rand.to_le_bytes());
         bytes_vector.push(0 as u8);
-        //bytes_vector.extend_from_slice(&self.user_agent);
         bytes_vector.extend_from_slice(&(0 as i32).to_le_bytes());
         bytes_vector.push(0x01);
         bytes_vector
@@ -231,6 +234,7 @@ mod tests {
                 version_msg.nonce
             )
         );
+        
         Ok(())
     }
     

@@ -18,7 +18,7 @@ const HEADER_TIME_OUT: u64 = 30;
 
 
 impl Node {
-    ///Creates a GetBlockHeadersMessage with the given hash
+    /// Creates a GetBlockHeadersMessage with the given hash
     fn create_get_block_header_message(&self, hash: [u8; 32]) -> GetBlockHeadersMessage {
         let mut block_header_hashes = Vec::new();
         block_header_hashes.push(hash);
@@ -28,7 +28,7 @@ impl Node {
         GetBlockHeadersMessage::new(version, block_header_hashes, stopping_hash)
     }
 
-    ///Creates and sends a GetBlockHeadersMessage to the stream, always asking for the maximum amount of headers. On error returns ErrorSendingMessageInIBD
+    /// Creates and sends a GetBlockHeadersMessage to the stream, always asking for the maximum amount of headers. On error returns ErrorSendingMessageInIBD
     pub fn ibd_send_get_block_headers_message(&self, last_hash: [u8; 32],  sync_node_index: usize) -> Result<(), NodeError> {
 
         let get_block_headers_msg = self.create_get_block_header_message(last_hash);
@@ -42,7 +42,7 @@ impl Node {
         }
     }
 
-    ///Creates a block downloader and returns it. On error returns NodeError
+    /// Creates a block downloader and returns it. On error returns NodeError
     fn create_block_downloader(&self, header_stream_index: usize) -> Result<(BlockDownloader, Arc<Mutex<Vec<Block>>>), NodeError>{
         let new_blocks :Vec<Block> = Vec::new();
         let safe_new_blocks = Arc::new(Mutex::from(new_blocks));
@@ -53,8 +53,8 @@ impl Node {
         }
     }
     
-    ///Downloads the blocks from the node, starting from the given block hash. It ignores the messages that
-    ///are not block messages, and only downloads blocks that are after the given time. On error returns NodeError
+    /// Downloads the blocks from the node, starting from the given block hash. It ignores the messages that
+    /// are not block messages, and only downloads blocks that are after the given time. On error returns NodeError
     fn download_headers_and_blocks(&mut self, block_downloader :&BlockDownloader, sync_node_index: usize) -> Result<(), NodeError> {
         let mut headers_received = self.block_headers.len();
         let mut last_hash = HASHEDGENESISBLOCK;
@@ -127,6 +127,7 @@ impl Node {
         Ok(())
     }
 
+    /// -
     pub fn load_blocks_and_headers(&mut self)->Result<(), NodeError>{
         let headers = match self.data_handler.get_all_headers(){
             Ok(headers) => headers,
@@ -145,8 +146,8 @@ impl Node {
         Ok(())
     }
 
-    ///Asks the node for the block headers starting from the given block hash, and then downloads the blocks
-    ///starting from the given time. On error returns NodeError
+    /// Asks the node for the block headers starting from the given block hash, and then downloads the blocks
+    /// starting from the given time. On error returns NodeError
     pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
         
         self.load_blocks_and_headers()?;
@@ -204,12 +205,14 @@ impl Node {
     }
 }
 
+
 #[cfg(test)]
 mod tests{
     use super::*;
     use std::sync::{Arc, Mutex};
     
     
+    /// -
     //test unitario de descargar un solo header
 
 
