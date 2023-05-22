@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 
-/// -
+/// All errors that can occur in the project must implement this trait.
 pub trait BtcError: Debug{
     fn to_string(&self)-> String{
         format!("Error: {:?}", self)
@@ -9,7 +9,7 @@ pub trait BtcError: Debug{
 }
 
 
-/// -
+/// Enum that represents the possible errors that can occur while creating or sending a block or its header.
 #[derive(Debug)]
 pub enum BlockChainError {
     ErrorCreatingBlock,
@@ -21,7 +21,7 @@ pub enum BlockChainError {
 impl BtcError for BlockChainError {}
 
 
-/// Enum that represents the possible errors that can occur while creating a transaction
+/// Enum that represents the possible errors that can occur while creating a transaction.
 #[derive(Debug, PartialEq)]
 pub enum TransactionError {
     ErrorCreatingTransaction,
@@ -35,7 +35,7 @@ impl BtcError for TransactionError {}
 
 /// Error Struct for messages, contains customized errors for each type of message (excluding
 /// VerACKMessage) and to diferenciate whether the error occured while instanciation or in
-/// message sending
+/// message sending.
 #[derive(Debug, PartialEq)]
 pub enum MessageError {
     ErrorCreatingVersionMessage,
@@ -64,9 +64,8 @@ pub enum MessageError {
 impl BtcError for MessageError {}
 
 
-/// -
-#[derive(Debug)]
 /// Enum that contains the possible errors that can occur when running the block downloader.
+#[derive(Debug)]
 pub enum BlockDownloaderError {
     ErrorInvalidCreationSize,
     ErrorSendingToThread,
@@ -84,7 +83,7 @@ pub enum BlockDownloaderError {
 impl BtcError for BlockDownloaderError {}
 
 
-/// Enum that represents the errors that can occur in the NodeDataHandler
+/// Enum that represents the errors that can occur in the NodeDataHandler.
 #[derive(Debug)]
 pub enum NodeDataHandlerError {
     ErrorCreatingNodeDataHandler,
@@ -113,7 +112,7 @@ pub enum ConfigError{
 impl BtcError for ConfigError {}
 
 
-/// Struct that represents the errors that can occur in the Node
+/// Struct that represents the errors that can occur in the Node.
 #[derive(Debug)]
 pub enum NodeError {
     ErrorConnectingToPeer,

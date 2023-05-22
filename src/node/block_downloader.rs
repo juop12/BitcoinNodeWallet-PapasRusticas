@@ -19,7 +19,7 @@ use std::{
 struct Worker {
     thread: thread::JoinHandle<bool>,
     stream: TcpStream,
-    id: usize,
+    _id: usize,
 }
 
 type Bundle = Box<Vec<[u8;32]>>;
@@ -91,7 +91,7 @@ impl Worker {
             };
         });
         
-        Ok(Worker { id, thread, stream: stream_cpy })
+        Ok(Worker { _id : id, thread, stream: stream_cpy })
     }
 
     ///Joins the thread of the worker, returning an error if it was not possible to join it.

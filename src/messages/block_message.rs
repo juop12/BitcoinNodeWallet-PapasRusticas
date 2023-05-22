@@ -3,7 +3,7 @@ use super::message_trait::*;
 use crate::messages::*;
 
 
-/// -
+/// Struct that represents a block message.
 pub struct BlockMessage{
     pub block: Block,
 }

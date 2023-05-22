@@ -28,9 +28,6 @@ pub struct VersionMessage {
     relay: u8,
 }
 
-/// - ???
-//Hacer refactor para que verifique que recibio la cantidad de datos que corresponde. Ya sea chequeandolo aca o devolviendo la cantidad
-
 impl Message for VersionMessage {
     type MessageType = VersionMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingVersionMessage;

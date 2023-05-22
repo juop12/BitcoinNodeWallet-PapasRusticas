@@ -6,14 +6,14 @@ const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 const INVENTORY_ENTRY_SIZE: usize = 36;
 
 
-/// -
+/// Struct that represents an element of the inventory.
 #[derive(Debug)]
 struct Entry{
     inv_type: [u8;4],
     hash: [u8;32],
 }
 
-/// -
+/// Struct that represents the InvMessage
 #[derive(Debug)]
 pub struct InvMessage {
     count: VarLenInt,
@@ -35,8 +35,6 @@ impl Message for InvMessage{
         bytes_vector
     }
 
-    /// -
-    // Creé una constante nueva para evitar números mágicos
     /// Creates the coresponding message, using a slice of bytes, 
     /// which must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError>{
@@ -87,7 +85,7 @@ impl InvMessage{
         Self::new(inventory)
     }
 
-    /// -
+    /// Returns the block hashes of the inventory.
     pub fn get_block_hashes(&self)-> Vec<[u8;32]>{
         let mut block_hashes: Vec<[u8;32]> = Vec::new();
         for entry in &self.inventory{
@@ -113,12 +111,12 @@ impl Entry{
     }
 
     /// Creates a new entry from the given bytes.
-    fn from_bytes(bytes: [u8;36])-> Result<Entry, MessageError>{
+    fn from_bytes(bytes: [u8;INVENTORY_ENTRY_SIZE])-> Result<Entry, MessageError>{
         let inv_type: [u8;4] = match bytes[0..4].try_into(){
             Ok(array) => array,
             Err(_) => return Err(MessageError::ErrorCreatingInvMessage),
         };
-        let hash: [u8;32] = match bytes[4..36].try_into(){
+        let hash: [u8;32] = match bytes[4..INVENTORY_ENTRY_SIZE].try_into(){
             Ok(array) => array,
             Err(_) => return Err(MessageError::ErrorCreatingInvMessage),
         };

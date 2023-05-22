@@ -11,8 +11,8 @@ const HASHEDGENESISBLOCK: [u8; 32] = [
     0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
     0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
     0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
-];// 0x64 | [u8; 32] 
-const STARTING_BLOCK_TIME: u32 = 1681084800; // https://www.epochconverter.com/, 2023-04-10 00:00:00 GMT
+];
+const STARTING_BLOCK_TIME: u32 = 1681084800;
 const MAX_BLOCK_BUNDLE: usize = 16;
 const HEADER_TIME_OUT: u64 = 30;
 
@@ -53,6 +53,37 @@ impl Node {
         }
     }
     
+    fn request_blocks(&mut self, mut i: usize, mut request_block_hashes_bundle: Vec<[u8;32]>, block_downloader: &BlockDownloader, total_amount_of_blocks: &mut usize)->Result<Vec<[u8;32]>, NodeError>{
+
+        if self.block_headers[i].time() > STARTING_BLOCK_TIME{
+            while i < self.block_headers.len(){
+                if self.block_headers[i].time() > STARTING_BLOCK_TIME { 
+                    *total_amount_of_blocks += 1;
+                    request_block_hashes_bundle.push(self.block_headers[i].hash());
+                    if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE{
+                        if block_downloader.download_block_bundle(request_block_hashes_bundle).is_err(){
+                            return Err(NodeError::ErrorDownloadingBlockBundle);
+                        }
+                        request_block_hashes_bundle = Vec::new();
+                    }
+                }
+                i += 1;
+            }
+        }
+        Ok(request_block_hashes_bundle)
+    }
+
+    fn receive_headers_message(&mut self, sync_node_index: usize)-> Result<(), NodeError>{
+        let start_time = Instant::now();
+        let target_duration = Duration::from_secs(HEADER_TIME_OUT);
+        while self.receive_message(sync_node_index, true)? != "headers\0\0\0\0\0" {
+            if Instant::now() - start_time > target_duration{
+                return Err(NodeError::ErrorReceivingHeadersMessageInIBD);
+            }
+        }
+        Ok(())
+    }
+
     /// Downloads the blocks from the node, starting from the given block hash. It ignores the messages that
     /// are not block messages, and only downloads blocks that are after the given time. On error returns NodeError
     fn download_headers_and_blocks(&mut self, block_downloader :&BlockDownloader, sync_node_index: usize) -> Result<(), NodeError> {
@@ -63,20 +94,14 @@ impl Node {
         }
         
         let mut request_block_hashes_bundle :Vec<[u8;32]> = Vec::new();
-        let mut amount_of_blocks_to_download = 0;
+        let mut total_amount_of_blocks = self.blockchain.len();
 
         while headers_received == self.block_headers.len(){
             self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
 
-            let start_time = Instant::now();
-            let target_duration = Duration::from_secs(HEADER_TIME_OUT);
-            while self.receive_message(sync_node_index, true)? != "headers\0\0\0\0\0" {
-                if Instant::now() - start_time > target_duration{
-                    return Err(NodeError::ErrorReceivingHeadersMessageInIBD);
-                }
-            }
+            self.receive_headers_message(sync_node_index)?;
             
-            let mut i = headers_received;
+            let i = headers_received;
             headers_received += 2000;
             last_hash = self.block_headers[self.block_headers.len()-1].hash();
 
@@ -84,29 +109,15 @@ impl Node {
                 break;
             }
 
-            if self.block_headers[i].time() > STARTING_BLOCK_TIME{
-                while i < self.block_headers.len(){
-                    if self.block_headers[i].time() > STARTING_BLOCK_TIME { 
-                        amount_of_blocks_to_download += 1;
-                        request_block_hashes_bundle.push(self.block_headers[i].hash());
-                        if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE{
-                            if block_downloader.download_block_bundle(request_block_hashes_bundle).is_err(){
-                                return Err(NodeError::ErrorDownloadingBlockBundle);
-                            }
-                            request_block_hashes_bundle = Vec::new();
-                        }
-                    }
-                    i += 1;
-                }
-            }
+            request_block_hashes_bundle = self.request_blocks(i, request_block_hashes_bundle, block_downloader, &mut total_amount_of_blocks)?;
             //p
             println!("#headers = {}", headers_received);
-            self.logger.log(format!("Current amount of downloaded headers = {}", headers_received));
+            self.logger.log(format!("Current ammount of downloaded headers = {}", headers_received));
         }
         
         //p
-        println!("# blocks  = {}", headers_received);
-        self.logger.log(format!("Amount of blocks to download = {}", amount_of_blocks_to_download));
+        println!("#blocks = {}", total_amount_of_blocks);
+        self.logger.log(format!("Total ammount of blocks = {}", total_amount_of_blocks));
         
         if request_block_hashes_bundle.len() >0{
             if block_downloader.download_block_bundle(request_block_hashes_bundle).is_err(){
@@ -146,14 +157,9 @@ impl Node {
         Ok(())
     }
 
-    /// Asks the node for the block headers starting from the given block hash, and then downloads the blocks
-    /// starting from the given time. On error returns NodeError
-    pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
-        
-        self.load_blocks_and_headers()?;
-        let new_headers_starting_position = self.block_headers.len();
-
-        let mut i = 1;
+    ///-
+    fn start_downloading(&mut self)->Result<(BlockDownloader, Arc<Mutex<Vec<Block>>>), NodeError>{
+        let mut i = 0;
         let (mut block_downloader, mut safe_new_blocks) = self.create_block_downloader(i)?;
         
         while i < self.tcp_streams.len(){
@@ -172,7 +178,10 @@ impl Node {
             }
             (block_downloader, safe_new_blocks) = self.create_block_downloader(i)?;
         }
+        Ok((block_downloader, safe_new_blocks))
+    }
 
+    fn finish_downloading(&mut self, mut block_downloader: BlockDownloader, safe_new_blocks :Arc<Mutex<Vec<Block>>>)->Result<(), NodeError>{
         match block_downloader.finish_downloading(){
             Ok(_) => {
                 let inner_vector = match safe_new_blocks.lock() {
@@ -192,6 +201,19 @@ impl Node {
             },
             Err(_) => {return Err(NodeError::ErrorDownloadingBlockBundle)},
         }
+        Ok(())
+    }
+
+    /// Asks the node for the block headers starting from the given block hash, and then downloads the blocks
+    /// starting from the given time. On error returns NodeError
+    pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
+        
+        self.load_blocks_and_headers()?;
+        let new_headers_starting_position = self.block_headers.len();
+
+        let (block_downloader, safe_new_blocks) = self.start_downloading()?;
+
+        self.finish_downloading(block_downloader, safe_new_blocks)?;
         
         //p
         println!("# final de headers  = {}", self.block_headers.len());
@@ -215,7 +237,6 @@ mod tests{
     /// -
     //test unitario de descargar un solo header
 
-
     #[test]
     fn ibd_test_1_can_download_blocks() -> Result<(), NodeError>{
         let config = Config {
@@ -223,7 +244,7 @@ mod tests{
             dns_port: 18333,
             local_host: [127,0,0,3],
             local_port: 1003,
-            log_path: String::from("src/node_log.txt"),
+            log_path: String::from("src/test_log.txt"),
             begin_time: 1681084800,
         };
         let mut node = Node::new(config)?;
@@ -243,7 +264,7 @@ mod tests{
             dns_port: 18333,
             local_host: [127,0,0,2],
             local_port: 1002,
-            log_path: String::from("src/node_log.txt"),
+            log_path: String::from("src/test_log.txt"),
             begin_time: 1681084800,
         };
         let sync_node_index = 0;

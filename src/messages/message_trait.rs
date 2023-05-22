@@ -2,7 +2,7 @@ pub use crate::utils::btc_errors::MessageError;
 pub use std::io::{Read, Write};
 pub use super::HeaderMessage;
 
-
+/// All messages that can be sent or received by a node in the bitcoin network must implement this trait.
 pub trait Message {
     type MessageType;
     const SENDING_ERROR: MessageError;
