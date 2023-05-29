@@ -14,7 +14,7 @@ const MINIMAL_BLOCK_SIZE: usize = 81;
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockHeader {
     version: i32,
-    pub prev_hash: [u8; 32],
+    prev_hash: [u8; 32],
     merkle_root_hash: [u8; 32],
     time: u32,
     n_bits: u32,
@@ -24,7 +24,7 @@ pub struct BlockHeader {
 /// Struct that represents a block
 #[derive(Debug)]
 pub struct Block {
-    pub header: BlockHeader,
+    header: BlockHeader,
     transaction_count: VarLenInt,
     transactions: Vec<Transaction>,
 }
