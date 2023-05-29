@@ -1,11 +1,12 @@
 use crate::{node::*, utils::btc_errors::NodeDataHandlerError};
 use std::{
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, BufWriter},
+    io::{BufReader, BufWriter},
 };
 
-const HEADERS_FILE_PATH: &str = "data/headers.csv";
-const BLOCK_FILE_PATH: &str = "data/blocks.csv";
+const HEADERS_FILE_PATH: &str = "data/headers.bin";
+const BLOCK_FILE_PATH: &str = "data/blocks.bin";
+const BLOCKHEADER_SIZE: usize = 80;
 
 /// Struct that handles the data persistance of the node.  It has two readers and two writers, one for each file.
 /// The headers reader and writer are used to read and write the headers file, and the blocks
@@ -44,34 +45,21 @@ fn flush_writer(writer: &mut BufWriter<File>) -> Result<(), NodeDataHandlerError
 /// Receives a writer and a vector of bytes and writes the bytes in the file
 /// It also writes an endline character at the end of the bytes. On error returns NodeDataHandlerError
 fn write_to_file(writer: &mut BufWriter<File>, bytes: &[u8]) -> Result<(), NodeDataHandlerError> {
-    let mut aux = "";
-    for byte in bytes {
-        match writer.write_all(format!("{}{}", aux, byte).as_bytes()) {
-            Ok(_) => (),
-            Err(_) => return Err(NodeDataHandlerError::ErrorWritingInFile),
-        }
-        aux = ",";
+    if writer.write_all(bytes).is_err() {
+        return Err(NodeDataHandlerError::ErrorWritingInFile);
     }
-    flush_writer(writer)?;
-    match writer.write_all(b"\n") {
-        Ok(_) => (),
-        Err(_) => return Err(NodeDataHandlerError::ErrorWritingInFile),
-    };
     flush_writer(writer)?;
     Ok(())
 }
 
 /// Receives a line from the file and returns a vector of bytes parsed from it.
 /// On error returns NodeDataHandlerError.
-fn get_bytes_from_line(line: String) -> Result<Vec<u8>, NodeDataHandlerError> {
+fn get_bytes_from_file(reader: &mut BufReader<File>) -> Result<Vec<u8>, NodeDataHandlerError> {
     let mut bytes: Vec<u8> = Vec::new();
-    for byte_str in line.split(',') {
-        match byte_str.parse::<u8>() {
-            Ok(byte) => bytes.push(byte),
-            Err(_) => return Err(NodeDataHandlerError::ErrorReadingBytes),
-        }
+    match reader.read_to_end(&mut bytes){
+        Ok(_) => Ok(bytes),
+        Err(_) => Err(NodeDataHandlerError::ErrorReadingBytes),
     }
-    Ok(bytes)
 }
 
 impl NodeDataHandler {
@@ -95,26 +83,20 @@ impl NodeDataHandler {
         })
     }
 
-    /// Gets all the headers stored on the headers file. This function is only called
-    /// once when the node starts, since dealing with
-    /// reading and writing on the same file at the same time can produce
-    /// unexpected results. On error returns NodeDataHandlerError
     pub fn get_all_headers(&mut self) -> Result<Vec<BlockHeader>, NodeDataHandlerError> {
         let mut headers: Vec<BlockHeader> = Vec::new();
         let reader_reference = &mut self.headers_reader;
-        for line_to_read in reader_reference.lines() {
-            let line = match line_to_read {
-                Ok(line) => line,
-                Err(_) => return Err(NodeDataHandlerError::ErrorReadingHeaders),
-            };
-            let header_bytes = get_bytes_from_line(line)?;
+        let bytes_from_file = get_bytes_from_file(reader_reference)?;
+        let mut headers_bytes = bytes_from_file.as_slice();
 
-            let read_header = match BlockHeader::from_bytes(&header_bytes) {
-                Ok(header) => header,
+        while headers_bytes.len() >= BLOCKHEADER_SIZE {
+            let curr_header: &[u8];
+            (curr_header, headers_bytes) = headers_bytes.split_at(BLOCKHEADER_SIZE);
+            match BlockHeader::from_bytes(curr_header) {
+                Ok(header) => headers.push(header),
                 Err(_) => return Err(NodeDataHandlerError::ErrorReadingHeaders),
-            };
-            headers.push(read_header);
-        }
+            }
+        };
         Ok(headers)
     }
 
@@ -125,18 +107,17 @@ impl NodeDataHandler {
     pub fn get_all_blocks(&mut self) -> Result<Vec<Block>, NodeDataHandlerError> {
         let mut blocks: Vec<Block> = Vec::new();
         let reader_reference = &mut self.blocks_reader;
-        for line_to_read in reader_reference.lines() {
-            let line = match line_to_read {
-                Ok(line) => line,
-                Err(_) => return Err(NodeDataHandlerError::ErrorReadingBlocks),
-            };
-            let block_bytes = get_bytes_from_line(line)?;
-            let read_block = match Block::from_bytes(&block_bytes) {
+        let bytes_from_file = get_bytes_from_file(reader_reference)?;
+        let mut block_bytes = bytes_from_file.as_slice();
+        
+        while !block_bytes.is_empty(){
+            let block = match Block::from_bytes(block_bytes) {
                 Ok(block) => block,
                 Err(_) => return Err(NodeDataHandlerError::ErrorReadingBlocks),
             };
-            blocks.push(read_block);
-        }
+            (_, block_bytes) = block_bytes.split_at(block.amount_of_bytes());
+            blocks.push(block);
+        };
         Ok(blocks)
     }
 

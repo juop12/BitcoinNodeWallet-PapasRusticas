@@ -10,7 +10,8 @@ const HASHEDGENESISBLOCK: [u8; 32] = [
     0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1, 0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
 ];
 const MAX_BLOCK_BUNDLE: usize = 16;
-const HEADER_TIME_OUT: u64 = 30;
+const HEADER_TIME_OUT: u64 = 1;
+const MAXIMUM_PEER_TIME_OUT: u64 = 10;
 
 impl Node {
     /// Creates a GetBlockHeadersMessage with the given hash
@@ -88,13 +89,19 @@ impl Node {
     }
 
     /// Receives messages from a given peer till it receives a headersMessage or 30 seconds have passed
-    fn receive_headers_message(&mut self, sync_node_index: usize) -> Result<(), NodeError> {
-        let start_time = Instant::now();
-        let target_duration = Duration::from_secs(HEADER_TIME_OUT);
+    fn receive_headers_message(&mut self, sync_node_index: usize, peer_timeout: u64) -> Result<(), NodeError> {
+        let mut start_time = Instant::now();
+        let target_duration = Duration::from_secs(peer_timeout);
         while self.receive_message(sync_node_index, true)? != "headers\0\0\0\0\0" {
             if Instant::now() - start_time > target_duration {
+                self.logger.log(format!("Peer {} timed_out switching peers", sync_node_index));
                 return Err(NodeError::ErrorReceivingHeadersMessageInIBD);
             }
+            start_time = Instant::now();
+        }
+        if Instant::now() - start_time > target_duration {
+            self.logger.log(format!("Peer {} timed_out switching peers", sync_node_index));
+            return Err(NodeError::ErrorReceivingHeadersMessageInIBD);
         }
         Ok(())
     }
@@ -105,6 +112,7 @@ impl Node {
         &mut self,
         block_downloader: &BlockDownloader,
         sync_node_index: usize,
+        peer_timeout: u64
     ) -> Result<(), NodeError> {
         let mut headers_received = self.block_headers.len();
         let mut last_hash = HASHEDGENESISBLOCK;
@@ -118,7 +126,7 @@ impl Node {
         while headers_received == self.block_headers.len() {
             self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
 
-            self.receive_headers_message(sync_node_index)?;
+            self.receive_headers_message(sync_node_index, peer_timeout)?;
 
             let i = headers_received;
             headers_received += 2000;
@@ -201,9 +209,10 @@ impl Node {
         let mut i = 0;
         let (mut block_downloader, mut safe_new_blocks) = self.create_block_downloader(i)?;
 
-        while i < self.tcp_streams.len() {
+        let mut peer_time_out = 1;
+        while peer_time_out < MAXIMUM_PEER_TIME_OUT {
             println!("\n{i}\n");
-            match self.download_headers_and_blocks(&block_downloader, i) {
+            match self.download_headers_and_blocks(&block_downloader, i, peer_time_out) {
                 Ok(_) => break,
                 Err(error) => {
                     if let NodeError::ErrorDownloadingBlockBundle = error {
@@ -212,6 +221,11 @@ impl Node {
                 }
             };
             i += 1;
+            if i >= self.tcp_streams.len(){
+                i = 0;
+                peer_time_out +=1;
+                self.logger.log(format!("Reducing time standards, new peer_time_out = {} seconds", peer_time_out));
+            }
             if let Err(error) = block_downloader.finish_downloading() {
                 self.logger.log_error(&error);
             }
@@ -258,7 +272,9 @@ impl Node {
     /// and then downloads the blocks starting from the given time.
     /// On error returns NodeError
     pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
+        self.logger.log(String::from("Starting to load data from disk"));
         self.load_blocks_and_headers()?;
+        self.logger.log(String::from("Finished loading data from disk"));
         let new_headers_starting_position = self.block_headers.len();
 
         let (block_downloader, safe_new_blocks) = self.start_downloading()?;
@@ -277,7 +293,9 @@ impl Node {
             self.blockchain.len()
         ));
 
+        self.logger.log(String::from("Starting data storage to disk"));
         self.store_data_in_disk(new_headers_starting_position)?;
+        self.logger.log(String::from("Finished storing data to disk"));
 
         Ok(())
     }
@@ -301,7 +319,7 @@ mod tests {
         let mut node = Node::new(config)?;
         let mut i = 0;
         node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, i)?;
-        while let Err(_) = node.receive_headers_message(i) {
+        while let Err(_) = node.receive_headers_message(i, 15) {
             i += 1;
             node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, i)?;
         }
@@ -333,7 +351,7 @@ mod tests {
 
         let mut sync_node_index = 0;
         node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
-        while let Err(_) = node.receive_headers_message(sync_node_index) {
+        while let Err(_) = node.receive_headers_message(sync_node_index,15) {
             sync_node_index += 1;
             node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
         }

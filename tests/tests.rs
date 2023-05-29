@@ -55,6 +55,7 @@ mod test {
         };
 
         let mut node = Node::new(config)?;
+        
         node.initial_block_download()?;
 
         let utxo_set = node.create_utxo_set();
