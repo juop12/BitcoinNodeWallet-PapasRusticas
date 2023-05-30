@@ -6,7 +6,7 @@ use std::{
 };
 
 const CONFIG_FILENAME: &str = "nodo.conf";
-const PARAMETER_AMOUNT: usize = 6;
+const PARAMETER_AMOUNT: usize = 8;
 
 /// Struct that represents a node's configuration parameters.
 #[derive(Debug)]
@@ -17,6 +17,8 @@ pub struct Config {
     pub local_port: u16,
     pub log_path: String,
     pub begin_time: u32,
+    pub headers_path: String,
+    pub blocks_path: String,
 }
 
 impl Config {
@@ -57,6 +59,8 @@ impl Config {
             local_port: config_fields[3].parse::<u16>().ok()?,
             log_path: config_fields[4].to_string(),
             begin_time,
+            headers_path: config_fields[6].to_string(),
+            blocks_path: config_fields[7].to_string(),
         })
     }
 
@@ -122,7 +126,12 @@ fn parse_date(line: &str) -> Option<u32> {
 mod tests {
     use super::*;
 
+
     const BEGIN_TIME: &str = "2023-04-10";
+    const LOG_FILE_PATH: &str = "tests_txt/config_test_log.txt";
+    const HEADERS_FILE_PATH: &str = "tests_txt/headers.bin";
+    const BLOCKS_FILE_PATH: &str = "tests_txt/blocks.bin";
+
 
     #[test]
     fn config_test_1_valid_file_creates_config() {
@@ -141,8 +150,10 @@ mod tests {
             "18333".to_string(),
             "127,0,0,1".to_string(),
             "1001".to_string(),
-            "src/node_log.txt".to_string(),
+            LOG_FILE_PATH.to_string(),
             BEGIN_TIME.to_string(),
+            HEADERS_FILE_PATH.to_string(),
+            BLOCKS_FILE_PATH.to_string(),
         ];
 
         let expected_begin_time_timestamp: u32 = 1681084800;
@@ -154,8 +165,10 @@ mod tests {
         assert_eq!(config.dns_port, 18333);
         assert_eq!(config.local_host, [127, 0, 0, 1]);
         assert_eq!(config.local_port, 1001);
-        assert_eq!(config.log_path, "src/node_log.txt".to_string());
+        assert_eq!(config.log_path, LOG_FILE_PATH.to_string());
         assert_eq!(config.begin_time, expected_begin_time_timestamp);
+        assert_eq!(config.headers_path, HEADERS_FILE_PATH.to_string());
+        assert_eq!(config.blocks_path, BLOCKS_FILE_PATH.to_string());
     }
 
     #[test]
@@ -166,6 +179,8 @@ mod tests {
             "127,0,0,1".to_string(),
             "1001".to_string(),
             BEGIN_TIME.to_string(),
+            HEADERS_FILE_PATH.to_string(),
+            BLOCKS_FILE_PATH.to_string(),
         ];
 
         assert!(Config::_from(parameters).is_err());
@@ -178,8 +193,10 @@ mod tests {
             "53".to_string(),
             "34".to_string(),
             "this should be a u16".to_string(),
-            "src/node_log.txt".to_string(),
+            LOG_FILE_PATH.to_string(),
             BEGIN_TIME.to_string(),
+            HEADERS_FILE_PATH.to_string(),
+            BLOCKS_FILE_PATH.to_string(),
         ];
 
         assert!(Config::_from(parameters).is_err());
@@ -192,8 +209,10 @@ mod tests {
             "53".to_string(),
             "34".to_string(),
             "this should be a u16".to_string(),
-            "src/node_log.txt".to_string(),
+            LOG_FILE_PATH.to_string(),
             Utc::now().date_naive().succ_opt().unwrap().to_string(),
+            HEADERS_FILE_PATH.to_string(),
+            BLOCKS_FILE_PATH.to_string(),
         ];
 
         assert!(Config::_from(parameters).is_err());

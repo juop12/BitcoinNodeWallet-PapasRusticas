@@ -70,7 +70,7 @@ impl Node {
             Ok(logger) => logger,
             Err(_) => return Err(NodeError::ErrorCreatingNode),
         };
-        let data_handler = match NodeDataHandler::new() {
+        let data_handler = match NodeDataHandler::new(&config.headers_path, &config.blocks_path) {
             Ok(handler) => handler,
             Err(_) => return Err(NodeError::ErrorCreatingNode),
         };
@@ -198,16 +198,21 @@ mod tests {
     use super::*;
     use crate::utils::mock_tcp_stream::*;
 
+
     const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
     const LOCAL_PORT: u16 = 1001;
     const DNS_PORT: u16 = 18333;
     const VERSION: i32 = 70015;
     const STARTING_BLOCK_TIME: u32 = 1681084800;
+    const LOG_FILE_PATH: &str = "tests_txt/test_log.txt";
+    const HEADERS_FILE_PATH: &str = "tests_txt/headers.bin";
+    const BLOCKS_FILE_PATH: &str = "tests_txt/blocks.bin";
+
 
     #[test]
     fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address() {
-        let logger = Logger::from_path("test_log.txt").unwrap();
-        let data_handler = NodeDataHandler::new().unwrap();
+        let logger = Logger::from_path(LOG_FILE_PATH).unwrap();
+        let data_handler = NodeDataHandler::new(HEADERS_FILE_PATH, BLOCKS_FILE_PATH).unwrap();
         let node = Node::_new(
             VERSION,
             LOCAL_HOST,
@@ -223,8 +228,8 @@ mod tests {
 
     #[test]
     fn peer_discovery_test_2_returns_ip_vector_when_receiving_valid_dns() {
-        let logger = Logger::from_path("test_log.txt").unwrap();
-        let data_handler = NodeDataHandler::new().unwrap();
+        let logger = Logger::from_path(LOG_FILE_PATH).unwrap();
+        let data_handler = NodeDataHandler::new(HEADERS_FILE_PATH, BLOCKS_FILE_PATH).unwrap();
         let node = Node::_new(
             VERSION,
             LOCAL_HOST,

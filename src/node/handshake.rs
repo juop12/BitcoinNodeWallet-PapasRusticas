@@ -101,18 +101,22 @@ mod tests {
     use crate::utils::mock_tcp_stream::*;
     use bitcoin_hashes::{sha256d, Hash};
 
+
     const VERSION: i32 = 70015;
     const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
     const LOCAL_PORT: u16 = 1001;
     const STARTING_BLOCK_TIME: u32 = 1681084800;
+    const HEADERS_FILE_PATH: &str = "data/headers.bin";
+    const BLOCKS_FILE_PATH: &str = "data/blocks.bin";
+
 
     // Auxiliar functions
     //=================================================================
 
-    fn initiate() -> (MockTcpStream, Node) {
+    fn initiate(log_file_path: &str) -> (MockTcpStream, Node) {
         let stream = MockTcpStream::new();
-        let logger = Logger::from_path("test_log.txt").unwrap();
-        let data_handler = NodeDataHandler::new().unwrap();
+        let logger = Logger::from_path(log_file_path).unwrap();
+        let data_handler = NodeDataHandler::new(HEADERS_FILE_PATH, BLOCKS_FILE_PATH).unwrap();
         let node = Node::_new(
             VERSION,
             LOCAL_HOST,
@@ -130,7 +134,7 @@ mod tests {
 
     #[test]
     fn handshake_test_1_send_version_message() -> Result<(), NodeError> {
-        let (mut stream, node) = initiate();
+        let (mut stream, node) = initiate("tests_txt/test_log.txt");
 
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
         let expected_vm =
@@ -168,7 +172,7 @@ mod tests {
 
     #[test]
     fn handshake_test_2_receive_version_message() -> Result<(), NodeError> {
-        let (mut stream, node) = initiate();
+        let (mut stream, node) = initiate("tests_txt/handshake_test_2_log.txt");
 
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
         let expected_vm =
@@ -185,7 +189,7 @@ mod tests {
 
     #[test]
     fn handshake_test_3_send_verack_message() -> Result<(), NodeError> {
-        let (mut stream, node) = initiate();
+        let (mut stream, node) = initiate("tests_txt/test_log.txt");
 
         let expected_verack_msg = VerACKMessage::new().unwrap();
         let verack_hm = expected_verack_msg.get_header_message().unwrap();
@@ -199,7 +203,7 @@ mod tests {
 
     #[test]
     fn handshake_test_4_receive_verack_message() -> Result<(), NodeError> {
-        let (mut stream, node) = initiate();
+        let (mut stream, node) = initiate("tests_txt/handshake_test_4_log.txt");
 
         let expected_verack_msg = VerACKMessage::new().unwrap();
         let verack_hm = expected_verack_msg.get_header_message().unwrap();

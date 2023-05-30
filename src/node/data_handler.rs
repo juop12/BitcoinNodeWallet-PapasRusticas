@@ -4,8 +4,6 @@ use std::{
     io::{BufReader, BufWriter},
 };
 
-const HEADERS_FILE_PATH: &str = "data/headers.bin";
-const BLOCK_FILE_PATH: &str = "data/blocks.bin";
 const BLOCKHEADER_SIZE: usize = 80;
 
 /// Struct that handles the data persistance of the node.  It has two readers and two writers, one for each file.
@@ -64,11 +62,11 @@ fn get_bytes_from_file(reader: &mut BufReader<File>) -> Result<Vec<u8>, NodeData
 
 impl NodeDataHandler {
     /// Creates a new NodeDataHandler.
-    pub fn new() -> Result<NodeDataHandler, NodeDataHandlerError> {
-        let read_headers_file = open_file(HEADERS_FILE_PATH, true, false)?;
-        let write_headers_file = open_file(HEADERS_FILE_PATH, false, true)?;
-        let read_blocks_file = open_file(BLOCK_FILE_PATH, true, false)?;
-        let write_blocks_file = open_file(BLOCK_FILE_PATH, false, true)?;
+    pub fn new(headers_file_path: &str, blocks_file_path: &str) -> Result<NodeDataHandler, NodeDataHandlerError> {
+        let read_headers_file = open_file(headers_file_path, true, false)?;
+        let write_headers_file = open_file(headers_file_path, false, true)?;
+        let read_blocks_file = open_file(blocks_file_path, true, false)?;
+        let write_blocks_file = open_file(blocks_file_path, false, true)?;
 
         let headers_writer = BufWriter::new(write_headers_file);
         let blocks_writer = BufWriter::new(write_blocks_file);
@@ -121,11 +119,20 @@ impl NodeDataHandler {
         Ok(blocks)
     }
 
-    /// Saves the header (as bytes) passed by parameter in the headers file.
+    /// Saves the block (as bytes) passed by parameter in the blocks file.
     /// On error returns NodeDataHandlerError
     pub fn save_header(&mut self, header: &BlockHeader) -> Result<(), NodeDataHandlerError> {
         let header_bytes = header.to_bytes();
         write_to_file(&mut self.headers_writer, &header_bytes)?;
+        Ok(())
+    }
+
+    /// Saves all the headers (as bytes) passed by parameter in the headers file.
+    /// On error returns NodeDataHandlerError
+    pub fn save_headers_to_disk(&mut self, headers: &[BlockHeader], start: usize) -> Result<(), NodeDataHandlerError> {
+        for header in headers.iter().skip(start){
+            self.save_header(header)?;
+        }
         Ok(())
     }
 
@@ -137,14 +144,10 @@ impl NodeDataHandler {
         Ok(())
     }
 
-    pub fn save_to_disk(
-        &mut self,
-        blocks: &HashMap<[u8; 32], Block>,
-        headers: &[BlockHeader],
-        start: usize,
-    ) -> Result<(), NodeDataHandlerError> {
+    /// -
+    pub fn save_blocks_to_disk(&mut self, blocks: &HashMap<[u8; 32], Block>, headers: &[BlockHeader], start: usize) -> Result<(), NodeDataHandlerError> {
+
         for header in headers.iter().skip(start) {
-            self.save_header(header)?;
             if let Some(block) = blocks.get(&header.hash()) {
                 self.save_block(block)?;
             }
