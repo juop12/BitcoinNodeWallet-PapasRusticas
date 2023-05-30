@@ -1,10 +1,15 @@
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Write;
+use chrono::Utc;
 use std::sync::{mpsc, mpsc::Sender};
 use std::thread;
 
 use super::BtcError;
+
+
+const LOGGER_KILLER: &str = "stop";
+
 
 /// Struct that represents errors that can occur with the log.
 #[derive(Debug)]
@@ -32,7 +37,7 @@ impl Logger {
                 Err(_) => continue,
             };
 
-            if writeln!(file, "{}", received).is_err() {
+            if writeln!(file, "{}: {}", Utc::now(), received).is_err() {
                 continue;
             };
 
@@ -40,7 +45,7 @@ impl Logger {
                 continue;
             };
 
-            if received == "stop" {
+            if received == LOGGER_KILLER {
                 break;
             }
         });

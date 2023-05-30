@@ -268,7 +268,7 @@ impl Transaction {
     }
 
     /// Returns the amount of bytes needed to represent the Transaction.
-    pub fn ammount_of_bytes(&self) -> usize {
+    pub fn amount_of_bytes(&self) -> usize {
         self.to_bytes().len()
     }
 

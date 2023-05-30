@@ -1,3 +1,11 @@
 /target
+
+# Ignora todos los logs.
 *.txt
-data/*
+
+# Ignora todos los archivos con data.
+data/*.bin
+
+# Ignora todos los archivos de prueba.
+tests_txt/*.bin
+tests_txt/*.txt

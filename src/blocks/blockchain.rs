@@ -8,6 +8,7 @@ use chrono::Utc;
 use rand::prelude::*;
 
 const BLOCKHEADER_SIZE: usize = 80;
+const MINIMAL_BLOCK_SIZE: usize = 81;
 
 /// Struct that represents the header of a block
 #[derive(Debug, PartialEq, Clone)]
@@ -134,7 +135,7 @@ impl Block {
 
     /// Wrapper for _from_bytes
     pub fn from_bytes(slice: &[u8]) -> Result<Block, BlockChainError> {
-        if slice.len() < BLOCKHEADER_SIZE {
+        if slice.len() < MINIMAL_BLOCK_SIZE {
             return Err(BlockChainError::ErrorCreatingBlock);
         }
 
@@ -146,18 +147,19 @@ impl Block {
 
     /// It creates and returns a Block from a slice of bytes.
     fn _from_bytes(slice: &[u8]) -> Option<Block> {
-        let (header_bytes, slice) = slice.split_at(BLOCKHEADER_SIZE);
+        let (header_bytes, mut slice) = slice.split_at(BLOCKHEADER_SIZE);
         let header = BlockHeader::from_bytes(header_bytes).ok()?;
         let transaction_count = VarLenInt::from_bytes(slice);
-        let (mut _used_bytes, left_transactions) =
+        (_, slice) =
             slice.split_at(transaction_count.amount_of_bytes());
 
         let mut transactions = Vec::new();
 
         let mut i = 0;
-        while i < left_transactions.len() {
-            let transaction = Transaction::from_bytes(&left_transactions[i..]).ok()?;
-            i += transaction.ammount_of_bytes();
+        while i < transaction_count.to_usize() {
+            let transaction = Transaction::from_bytes(&slice).ok()?;
+            (_, slice) = slice.split_at(transaction.amount_of_bytes());
+            i += 1;
             transactions.push(transaction);
         }
 
@@ -166,6 +168,10 @@ impl Block {
             transaction_count,
             transactions,
         })
+    }
+
+    pub fn amount_of_bytes(&self) -> usize {
+        self.to_bytes().len()
     }
 
     /// It returns the time when the Block was created.
