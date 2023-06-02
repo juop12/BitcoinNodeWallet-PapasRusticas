@@ -82,7 +82,8 @@ impl Node {
             data_handler,
             config.begin_time,
         );
-        let address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port);
+        let mut address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port, config.ipv6_enabled);
+        address_vector.reverse(); // Generally the first nodes are slow, so we reverse the vector to connect to the fastest nodes first
 
         for addr in address_vector {
             match node.handshake(addr) {
@@ -105,13 +106,16 @@ impl Node {
     /// Receives a dns address as a String and returns a Vector that contains all the addresses
     /// returned by the dns. If an error occured (for example, the dns address is not valid), it
     /// returns an empty Vector.
-    /// The socket address requires a dns and a DNS_PORT, which is set to 53 by default
-    fn peer_discovery(&self, dns: &str, dns_port: u16) -> Vec<SocketAddr> {
+    /// The socket address requires a dns and a DNS_PORT, which is set to 18333 because it is
+    /// the port used by the bitcoin core testnet.
+    fn peer_discovery(&self, dns: &str, dns_port: u16, ipv6_enabled: bool) -> Vec<SocketAddr> {
         let mut socket_address_vector = Vec::new();
 
         if let Ok(address_iter) = (dns, dns_port).to_socket_addrs() {
             for address in address_iter {
-                socket_address_vector.push(address);
+                if address.is_ipv4() || ipv6_enabled {
+                    socket_address_vector.push(address);
+                }
             }
         }
         socket_address_vector
@@ -221,7 +225,7 @@ mod tests {
             data_handler,
             STARTING_BLOCK_TIME,
         );
-        let address_vector = node.peer_discovery("does_not_exist", DNS_PORT);
+        let address_vector = node.peer_discovery("does_not_exist", DNS_PORT, false);
 
         assert!(address_vector.is_empty());
     }
@@ -238,7 +242,7 @@ mod tests {
             data_handler,
             STARTING_BLOCK_TIME,
         );
-        let address_vector = node.peer_discovery(DNS_ADDRESS, DNS_PORT);
+        let address_vector = node.peer_discovery(DNS_ADDRESS, DNS_PORT, false);
 
         assert!(!address_vector.is_empty());
     }
