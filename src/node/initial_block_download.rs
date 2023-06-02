@@ -321,6 +321,7 @@ mod tests {
             begin_time: STARTING_BLOCK_TIME,
             headers_path: String::from(HEADERS_FILE_PATH),
             blocks_path: String::from(BLOCKS_FILE_PATH),
+            ipv6_enabled: false,
         };
         let mut node = Node::new(config)?;
         let mut i = 0;
@@ -345,6 +346,7 @@ mod tests {
             begin_time: STARTING_BLOCK_TIME,
             headers_path: String::from(HEADERS_FILE_PATH),
             blocks_path: String::from(BLOCKS_FILE_PATH),
+            ipv6_enabled: false,
         };
         
         let mut node = Node::new(config)?;
