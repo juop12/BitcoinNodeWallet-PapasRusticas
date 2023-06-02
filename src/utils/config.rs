@@ -6,7 +6,7 @@ use std::{
 };
 
 const CONFIG_FILENAME: &str = "nodo.conf";
-const PARAMETER_AMOUNT: usize = 8;
+const PARAMETER_AMOUNT: usize = 9;
 
 /// Struct that represents a node's configuration parameters.
 #[derive(Debug)]
@@ -19,6 +19,7 @@ pub struct Config {
     pub begin_time: u32,
     pub headers_path: String,
     pub blocks_path: String,
+    pub ipv6_enabled: bool,
 }
 
 impl Config {
@@ -61,6 +62,7 @@ impl Config {
             begin_time,
             headers_path: config_fields[6].to_string(),
             blocks_path: config_fields[7].to_string(),
+            ipv6_enabled: config_fields[8].parse::<bool>().ok()?,
         })
     }
 
@@ -154,6 +156,7 @@ mod tests {
             BEGIN_TIME.to_string(),
             HEADERS_FILE_PATH.to_string(),
             BLOCKS_FILE_PATH.to_string(),
+            false.to_string(),
         ];
 
         let expected_begin_time_timestamp: u32 = 1681084800;
@@ -169,6 +172,7 @@ mod tests {
         assert_eq!(config.begin_time, expected_begin_time_timestamp);
         assert_eq!(config.headers_path, HEADERS_FILE_PATH.to_string());
         assert_eq!(config.blocks_path, BLOCKS_FILE_PATH.to_string());
+        assert_eq!(config.ipv6_enabled, false);
     }
 
     #[test]
@@ -197,6 +201,7 @@ mod tests {
             BEGIN_TIME.to_string(),
             HEADERS_FILE_PATH.to_string(),
             BLOCKS_FILE_PATH.to_string(),
+            true.to_string(),
         ];
 
         assert!(Config::_from(parameters).is_err());
@@ -213,6 +218,7 @@ mod tests {
             Utc::now().date_naive().succ_opt().unwrap().to_string(),
             HEADERS_FILE_PATH.to_string(),
             BLOCKS_FILE_PATH.to_string(),
+            true.to_string(),
         ];
 
         assert!(Config::_from(parameters).is_err());

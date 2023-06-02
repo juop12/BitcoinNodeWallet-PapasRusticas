@@ -19,6 +19,7 @@ mod test {
             begin_time: BEGIN_TIME_EPOCH,
             headers_path: String::from("tests_txt/headers.bin"),
             blocks_path: String::from("tests_txt/blocks.bin"),
+            ipv6_enabled: false,
         };
 
         let node = Node::new(config)?;
@@ -37,6 +38,7 @@ mod test {
             begin_time: BEGIN_TIME_EPOCH,
             headers_path: String::from("tests_txt/integration_test_2_headers.bin"),
             blocks_path: String::from("tests_txt/integration_test_2_blocks.bin"),
+            ipv6_enabled: false,
         };
 
         let mut node = Node::new(config)?;
@@ -60,6 +62,7 @@ mod test {
             begin_time: BEGIN_TIME_EPOCH,
             headers_path: String::from("tests_txt/integration_test_3_headers.bin"),
             blocks_path: String::from("tests_txt/integration_test_3_blocks.bin"),
+            ipv6_enabled: false,
         };
 
         let mut node = Node::new(config)?;
