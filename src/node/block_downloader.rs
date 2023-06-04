@@ -21,6 +21,7 @@ struct Worker {
 type Bundle = Box<Vec<[u8; 32]>>;
 pub type SafeReceiver = Arc<Mutex<mpsc::Receiver<Bundle>>>;
 pub type SafeVecBlock = Arc<Mutex<Vec<Block>>>;
+pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
 
 impl Worker {
     ///Creates a worker which attempts to execute tasks received trough the channel in a loop
@@ -173,7 +174,7 @@ fn thread_loop(
             }
         }
     };
-
+    
     if !save_blocks(
         id,
         locked_block_chain,
@@ -316,35 +317,33 @@ impl BlockDownloader {
     }
 }
 
-/// Receives a TcpStream and gets the blocks from the stream, returning a BlockMessage.
-fn receive_block_message(
+fn receive_block(
     stream: &mut TcpStream,
     logger: &Logger,
-) -> Result<BlockMessage, BlockDownloaderError> {
-    let block_msg_h = match receive_message_header(stream) {
-        Ok(msg_h) => msg_h,
-        Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
-    };
-
-    logger.log(block_msg_h.get_command_name());
-
-    let mut msg_bytes = vec![0; block_msg_h.get_payload_size() as usize];
-
-    if stream.read_exact(&mut msg_bytes).is_err() {
-        return Err(BlockDownloaderError::ErrorReceivingBlockMessage);
+) -> Result<Block, BlockDownloaderError> {
+    
+    let mut blockchain = HashMap::new();
+    match receive_message(stream, &mut Vec::new(), &mut blockchain, logger, true){
+        Ok(message_cmd) => {
+            match message_cmd.as_str() {
+                "block\0\0\0\0\0\0\0" => {
+                    let mut aux: Vec<([u8;32],Block)> = blockchain.into_iter().collect();
+                    return Ok(aux.remove(0).1);
+                },
+                "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
+                _ => return receive_block(stream, logger),
+            };
+        }
+        Err(error) => {
+            match error{
+                NodeError::ErrorDownloadingBlockBundle => return Err(BlockDownloaderError::BundleNotFound),
+                NodeError::ErrorValidatingBlock => return Err(BlockDownloaderError::ErrorValidatingBlock),
+                _ => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+            }
+        }
     }
-
-    let block_msg = match block_msg_h.get_command_name().as_str() {
-        "block\0\0\0\0\0\0\0" => match BlockMessage::from_bytes(&msg_bytes) {
-            Ok(block_msg) => block_msg,
-            Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
-        },
-        "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
-        _ => return receive_block_message(stream, logger),
-    };
-
-    Ok(block_msg)
 }
+
 
 /// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
 /// Returns an error if it was not possible to send the message.
@@ -370,18 +369,8 @@ pub fn get_blocks_from_bundle(
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     let mut blocks: Vec<Block> = Vec::new();
     for _ in 0..amount_of_hashes {
-        let received_message = receive_block_message(stream, logger)?;
-        if validate_proof_of_work(received_message.block.get_header()) {
-            if validate_proof_of_inclusion(&received_message.block) {
-                blocks.push(received_message.block);
-            } else {
-                logger.log(String::from("A block failed proof of inclusion"));
-                return Err(BlockDownloaderError::ErrorValidatingBlock);
-            }
-        } else {
-            logger.log(String::from("A block failed proof of work"));
-            return Err(BlockDownloaderError::ErrorValidatingBlock);
-        }
+        let block = receive_block(stream, logger)?;
+        blocks.push(block);
     }
 
     Ok(blocks)

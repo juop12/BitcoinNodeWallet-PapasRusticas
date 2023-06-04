@@ -385,4 +385,36 @@ mod tests {
         assert!(blocks.len() == 2000);
         Ok(())
     }
+
+    #[test]
+    fn ibd_test_3_can_download_2000_blocks() -> Result<(), NodeError> {
+        let config = Config {
+            version: 70015,
+            dns_port: 18333,
+            local_host: [127, 0, 0, 2],
+            local_port: 1002,
+            log_path: String::from("tests_txt/ibd_test_2_log.txt"),
+            begin_time: STARTING_BLOCK_TIME,
+            headers_path: String::from(HEADERS_FILE_PATH),
+            blocks_path: String::from(BLOCKS_FILE_PATH),
+            ipv6_enabled: false,
+        };
+        let mut node = Node::new(config)?;
+
+        let mut sync_node_index = 0;
+        node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
+        while let Err(_) = node.receive_headers_message(sync_node_index,15) {
+            sync_node_index += 1;
+            node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
+        }
+
+        let mut block_hashes_bundle: Vec<[u8; 32]> = Vec::new();
+        for i in 0..16 {
+            block_hashes_bundle.push(node.block_headers[16 + i].hash());
+        }
+
+        get_blocks_from_bundle(block_hashes_bundle, &mut node.tcp_streams[sync_node_index], &node.logger);
+
+        Ok(())
+    }
 }

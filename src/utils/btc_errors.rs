@@ -126,6 +126,7 @@ pub enum NodeError {
     ErrorReceivingPing,
     ErrorSendingPong,
     ErrorReceivingMessage,
+    ErrorValidatingBlock
 }
 
 impl BtcError for NodeError {}

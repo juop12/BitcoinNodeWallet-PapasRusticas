@@ -17,9 +17,11 @@ fn main() {
         Ok(node) => node,
         Err(error) => return eprintln!("{:?}", error),
     };
-
+    node.initial_block_download().unwrap();
+/*
     match node.run() {
         Ok(_) => {}
         Err(error) => eprintln!("{:?}", error),
     };
+    */
 }

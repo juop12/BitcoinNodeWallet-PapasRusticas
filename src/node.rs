@@ -5,8 +5,11 @@ pub mod handshake;
 pub mod initial_block_download;
 pub mod utxo_set;
 
-use self::block_downloader::get_blocks_from_bundle;
-use self::data_handler::NodeDataHandler;
+use self::{
+    block_downloader::get_blocks_from_bundle,
+    data_handler::NodeDataHandler,
+    handle_messages::*,
+};
 use crate::{
     blocks::{
         //transaction::TxOut,
@@ -130,36 +133,7 @@ impl Node {
     pub fn get_blockchain(&self) -> &HashMap<[u8; 32], Block> {
         &self.blockchain
     }
-
-    /// Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
-    fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError> {
-        let mut stream = &self.tcp_streams[stream_index];
-        let block_headers_msg_h = receive_message_header(&mut stream)?;
-
-        self.logger.log(block_headers_msg_h.get_command_name());
-
-        let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
-        if stream.read_exact(&mut msg_bytes).is_err() {
-            return Err(NodeError::ErrorReceivingMessage);
-        }
-
-        match block_headers_msg_h.get_command_name().as_str() {
-            "ping\0\0\0\0\0\0\0\0" => {
-                self.handle_ping_message(stream_index, &block_headers_msg_h, msg_bytes)?
-            }
-            "inv\0\0\0\0\0\0\0\0\0" => {
-                if !ibd {
-                    self.handle_inv_message(msg_bytes, stream_index)?;
-                }
-            }
-            "block\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
-            "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes)?,
-            _ => {}
-        };
-
-        Ok(block_headers_msg_h.get_command_name())
-    }
-
+/*
     /// Central function that contains the node's information flow.
     pub fn run(&mut self) -> Result<(), NodeError> {
         match self.initial_block_download() {
@@ -179,6 +153,11 @@ impl Node {
                 }
             }
         }
+    }*/
+
+    fn receive_message(&mut self, stream_index: usize, ibd: bool)-> Result<String, NodeError>{
+        let stream = &mut self.tcp_streams[stream_index];
+        receive_message(stream, &mut self.block_headers, &mut self.blockchain, &self.logger, ibd)
     }
 }
 
@@ -195,6 +174,34 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderM
         Ok(header_message) => Ok(header_message),
         Err(_) => Err(NodeError::ErrorReceivingMessageHeader),
     }
+}
+
+/// Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
+pub fn receive_message(stream: &mut TcpStream, block_headers: &mut Vec<BlockHeader>, blockchain: &mut HashMap<[u8; 32], Block>, logger: &Logger, ibd: bool) -> Result<String, NodeError> {
+    let block_headers_msg_h = receive_message_header(stream)?;
+
+    logger.log(block_headers_msg_h.get_command_name());
+
+    let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
+    if stream.read_exact(&mut msg_bytes).is_err() {
+        return Err(NodeError::ErrorReceivingMessage);
+    }
+
+    match block_headers_msg_h.get_command_name().as_str() {
+        "ping\0\0\0\0\0\0\0\0" => {
+            handle_ping_message(stream, &block_headers_msg_h, msg_bytes)?
+        }
+        "inv\0\0\0\0\0\0\0\0\0" => {
+            if !ibd {
+                handle_inv_message(stream, msg_bytes, block_headers, blockchain, logger)?;
+            }
+        }
+        "block\0\0\0\0\0\0\0" => handle_block_message(msg_bytes, block_headers, blockchain, logger, ibd)?,
+        "headers\0\0\0\0\0" => handle_block_headers_message(msg_bytes, block_headers)?,
+        _ => {},
+    };
+
+    Ok(block_headers_msg_h.get_command_name())
 }
 
 #[cfg(test)]

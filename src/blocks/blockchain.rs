@@ -188,6 +188,10 @@ impl Block {
     pub fn get_transactions(&self) -> &Vec<Transaction> {
         &self.transactions
     }
+
+    pub fn header_hash(&self) -> [u8;32]{
+        self.get_header().hash()
+    }
 }
 
 #[cfg(test)]
