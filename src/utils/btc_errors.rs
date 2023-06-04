@@ -130,3 +130,13 @@ pub enum NodeError {
 }
 
 impl BtcError for NodeError {}
+
+#[derive(Debug)]
+pub enum MessageReceiverError {
+    ErrorReceivingMessages,
+    ErrorAddingReceivedData,
+    ErrorWrokerPaniced,
+    ErrorFinishingReceivingMessages,
+}
+
+impl BtcError for MessageReceiverError {}

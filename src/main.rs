@@ -1,6 +1,8 @@
 use proyecto::node::*;
 use proyecto::utils::config::*;
 use std::env;
+use std::thread;
+use std::time::Duration;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -18,10 +20,18 @@ fn main() {
         Err(error) => return eprintln!("{:?}", error),
     };
     node.initial_block_download().unwrap();
-/*
-    match node.run() {
-        Ok(_) => {}
-        Err(error) => eprintln!("{:?}", error),
+
+    node.logger.log("node, running".to_string());
+    let message_receiver = match node.run() {
+        Ok(message_receiver) => message_receiver,
+        Err(error) => return eprintln!("{:?}", error),
     };
-    */
+
+    thread::sleep(Duration::from_secs(30));
+
+    if let Err(error) = message_receiver.finish_receiving(){
+        eprintln!("{:?}", error)
+    };
+    
+    
 }

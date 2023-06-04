@@ -49,7 +49,7 @@ impl Node {
             &self.tcp_streams,
             header_stream_index,
             &safe_new_blocks,
-            self.logger.clone(),
+            &self.logger,
         );
         match block_downloader {
             Ok(block_downloader) => Ok((block_downloader, safe_new_blocks)),
@@ -68,7 +68,7 @@ impl Node {
         total_amount_of_blocks: &mut usize,
     ) -> Result<Vec<[u8; 32]>, NodeError> {
         while i < self.block_headers.len() {
-            if self.block_headers[i].time() > self.starting_block_time {
+            if self.block_headers[i].time > self.starting_block_time {
                 *total_amount_of_blocks += 1;
                 request_block_hashes_bundle.push(self.block_headers[i].hash());
                 if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE {
@@ -169,15 +169,15 @@ impl Node {
 
     /// Writes the necessary headers into disk, to be able to continue the IBD from the last point. 
     /// On error returns NodeError. Written starting from the given positions.
-    fn store_headers_in_disk(&mut self, headers_starting_position: usize) -> Result<(), NodeError> {
+    fn store_headers_in_disk(&mut self) -> Result<(), NodeError> {
         self.data_handler.save_headers_to_disk( &self.block_headers,
-headers_starting_position).map_err(|_| NodeError::ErrorSavingDataToDisk)
+self.headers_in_disk).map_err(|_| NodeError::ErrorSavingDataToDisk)
     }
 
     /// Writes the necessary blocks into disk, to be able to continue the IBD from the last point. 
     /// On error returns NodeError. Written starting from the given positions.
-    fn store_blocks_in_disk(&mut self, blocks_starting_position: usize) -> Result<(), NodeError> {
-        self.data_handler.save_blocks_to_disk(&self.blockchain, &self.block_headers,blocks_starting_position).map_err(|_| NodeError::ErrorSavingDataToDisk)
+    fn store_blocks_in_disk(&mut self) -> Result<(), NodeError> {
+        self.data_handler.save_blocks_to_disk(&self.blockchain, &self.block_headers,self.headers_in_disk).map_err(|_| NodeError::ErrorSavingDataToDisk)
 
     }
 
@@ -271,16 +271,16 @@ headers_starting_position).map_err(|_| NodeError::ErrorSavingDataToDisk)
         self.logger.log(String::from("Started loading data from disk"));
         self.load_blocks_and_headers()?;
         self.logger.log(String::from("Finished loading data from disk"));
-        let new_headers_starting_position = self.block_headers.len();
-
+        self.headers_in_disk = self.block_headers.len();
+        
         let (block_downloader, safe_new_blocks) = self.start_downloading()?;
-
+        
         self.logger.log(String::from("Started storing headers to disk"));
-        self.store_headers_in_disk(new_headers_starting_position)?;
+        self.store_headers_in_disk()?;
         self.logger.log(String::from("Finished storing headers to disk"));
-
+        
         self.ibd_finish_downloading(block_downloader, safe_new_blocks)?;
-
+        
         //p
         println!("# final de headers  = {}", self.block_headers.len());
         println!("# final de blocks  = {}", self.blockchain.len());
@@ -292,10 +292,12 @@ headers_starting_position).map_err(|_| NodeError::ErrorSavingDataToDisk)
             "Final amount of blocks after IBD = {}",
             self.blockchain.len()
         ));
-
+        
         self.logger.log(String::from("Started storing blocks to disk"));
-        self.store_blocks_in_disk(new_headers_starting_position)?;
+        self.store_blocks_in_disk()?;
         self.logger.log(String::from("Finished storing blocks to disk"));
+        
+        self.headers_in_disk = self.block_headers.len();
 
         Ok(())
     }
@@ -356,7 +358,7 @@ mod tests {
             node.get_tcp_streams(),
             0,
             &safe_block_chain,
-            node.logger.clone(),
+            &node.logger.clone(),
         )
         .unwrap();
 

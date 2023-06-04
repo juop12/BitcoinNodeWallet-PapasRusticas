@@ -4,11 +4,12 @@ pub mod handle_messages;
 pub mod handshake;
 pub mod initial_block_download;
 pub mod utxo_set;
+pub mod message_receiver;
 
 use self::{
     block_downloader::get_blocks_from_bundle,
     data_handler::NodeDataHandler,
-    handle_messages::*,
+    handle_messages::*, message_receiver::{MessageReceiver, SafeBlockChain, SafeVecHeader},
 };
 use crate::{
     blocks::{
@@ -24,6 +25,7 @@ use std::{
     collections::HashMap,
     io::{Read, Write},
     net::{SocketAddr, TcpStream, ToSocketAddrs},
+    sync::{Arc, Mutex},
 };
 
 const MESSAGE_HEADER_SIZE: usize = 24;
@@ -39,7 +41,8 @@ pub struct Node {
     starting_block_time: u32,
     blockchain: HashMap<[u8; 32], Block>,
     //utxo_set: HashMap<[u8;32], &'static TxOut>,
-    logger: Logger,
+    headers_in_disk: usize,
+    pub logger: Logger,
 }
 
 impl Node {
@@ -61,6 +64,7 @@ impl Node {
             blockchain: HashMap::new(),
             //utxo_set: HashMap::new(),
             data_handler,
+            headers_in_disk: 0,
             logger,
         }
     }
@@ -133,31 +137,25 @@ impl Node {
     pub fn get_blockchain(&self) -> &HashMap<[u8; 32], Block> {
         &self.blockchain
     }
-/*
+
     /// Central function that contains the node's information flow.
-    pub fn run(&mut self) -> Result<(), NodeError> {
-        match self.initial_block_download() {
-            Ok(_) => self.logger.log(String::from("IBD completed successfully")),
-            Err(error) => {
-                self.logger.log_error(&error);
-                return Err(error);
-            }
-        };
+    pub fn run(self) -> Result<MessageReceiver, NodeError> {
 
-        self.create_utxo_set();
+        //self.create_utxo_set();
+        let safe_blockchain = Arc::new(Mutex::from(self.blockchain));
+        let safe_headers = Arc::new(Mutex::from(self.block_headers));
 
-        loop {
-            for index in 0..self.tcp_streams.len() {
-                if let Err(error) = self.receive_message(index, false) {
-                    self.logger.log_error(&error);
-                }
-            }
-        }
-    }*/
+        Ok(MessageReceiver::new(self.tcp_streams, safe_blockchain.clone(), safe_headers.clone(), &self.logger))
+    }
 
     fn receive_message(&mut self, stream_index: usize, ibd: bool)-> Result<String, NodeError>{
         let stream = &mut self.tcp_streams[stream_index];
-        receive_message(stream, &mut self.block_headers, &mut self.blockchain, &self.logger, ibd)
+        let mut aux_blockchain = Vec::new();
+        let msg_cmd = receive_message(stream, &mut self.block_headers, &mut aux_blockchain, &self.logger, ibd)?;
+        for block in aux_blockchain{
+            self.blockchain.insert(block.header_hash(), block);
+        };
+        Ok(msg_cmd)
     }
 }
 
@@ -177,7 +175,7 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderM
 }
 
 /// Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
-pub fn receive_message(stream: &mut TcpStream, block_headers: &mut Vec<BlockHeader>, blockchain: &mut HashMap<[u8; 32], Block>, logger: &Logger, ibd: bool) -> Result<String, NodeError> {
+pub fn receive_message(stream: &mut TcpStream, block_headers: &mut Vec<BlockHeader>, blockchain: &mut Vec<Block>, logger: &Logger, ibd: bool) -> Result<String, NodeError> {
     let block_headers_msg_h = receive_message_header(stream)?;
 
     logger.log(block_headers_msg_h.get_command_name());

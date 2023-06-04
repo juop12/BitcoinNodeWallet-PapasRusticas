@@ -15,20 +15,16 @@ pub fn handle_block_headers_message(msg_bytes: Vec<u8>, block_headers: &mut Vec<
 
 ///Handles the block message by validating the proof of work and the proof of inclusion and the saving it.
 /// If the block is already in the blockchain, it is not saved.
-pub fn handle_block_message(msg_bytes: Vec<u8>,  block_headers: &mut Vec<BlockHeader>, blockchain: &mut HashMap<[u8; 32], Block>, logger: &Logger, ibd: bool) -> Result<(), NodeError> {
+pub fn handle_block_message(msg_bytes: Vec<u8>,  block_headers: &mut Vec<BlockHeader>, blockchain: &mut Vec<Block>, logger: &Logger, ibd: bool) -> Result<(), NodeError> {
     let block_msg = match BlockMessage::from_bytes(&msg_bytes) {
         Ok(block_msg) => block_msg,
         Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
     };
-
-    if blockchain.contains_key(&block_msg.block.get_header().hash())
-    {
-        return Ok(());
-    }
-
+    
     if validate_proof_of_work(block_msg.block.get_header()) {
         if validate_proof_of_inclusion(&block_msg.block) {
-            add_block(block_msg.block, block_headers, blockchain, !ibd)?;
+            blockchain.push(block_msg.block);
+            //add_block(block_msg.block, block_headers, blockchain, !ibd)?;
         } else {
             logger.log(String::from("Proof of inclusion failed for a block"));
             return Err(NodeError::ErrorValidatingBlock)
@@ -43,7 +39,7 @@ pub fn handle_block_message(msg_bytes: Vec<u8>,  block_headers: &mut Vec<BlockHe
 
 ///Handles the inv message by asking for the blocks that are not in the blockchain.
 ///If the block is already in the blockchain, it is not saved.
-pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, block_headers: &mut Vec<BlockHeader>, blockchain: &mut HashMap<[u8; 32], Block>, logger: &Logger) -> Result<(), NodeError> {
+pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, block_headers: &mut Vec<BlockHeader>, blockchain: &mut Vec<Block>, logger: &Logger) -> Result<(), NodeError> {
     let inv_msg = match InvMessage::from_bytes(&msg_bytes) {
         Ok(msg) => msg,
         Err(_) => return Err(NodeError::ErrorRecevingBroadcastedInventory),
@@ -52,9 +48,7 @@ pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, block_head
     match get_blocks_from_bundle(inv_msg.get_block_hashes(), stream, logger) {
         Ok(blocks) => {
             for block in blocks {
-                if !blockchain.contains_key(&block.get_header().hash()) {
-                    add_block(block, block_headers, blockchain, true)?;
-                }
+                 blockchain.push(block);
             }
             Ok(())
         }
@@ -77,17 +71,3 @@ pub fn handle_ping_message(stream: &mut TcpStream, header_message: &HeaderMessag
     }
     Ok(())
 }
-
-///Adds a block to the blockchain, its header to the headers vector and saves them both on disk.
-fn add_block(block: Block, block_headers: &mut Vec<BlockHeader>, blockchain: &mut HashMap<[u8; 32], Block>, save_header: bool) -> Result<(), NodeError> {
-    if save_header{
-        match BlockHeader::from_bytes(&block.get_header().to_bytes()) {
-            Ok(header) => block_headers.push(header),
-            Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
-        };
-    }
-    
-    blockchain.insert(block.header_hash(), block);
-    Ok(())
-}
-
