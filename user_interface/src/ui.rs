@@ -1,11 +1,10 @@
 use gtk::prelude::*;
-use gtk::{glib,Application, ApplicationWindow, Button, Label, Frame, Box, Fixed, Separator, Paned, Notebook, Align,Orientation, ColumnView, ListStore};
+use gtk::{glib,Application, ApplicationWindow, Button, Label, Frame, Box, Fixed, Separator, Paned, Notebook, Align,Orientation, ColumnView, ColumnViewColumn};
 
 
 const APP_ID: &str = "bitcoin.ui";    
 const FIXED_WIDTH: i32 = 800;
 const FIXED_HEIGHT: i32 = 600;
-
 const LAST_UPDATE_TIME: &str = "6 days";
 
 
@@ -131,37 +130,57 @@ fn build_send_tab() -> Box {
     send_list_box.set_halign(Align::Center);
     send_list_box.set_valign(Align::Start);
 
-    let bitcoin_adress_label = Label::new(Some("Bitcoin Address:"));
-    bitcoin_adress_label.set_halign(Align::Start);
-    let address_box = Box::builder().orientation(Orientation::Horizontal).build();
-    address_box.append(&address_box);
-    address_box.append(&gtk::Entry::new());
-    address_box.set_size_request(FIXED_WIDTH, 20);
-    address_box.set_halign(Align::Start);
+    let address_box = build_bitcoin_address_box();
     send_list_box.append(&address_box);
 
-    let adress_label = Label::new(Some("Label:"));
-    adress_label.set_halign(Align::Start);
-    let adress_label_box = Box::builder().orientation(Orientation::Horizontal).build();
-    adress_label_box.append(&adress_label);
-    adress_label_box.append(&gtk::Entry::new());
-    adress_label_box.set_size_request(FIXED_WIDTH, 20);
-    send_list_box.append(&adress_label_box);
+    let address_label_box = build_address_box();
+    send_list_box.append(&address_label_box);
 
-    let ammount_label = Label::new(Some("Ammount:"));
-    ammount_label.set_halign(Align::Start);
-    let ammount_box = Box::builder().orientation(Orientation::Horizontal).build();
-    ammount_box.append(&ammount_label);
-    ammount_box.append(&gtk::Entry::new());
-    ammount_box.set_size_request(FIXED_WIDTH, 20);
-    ammount_box.set_halign(Align::Start);
-    send_list_box.append(&ammount_box);
-
+    let amount_box = build_amount_box();
+    send_list_box.append(&amount_box);
 
     fixed.put(&send_list_box, 0.0, 0.0);
 
     tab_box.append(&fixed);
     tab_box
+}
+
+fn build_bitcoin_address_box() -> Box{
+    let bitcoin_adress_label = Label::new(Some("Bitcoin Address:"));
+    bitcoin_adress_label.set_halign(Align::Start);
+
+    let address_box = Box::builder().orientation(Orientation::Horizontal).build();
+    address_box.append(&bitcoin_adress_label);
+    address_box.append(&gtk::Entry::new());
+    address_box.set_size_request(FIXED_WIDTH, 20);
+    address_box.set_halign(Align::Start);
+
+    address_box
+}
+
+fn build_address_box() -> Box{
+    let adress_label = Label::new(Some("Label:"));
+    adress_label.set_halign(Align::Start);
+
+    let adress_label_box = Box::builder().orientation(Orientation::Horizontal).build();
+    adress_label_box.append(&adress_label);
+    adress_label_box.append(&gtk::Entry::new());
+    adress_label_box.set_size_request(FIXED_WIDTH, 20);
+
+    adress_label_box
+}
+
+fn build_amount_box() -> Box{
+    let amount_label = Label::new(Some("Ammount:"));
+    amount_label.set_halign(Align::Start);
+
+    let amount_box = Box::builder().orientation(Orientation::Horizontal).build();
+    amount_box.append(&amount_label);
+    amount_box.append(&gtk::Entry::new());
+    amount_box.set_size_request(FIXED_WIDTH, 20);
+    amount_box.set_halign(Align::Start);
+
+    amount_box
 }
 
 
@@ -191,8 +210,10 @@ fn build_transactions_tab() -> Box {
     fixed.set_size_request(FIXED_WIDTH, FIXED_HEIGHT);
     fixed.set_halign(Align::Center);
     fixed.set_valign(Align::Center);
+    fixed.put(&build_transactions_columns(), 0.0, 0.0);
 
     tab_box.append(&fixed);
+    
     tab_box
 }
 
@@ -200,16 +221,44 @@ fn build_transactions_tab() -> Box {
 //===================================================================================
 
 
-/* fn build_transactions_column() -> ColumnView {
-
-    let my_type: Type = Column::new();
-    let list_model = gtk::ListStore::new(&[my_type]);
-    let single_selection = gtk::SingleSelection::new(list_model);
+ fn build_transactions_columns() -> ColumnView {
     
-    let view = ColumnView::new(Some(single_selection));
+    let column_view = ColumnView::builder()
+        .show_column_separators(true)
+        .show_row_separators(true)
+        // .hexpand(true)
+        .build();
 
-    view
-} */
+    column_view.set_size_request(FIXED_WIDTH, 200);
+    let state_column = ColumnViewColumn::builder()
+        .title("")
+        .expand(true)
+        .build();
+    let date_column = ColumnViewColumn::builder()
+        .title("Date")
+        .expand(true)
+        .build();
+    let type_column = ColumnViewColumn::builder()
+        .title("Type")
+        .expand(true)
+        .build();
+    let label_column = ColumnViewColumn::builder()
+        .title("Label")
+        .expand(true)
+        .build();
+    let amount_column = ColumnViewColumn::builder()
+        .title("Amount (BTC)")
+        .expand(true)
+        .build();
+
+    column_view.append_column(&state_column);
+    column_view.append_column(&date_column);
+    column_view.append_column(&type_column);
+    column_view.append_column(&label_column);
+    column_view.append_column(&amount_column);
+
+    column_view
+} 
 
 
 
