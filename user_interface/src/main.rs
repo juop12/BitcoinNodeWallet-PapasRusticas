@@ -1,3 +1,5 @@
+use user_interface::Ui;
+
 fn main() {
-    println!("Hello, world!");
+    Ui::crear_app();
 }
