@@ -9,8 +9,6 @@ use std::{
     thread,
 };
 
-pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
-pub type SafeVecHeader = Arc<Mutex<Vec<BlockHeader>>>;
 pub type FinishedIndicator = Arc<Mutex<bool>>;
 
 enum Stops{
@@ -119,14 +117,7 @@ fn thread_loop(stream: &mut TcpStream, safe_block_headers: &SafeVecHeader, safe_
         
     }
 
-    let mut aux_blockchain = Vec::new();
-    let mut aux_block_headers = Vec::new();
-    if receive_message(stream, &mut aux_block_headers, &mut aux_blockchain, &logger, false).is_err(){
-        return Stops::UngracefullStop;
-    }
-
-    if let Err(error) = add_block_or_headers(aux_block_headers, aux_blockchain, safe_block_headers, safe_block_chain, logger){
-        logger.log_error(&error);
+    if receive_message(stream, safe_block_headers, safe_block_chain, &logger, false).is_err(){
         return Stops::UngracefullStop;
     }
     Stops::Continue
@@ -140,7 +131,7 @@ pub struct MessageReceiver {
 }
 
 impl MessageReceiver{
-    pub fn new(outbound_connections: Vec<TcpStream>, safe_blockchain: SafeBlockChain, safe_headers: SafeVecHeader, logger: &Logger)->MessageReceiver{
+    pub fn new(outbound_connections: &Vec<TcpStream>, safe_blockchain: SafeBlockChain, safe_headers: SafeVecHeader, logger: &Logger)->MessageReceiver{
         let amount_of_peers = outbound_connections.len();
         let mut workers = Vec::new();
         let mut finished_working_indicators = Vec::new();
@@ -149,8 +140,15 @@ impl MessageReceiver{
         .enumerate()
         .take(amount_of_peers)
         {
+            let current_stream = match stream.try_clone() {
+                Ok(stream) => stream,
+                Err(_) => {
+                    logger.log_error(&MessageReceiverError::ErrorCreatingWorker);
+                    continue;
+                }
+            };
             let finished = Arc::new(Mutex::from(false));
-            let worker = Worker::new(stream, safe_headers.clone(), safe_blockchain.clone(), logger.clone(), finished.clone(), id);
+            let worker = Worker::new(current_stream, safe_headers.clone(), safe_blockchain.clone(), logger.clone(), finished.clone(), id);
             workers.push(worker);
             finished_working_indicators.push(finished);
         };

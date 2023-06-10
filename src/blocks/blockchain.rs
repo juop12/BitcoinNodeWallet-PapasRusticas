@@ -175,8 +175,14 @@ impl Block {
     }
 
     /// It returns the header of the block.
-    pub fn get_header(&self) -> &BlockHeader {
-        &self.header
+    pub fn get_header(&self) -> BlockHeader {
+        BlockHeader { 
+            version: self.header.version, 
+            prev_hash: self.header.prev_hash, 
+            merkle_root_hash: self.header.merkle_root_hash, 
+            time: self.header.time, 
+            n_bits: self.header.n_bits, 
+            nonce: self.header.nonce }
     }
 
     /// It returns the transactions of the block.

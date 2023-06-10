@@ -86,6 +86,7 @@ pub enum NodeDataHandlerError {
     ErrorReadingHeaders,
     ErrorReadingBlocks,
     ErrorReadingBytes,
+    ErrorSharingData,
 }
 
 impl BtcError for NodeDataHandlerError {}
@@ -126,7 +127,8 @@ pub enum NodeError {
     ErrorReceivingPing,
     ErrorSendingPong,
     ErrorReceivingMessage,
-    ErrorValidatingBlock
+    ErrorValidatingBlock,
+    ErrorSharingReference
 }
 
 impl BtcError for NodeError {}
@@ -137,6 +139,7 @@ pub enum MessageReceiverError {
     ErrorAddingReceivedData,
     ErrorWrokerPaniced,
     ErrorFinishingReceivingMessages,
+    ErrorCreatingWorker,
 }
 
 impl BtcError for MessageReceiverError {}
