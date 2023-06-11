@@ -2,6 +2,18 @@
 <!-- Generated with glade 3.38.2 -->
 <interface>
   <requires lib="gtk+" version="3.24"/>
+  <object class="GtkTreeStore" id="treeStore">
+    <columns>
+      <!-- column-name c1 -->
+      <column type="gchararray"/>
+      <!-- column-name c2 -->
+      <column type="gchararray"/>
+      <!-- column-name c3 -->
+      <column type="gchararray"/>
+      <!-- column-name gfloat1 -->
+      <column type="gfloat"/>
+    </columns>
+  </object>
   <object class="GtkWindow" id="Ventana">
     <property name="name">Ventana</property>
     <property name="can-focus">False</property>
@@ -260,8 +272,8 @@
                 <property name="can-focus">False</property>
                 <property name="margin-bottom">34</property>
                 <child>
-                  <object class="GtkFrame">
-                    <property name="width-request">435</property>
+                  <object class="GtkFrame" id="BalanceFrame">
+                    <property name="width-request">535</property>
                     <property name="height-request">150</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
@@ -269,7 +281,7 @@
                     <property name="label-yalign">1</property>
                     <property name="shadow-type">in</property>
                     <child>
-                      <!-- n-columns=2 n-rows=3 -->
+                      <!-- n-columns=2 n-rows=4 -->
                       <object class="GtkGrid" id="Balance Numbers">
                         <property name="name">Balance Numbers</property>
                         <property name="visible">True</property>
@@ -325,6 +337,26 @@
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
+                            <property name="top-attach">3</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkSeparator" id="labelSeparator">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkSeparator" id="quantitySeparator">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
                             <property name="top-attach">2</property>
                           </packing>
                         </child>
@@ -575,6 +607,97 @@
                 <property name="name">Transactions</property>
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkViewport" id="TransactionsGridViewport">
+                    <property name="width-request">600</property>
+                    <property name="height-request">400</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="shadow-type">none</property>
+                    <child>
+                      <object class="GtkScrolledWindow" id="TransactionsGridWindow">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="hscrollbar-policy">never</property>
+                        <property name="vscrollbar-policy">always</property>
+                        <property name="window-placement">top-right</property>
+                        <property name="kinetic-scrolling">False</property>
+                        <child>
+                          <object class="GtkTreeView" id="TransactionsGrid">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="model">treeStore</property>
+                            <property name="reorderable">True</property>
+                            <property name="search-column">0</property>
+                            <child internal-child="selection">
+                              <object class="GtkTreeSelection" id="TreeSelection"/>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn" id="progress">
+                                <property name="sizing">fixed</property>
+                                <property name="fixed-width">70</property>
+                                <child>
+                                  <object class="GtkCellRendererProgress" id="RetrieveProgress"/>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn" id="Date">
+                                <property name="sizing">fixed</property>
+                                <property name="fixed-width">70</property>
+                                <property name="title" translatable="yes">Date</property>
+                                <child>
+                                  <object class="GtkCellRendererText" id="Date_renderer"/>
+                                  <attributes>
+                                    <attribute name="single-paragraph-mode">0</attribute>
+                                    <attribute name="width-chars">0</attribute>
+                                  </attributes>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn" id="type">
+                                <property name="sizing">fixed</property>
+                                <property name="fixed-width">70</property>
+                                <property name="title" translatable="yes">Type</property>
+                                <child>
+                                  <object class="GtkCellRendererText" id="Type_renderer"/>
+                                  <attributes>
+                                    <attribute name="rise">0</attribute>
+                                  </attributes>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn" id="label">
+                                <property name="sizing">fixed</property>
+                                <property name="fixed-width">170</property>
+                                <property name="title" translatable="yes">Label</property>
+                                <child>
+                                  <object class="GtkCellRendererText" id="Label_renderer"/>
+                                </child>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkTreeViewColumn" id="amount">
+                                <property name="sizing">fixed</property>
+                                <property name="fixed-width">220</property>
+                                <property name="title" translatable="yes">Amount</property>
+                                <child>
+                                  <object class="GtkCellRendererText" id="Amount_renderer"/>
+                                </child>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="x">50</property>
+                    <property name="y">50</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="name">Transactions</property>
