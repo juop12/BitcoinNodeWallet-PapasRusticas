@@ -27,11 +27,10 @@ fn main() {
         Err(error) => return eprintln!("{:?}", error),
     };
 
+    //hace lo que quieras
     thread::sleep(Duration::from_secs(30));
 
     if let Err(error) = message_receiver.finish_receiving(){
         eprintln!("{:?}", error)
     };
-    
-    
 }

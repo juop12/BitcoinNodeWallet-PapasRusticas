@@ -25,6 +25,7 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
         Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
     };
     let block_header = block.get_header();
+
     if !validate_proof_of_work(&block_header) {
         logger.log(String::from("Proof of work failed for a block"));
         return Err(NodeError::ErrorValidatingBlock);
@@ -33,6 +34,7 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
         logger.log(String::from("Proof of inclusion failed for a block"));
         return Err(NodeError::ErrorValidatingBlock)
     };
+
     if !ibd{
         let mut block_headers = safe_headers.lock().map_err(|_| NodeError::ErrorSharingReference)?;
         block_headers.push(block_header);

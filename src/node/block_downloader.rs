@@ -23,7 +23,7 @@ struct Worker {
     _id: usize,
 }
 
-type Bundle = Box<Vec<[u8; 32]>>;
+type Bundle = Vec<[u8; 32]>;
 pub type SafeReceiver = Arc<Mutex<mpsc::Receiver<Bundle>>>;
 //pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
 
@@ -122,9 +122,9 @@ fn thread_loop(
         return Stops::GracefullStop;
     }
 
-    let aux_bundle = Box::new(*bundle.clone());
+    let aux_bundle = bundle.clone();
 
-    match get_blocks_from_bundle(*bundle, stream, &safe_headers, &safe_block_chain,logger) {
+    match get_blocks_from_bundle(bundle, stream, &safe_headers, &safe_block_chain,logger) {
         Ok(blocks) => blocks,
         Err(error) => {
             if let Err(error) = missed_bundles_sender.send(aux_bundle) {
@@ -225,9 +225,8 @@ impl BlockDownloader {
         if bundle.is_empty() {
             return Ok(());
         }
-        let box_bundle = Box::new(bundle);
 
-        match self.sender.send(box_bundle) {
+        match self.sender.send(bundle) {
             Ok(_) => Ok(()),
             Err(_err) => Err(BlockDownloaderError::ErrorSendingToThread),
         }
@@ -240,14 +239,14 @@ impl BlockDownloader {
         let mut working_peer_conection = None;
         for _ in 0..cantidad_workers {
             let end_of_channel: Vec<[u8; 32]> = Vec::new();
-            if self.sender.send(Box::new(end_of_channel)).is_err() {
+            if self.sender.send(Vec::new()).is_err() {
                 self.logger
                     .log(String::from("Falló en el envio al end of channel"));
                 return Err(BlockDownloaderError::ErrorSendingToThread);
             }
 
             while let Ok(bundle) = self.missed_bundles_receiver.try_recv() {
-                self.download_block_bundle(*bundle)?;
+                self.download_block_bundle(bundle)?;
             }
 
             let mut joined_a_worker = false;
@@ -272,7 +271,7 @@ impl BlockDownloader {
         };
 
         while let Ok(bundle) = self.missed_bundles_receiver.try_recv() {
-            get_blocks_from_bundle(*bundle, &mut stream, &self.safe_headers, &self.safe_blockchain,&self.logger)?;
+            get_blocks_from_bundle(bundle, &mut stream, &self.safe_headers, &self.safe_blockchain,&self.logger)?;
         }
 
         Ok(())
