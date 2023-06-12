@@ -1,12 +1,17 @@
-pub mod block_downloader;
+pub mod peer_comunication;
 pub mod data_handler;
 pub mod handle_messages;
 pub mod handshake;
 pub mod initial_block_download;
 pub mod utxo_set;
 
-use self::block_downloader::get_blocks_from_bundle;
-use self::data_handler::NodeDataHandler;
+
+use self::{
+    peer_comunication::*,
+    block_downloader::get_blocks_from_bundle,
+    data_handler::NodeDataHandler,
+    handle_messages::*, message_receiver::{MessageReceiver},
+};
 use crate::{
     blocks::{
         //transaction::TxOut,
@@ -21,10 +26,14 @@ use std::{
     collections::HashMap,
     io::{Read, Write},
     net::{SocketAddr, TcpStream, ToSocketAddrs},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 const MESSAGE_HEADER_SIZE: usize = 24;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
+
+pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
+pub type SafeVecHeader = Arc<Mutex<Vec<BlockHeader>>>;
 
 /// Struct that represents the bitcoin node
 pub struct Node {
@@ -32,11 +41,12 @@ pub struct Node {
     sender_address: SocketAddr,
     tcp_streams: Vec<TcpStream>,
     data_handler: NodeDataHandler,
-    block_headers: Vec<BlockHeader>,
+    block_headers: SafeVecHeader,
     starting_block_time: u32,
-    blockchain: HashMap<[u8; 32], Block>,
+    blockchain: SafeBlockChain,
     //utxo_set: HashMap<[u8;32], &'static TxOut>,
-    logger: Logger,
+    headers_in_disk: usize,
+    pub logger: Logger,
 }
 
 impl Node {
@@ -53,11 +63,12 @@ impl Node {
             version,
             sender_address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
-            block_headers: Vec::new(),
+            block_headers: Arc::new(Mutex::from(Vec::new())),
             starting_block_time,
-            blockchain: HashMap::new(),
+            blockchain: Arc::new(Mutex::from(HashMap::new())),
             //utxo_set: HashMap::new(),
             data_handler,
+            headers_in_disk: 0,
             logger,
         }
     }
@@ -126,59 +137,41 @@ impl Node {
         &self.tcp_streams
     }
 
-    /// Returns a reference to the blockchain HashMap. The key is the block hash and the value is the block.
-    pub fn get_blockchain(&self) -> &HashMap<[u8; 32], Block> {
-        &self.blockchain
+    /// Returns a MutexGuard to the blockchain HashMap. 
+    pub fn get_blockchain(&self) -> Result<MutexGuard<HashMap<[u8; 32], Block>>, NodeError>{
+        self.blockchain.lock().map_err(|_| NodeError::ErrorSharingReference)
     }
 
-    /// Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
-    fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError> {
-        let mut stream = &self.tcp_streams[stream_index];
-        let block_headers_msg_h = receive_message_header(&mut stream)?;
-
-        self.logger.log(block_headers_msg_h.get_command_name());
-
-        let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
-        if stream.read_exact(&mut msg_bytes).is_err() {
-            return Err(NodeError::ErrorReceivingMessage);
-        }
-
-        match block_headers_msg_h.get_command_name().as_str() {
-            "ping\0\0\0\0\0\0\0\0" => {
-                self.handle_ping_message(stream_index, &block_headers_msg_h, msg_bytes)?
-            }
-            "inv\0\0\0\0\0\0\0\0\0" => {
-                if !ibd {
-                    self.handle_inv_message(msg_bytes, stream_index)?;
-                }
-            }
-            "block\0\0\0\0\0\0" => self.handle_block_message(msg_bytes)?,
-            "headers\0\0\0\0\0" => self.handle_block_headers_message(msg_bytes)?,
-            _ => {}
-        };
-
-        Ok(block_headers_msg_h.get_command_name())
+    /// Returns a MutexGuard to the blockchain HashMap. 
+    pub fn get_block_headers(&self) -> Result<MutexGuard<Vec<BlockHeader>>, NodeError>{
+        self.block_headers.lock().map_err(|_| NodeError::ErrorSharingReference)
     }
 
     /// Central function that contains the node's information flow.
-    pub fn run(&mut self) -> Result<(), NodeError> {
-        match self.initial_block_download() {
-            Ok(_) => self.logger.log(String::from("IBD completed successfully")),
-            Err(error) => {
-                self.logger.log_error(&error);
-                return Err(error);
-            }
+    pub fn run(&self) -> Result<MessageReceiver, NodeError> {
+
+        Ok(MessageReceiver::new(&self.tcp_streams, self.blockchain.clone(), self.block_headers.clone(), &self.logger))
+    }
+
+    fn receive_message(&mut self, stream_index: usize, ibd: bool)-> Result<String, NodeError>{
+        let stream = &mut self.tcp_streams[stream_index];
+        receive_message(stream, &self.block_headers, &self.blockchain, &self.logger, ibd)
+    }
+}
+
+
+impl Drop for Node {
+    fn drop(&mut self) {
+        self.logger.log(String::from("Saving received data"));
+        if self.store_headers_in_disk().is_err(){
+            self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
+            return;
         };
-
-        self.create_utxo_set();
-
-        loop {
-            for index in 0..self.tcp_streams.len() {
-                if let Err(error) = self.receive_message(index, false) {
-                    self.logger.log_error(&error);
-                }
-            }
-        }
+        if self.store_blocks_in_disk().is_err(){
+            self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
+            return;
+        };
+        self.logger.log(String::from("Finished storing data"));
     }
 }
 
@@ -195,6 +188,34 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderM
         Ok(header_message) => Ok(header_message),
         Err(_) => Err(NodeError::ErrorReceivingMessageHeader),
     }
+}
+
+/// Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
+pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, blockchain: &SafeBlockChain, logger: &Logger, ibd: bool) -> Result<String, NodeError> {
+    let block_headers_msg_h = receive_message_header(stream)?;
+
+    logger.log(block_headers_msg_h.get_command_name());
+
+    let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
+    if stream.read_exact(&mut msg_bytes).is_err() {
+        return Err(NodeError::ErrorReceivingMessage);
+    }
+
+    match block_headers_msg_h.get_command_name().as_str() {
+        "ping\0\0\0\0\0\0\0\0" => {
+            handle_ping_message(stream, &block_headers_msg_h, msg_bytes)?;
+        }
+        "inv\0\0\0\0\0\0\0\0\0" => {
+            if !ibd {
+                handle_inv_message(stream, msg_bytes, block_headers, blockchain, logger)?;
+            }
+        }
+        "block\0\0\0\0\0\0\0" => handle_block_message(msg_bytes, block_headers, blockchain, logger, ibd)?,
+        "headers\0\0\0\0\0" => handle_block_headers_message(msg_bytes, block_headers)?,
+        _ => {},
+    };
+
+    Ok(block_headers_msg_h.get_command_name())
 }
 
 #[cfg(test)]

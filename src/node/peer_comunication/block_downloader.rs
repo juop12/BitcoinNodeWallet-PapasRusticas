@@ -7,76 +7,8 @@ use crate::{
 use std::{
     net::TcpStream,
     sync::{mpsc, Arc, Mutex},
-    thread,
 };
-
-/// Struct that represents a worker thread in the thread pool.
-#[derive(Debug)]
-struct Worker {
-    thread: thread::JoinHandle<bool>,
-    stream: TcpStream,
-    _id: usize,
-}
-
-type Bundle = Box<Vec<[u8; 32]>>;
-pub type SafeReceiver = Arc<Mutex<mpsc::Receiver<Bundle>>>;
-pub type SafeVecBlock = Arc<Mutex<Vec<Block>>>;
-
-impl Worker {
-    ///Creates a worker which attempts to execute tasks received trough the channel in a loop
-    fn new(
-        id: usize,
-        receiver: SafeReceiver,
-        mut stream: TcpStream,
-        locked_block_chain: SafeVecBlock,
-        missed_bundles_sender: mpsc::Sender<Bundle>,
-        logger: Logger,
-    ) -> Result<Worker, BlockDownloaderError> {
-        let stream_cpy = match stream.try_clone() {
-            Ok(cloned_stream) => cloned_stream,
-            Err(_) => return Err(BlockDownloaderError::ErrorCreatingWorker),
-        };
-
-        let thread = thread::spawn(move || loop {
-            let stop = thread_loop(
-                id,
-                &receiver,
-                &mut stream,
-                &locked_block_chain,
-                &missed_bundles_sender,
-                &logger,
-            );
-
-            if let Some(gracefull_stop) = stop {
-                return gracefull_stop;
-            }
-        });
-
-        Ok(Worker {
-            _id: id,
-            thread,
-            stream: stream_cpy,
-        })
-    }
-
-    ///Joins the thread of the worker, returning an error if it was not possible to join it.
-    fn join_thread(self) -> Result<Option<TcpStream>, BlockDownloaderError> {
-        match self.thread.join() {
-            Ok(clean) => {
-                if clean {
-                    return Ok(Some(self.stream));
-                }
-                Ok(None)
-            }
-            Err(_) => Err(BlockDownloaderError::ErrorWrokerPaniced),
-        }
-    }
-
-    /// Returns true if the thread has finished its execution.
-    fn is_finished(&self) -> bool {
-        self.thread.is_finished()
-    }
-}
+use workers::*;
 
 /// Gets a bundle from the shared reference and logs the errors
 fn get_bundle(id: usize, receiver: &SafeReceiver, logger: &Logger) -> Option<Bundle> {
@@ -96,36 +28,6 @@ fn get_bundle(id: usize, receiver: &SafeReceiver, logger: &Logger) -> Option<Bun
     Some(bundle)
 }
 
-/// Saves the blocks in the shared reference, if unable, loggs the erros and sends the bundle to the missed_bundles channel
-fn save_blocks(
-    id: usize,
-    locked_block_chain: &SafeVecBlock,
-    received_blocks: Vec<Block>,
-    missed_bundles_sender: &mpsc::Sender<Bundle>,
-    aux_bundle: Bundle,
-    logger: &Logger,
-) -> bool {
-    match locked_block_chain.lock() {
-        Ok(mut block_chain) => {
-            for block in received_blocks {
-                block_chain.push(block);
-            }
-            true
-        }
-        Err(error) => {
-            if let Err(missed_error) = missed_bundles_sender.send(aux_bundle) {
-                logger.log(format!(
-                    "Worker {id} failed sending missed bundle: {:?}",
-                    missed_error
-                ));
-            };
-
-            logger.log(format!("Worker {id} failed: {:?}", error));
-            false
-        }
-    }
-}
-
 /// Main loop that worker's thread executes. It gets a bundle from the shared channel,
 /// gets the blocks from it's peer, and saves them to the shared reference block vector.
 /// If anything fails along the way it loggs acordingly, as well as other things like
@@ -134,27 +36,28 @@ fn save_blocks(
 /// The bool stored in Some represents whether the stop is a "Gracefull stop", meaning
 /// the thread must return true (for example when receiving an end of channel), or an
 /// "Ungracefull stop" meaning the loop failed at some point
-fn thread_loop(
+pub fn block_downloader_thread_loop(
     id: usize,
     receiver: &SafeReceiver,
     stream: &mut TcpStream,
-    locked_block_chain: &SafeVecBlock,
+    safe_headers: &SafeVecHeader,
+    safe_block_chain: &SafeBlockChain,
     missed_bundles_sender: &mpsc::Sender<Bundle>,
     logger: &Logger,
-) -> Option<bool> {
+) -> Stops {
     let bundle = match get_bundle(id, receiver, logger) {
         Some(bundle) => bundle,
-        None => return Some(false),
+        None => return Stops::UngracefullStop,
     };
 
     //si se recibe un end_of_channel
     if bundle.is_empty() {
-        return Some(true);
+        return Stops::GracefullStop;
     }
 
-    let aux_bundle = Box::new(*bundle.clone());
+    let aux_bundle = bundle.clone();
 
-    let received_blocks = match get_blocks_from_bundle(*bundle, stream, logger) {
+    match get_blocks_from_bundle(bundle, stream, &safe_headers, &safe_block_chain,logger) {
         Ok(blocks) => blocks,
         Err(error) => {
             if let Err(error) = missed_bundles_sender.send(aux_bundle) {
@@ -166,25 +69,15 @@ fn thread_loop(
 
             if let BlockDownloaderError::BundleNotFound = error {
                 logger.log(format!("Worker {id} did not find bundle"));
-                return None;
+                return Stops::Continue;
             } else {
                 logger.log(format!("Worker {id} failed: {:?}", error));
-                return Some(false);
+                return Stops::UngracefullStop;
             }
         }
     };
-
-    if !save_blocks(
-        id,
-        locked_block_chain,
-        received_blocks,
-        missed_bundles_sender,
-        aux_bundle,
-        logger,
-    ) {
-        return Some(false);
-    }
-    None
+    
+    Stops::Continue
 }
 
 //=====================================================================================
@@ -193,6 +86,8 @@ fn thread_loop(
 pub struct BlockDownloader {
     workers: Vec<Worker>,
     sender: mpsc::Sender<Bundle>,
+    safe_headers: SafeVecHeader,
+    safe_blockchain: SafeBlockChain,
     missed_bundles_receiver: mpsc::Receiver<Bundle>,
     logger: Logger,
 }
@@ -202,8 +97,9 @@ impl BlockDownloader {
     pub fn new(
         outbound_connections: &Vec<TcpStream>,
         header_stream_index: usize,
-        block_chain: &SafeVecBlock,
-        logger: Logger,
+        safe_headers: &SafeVecHeader,
+        safe_blockchain: &SafeBlockChain,
+        logger: &Logger,
     ) -> Result<BlockDownloader, BlockDownloaderError> {
         let connections_ammount = outbound_connections.len();
         if connections_ammount == 0 {
@@ -216,7 +112,7 @@ impl BlockDownloader {
         let receiver = Arc::new(Mutex::new(receiver));
         let mut workers = Vec::with_capacity(connections_ammount);
 
-        //No tomamos el primer tcpStream, porque se usa para descargar headers.
+        //No tomamos el tcp stream que se esta usando para descargar headers, porque se usa para descargar headers.
         for (id, stream) in outbound_connections
             .iter()
             .enumerate()
@@ -234,26 +130,26 @@ impl BlockDownloader {
                 }
             };
 
-            let new_worker = Worker::new(
+            let worker = Worker::new_block_downloader_worker(
                 id,
                 receiver.clone(),
                 current_stream,
-                block_chain.clone(),
+                safe_headers.clone(),
+                safe_blockchain.clone(),
                 missed_bundles_sender.clone(),
                 logger.clone(),
             );
 
-            match new_worker {
-                Ok(worker) => workers.push(worker),
-                Err(_) => logger.log_error(&BlockDownloaderError::ErrorCreatingWorker),
-            };
+            workers.push(worker);
         }
 
         Ok(BlockDownloader {
             workers,
             sender,
+            safe_headers: safe_headers.clone(),
+            safe_blockchain: safe_blockchain.clone(),
             missed_bundles_receiver,
-            logger,
+            logger: logger.clone(),
         })
     }
 
@@ -262,9 +158,8 @@ impl BlockDownloader {
         if bundle.is_empty() {
             return Ok(());
         }
-        let box_bundle = Box::new(bundle);
 
-        match self.sender.send(box_bundle) {
+        match self.sender.send(bundle) {
             Ok(_) => Ok(()),
             Err(_err) => Err(BlockDownloaderError::ErrorSendingToThread),
         }
@@ -277,14 +172,14 @@ impl BlockDownloader {
         let mut working_peer_conection = None;
         for _ in 0..cantidad_workers {
             let end_of_channel: Vec<[u8; 32]> = Vec::new();
-            if self.sender.send(Box::new(end_of_channel)).is_err() {
+            if self.sender.send(end_of_channel).is_err() {
                 self.logger
                     .log(String::from("Falló en el envio al end of channel"));
                 return Err(BlockDownloaderError::ErrorSendingToThread);
             }
 
             while let Ok(bundle) = self.missed_bundles_receiver.try_recv() {
-                self.download_block_bundle(*bundle)?;
+                self.download_block_bundle(bundle)?;
             }
 
             let mut joined_a_worker = false;
@@ -309,42 +204,38 @@ impl BlockDownloader {
         };
 
         while let Ok(bundle) = self.missed_bundles_receiver.try_recv() {
-            get_blocks_from_bundle(*bundle, &mut stream, &self.logger)?;
+            get_blocks_from_bundle(bundle, &mut stream, &self.safe_headers, &self.safe_blockchain,&self.logger)?;
         }
 
         Ok(())
     }
 }
 
-/// Receives a TcpStream and gets the blocks from the stream, returning a BlockMessage.
-fn receive_block_message(
+fn receive_block(
     stream: &mut TcpStream,
+    safe_headers: &SafeVecHeader,
+    safe_blockchain: &SafeBlockChain,
     logger: &Logger,
-) -> Result<BlockMessage, BlockDownloaderError> {
-    let block_msg_h = match receive_message_header(stream) {
-        Ok(msg_h) => msg_h,
-        Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
-    };
-
-    logger.log(block_msg_h.get_command_name());
-
-    let mut msg_bytes = vec![0; block_msg_h.get_payload_size() as usize];
-
-    if stream.read_exact(&mut msg_bytes).is_err() {
-        return Err(BlockDownloaderError::ErrorReceivingBlockMessage);
+) -> Result<(), BlockDownloaderError> {
+    
+    match receive_message(stream, safe_headers, safe_blockchain, logger, true){
+        Ok(message_cmd) => {
+            match message_cmd.as_str() {
+                "block\0\0\0\0\0\0\0" => return Ok(()),
+                "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
+                _ => return receive_block(stream, safe_headers, safe_blockchain, logger),
+            };
+        }
+        Err(error) => {
+            match error{
+                NodeError::ErrorDownloadingBlockBundle => return Err(BlockDownloaderError::BundleNotFound),
+                NodeError::ErrorValidatingBlock => return Err(BlockDownloaderError::ErrorValidatingBlock),
+                _ => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+            }
+        }
     }
-
-    let block_msg = match block_msg_h.get_command_name().as_str() {
-        "block\0\0\0\0\0\0\0" => match BlockMessage::from_bytes(&msg_bytes) {
-            Ok(block_msg) => block_msg,
-            Err(_) => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
-        },
-        "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
-        _ => return receive_block_message(stream, logger),
-    };
-
-    Ok(block_msg)
 }
+
 
 /// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
 /// Returns an error if it was not possible to send the message.
@@ -364,25 +255,18 @@ fn send_get_data_message_for_blocks(
 pub fn get_blocks_from_bundle(
     requested_block_hashes: Vec<[u8; 32]>,
     stream: &mut TcpStream,
+    safe_headers: &SafeVecHeader,
+    safe_blockchain: &SafeBlockChain,
     logger: &Logger,
-) -> Result<Vec<Block>, BlockDownloaderError> {
+) -> Result<(), BlockDownloaderError> {
+    if requested_block_hashes.is_empty(){
+        return Ok(());
+    }
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
-    let mut blocks: Vec<Block> = Vec::new();
     for _ in 0..amount_of_hashes {
-        let received_message = receive_block_message(stream, logger)?;
-        if validate_proof_of_work(received_message.block.get_header()) {
-            if validate_proof_of_inclusion(&received_message.block) {
-                blocks.push(received_message.block);
-            } else {
-                logger.log(String::from("A block failed proof of inclusion"));
-                return Err(BlockDownloaderError::ErrorValidatingBlock);
-            }
-        } else {
-            logger.log(String::from("A block failed proof of work"));
-            return Err(BlockDownloaderError::ErrorValidatingBlock);
-        }
+        receive_block(stream, safe_headers, safe_blockchain,logger)?;
     }
 
-    Ok(blocks)
+    Ok(())
 }

@@ -129,8 +129,10 @@ impl NodeDataHandler {
 
     /// Saves all the headers (as bytes) passed by parameter in the headers file.
     /// On error returns NodeDataHandlerError
-    pub fn save_headers_to_disk(&mut self, headers: &[BlockHeader], start: usize) -> Result<(), NodeDataHandlerError> {
-        for header in headers.iter().skip(start){
+    pub fn save_headers_to_disk(&mut self, safe_headers: &SafeVecHeader, start: usize) -> Result<(), NodeDataHandlerError> {
+        let block_headers = safe_headers.lock().map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
+
+        for header in block_headers.iter().skip(start){
             self.save_header(header)?;
         }
         Ok(())
@@ -145,10 +147,11 @@ impl NodeDataHandler {
     }
 
     /// -
-    pub fn save_blocks_to_disk(&mut self, blocks: &HashMap<[u8; 32], Block>, headers: &[BlockHeader], start: usize) -> Result<(), NodeDataHandlerError> {
-
-        for header in headers.iter().skip(start) {
-            if let Some(block) = blocks.get(&header.hash()) {
+    pub fn save_blocks_to_disk(&mut self, safe_blockchain: &SafeBlockChain, safe_headers: &SafeVecHeader, start: usize) -> Result<(), NodeDataHandlerError> {
+        let block_headers = safe_headers.lock().map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
+        let blockchain = safe_blockchain.lock().map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
+        for header in block_headers.iter().skip(start) {
+            if let Some(block) = blockchain.get(&header.hash()) {
                 self.save_block(block)?;
             }
         }
