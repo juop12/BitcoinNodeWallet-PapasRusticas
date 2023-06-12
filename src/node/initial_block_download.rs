@@ -141,13 +141,13 @@ impl Node {
 
     /// Writes the necessary headers into disk, to be able to continue the IBD from the last point. 
     /// On error returns NodeError. Written starting from the given positions.
-    fn store_headers_in_disk(&mut self) -> Result<(), NodeError> {
+    pub fn store_headers_in_disk(&mut self) -> Result<(), NodeError> {
         self.data_handler.save_headers_to_disk(&self.block_headers, self.headers_in_disk).map_err(|_| NodeError::ErrorSavingDataToDisk)
     }
 
     /// Writes the necessary blocks into disk, to be able to continue the IBD from the last point. 
     /// On error returns NodeError. Written starting from the given positions.
-    fn store_blocks_in_disk(&mut self) -> Result<(), NodeError> {
+    pub fn store_blocks_in_disk(&mut self) -> Result<(), NodeError> {
         self.data_handler.save_blocks_to_disk(&self.blockchain, &self.block_headers,self.headers_in_disk).map_err(|_| NodeError::ErrorSavingDataToDisk)
 
     }

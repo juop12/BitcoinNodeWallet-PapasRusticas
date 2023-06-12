@@ -8,62 +8,7 @@ use std::{
     sync::{Arc, Mutex},
     thread,
 };
-
-pub type FinishedIndicator = Arc<Mutex<bool>>;
-
-enum Stops{
-    GracefullStop,
-    UngracefullStop,
-    Continue,
-}
-
-impl Stops{
-    fn log_message(&self, id: usize)->String{
-        match *self{
-            Stops::GracefullStop => format!("Worker {} finished gracefully", id),
-            Stops::UngracefullStop => format!("Worker {} finished ungracefully", id),
-            Stops::Continue => String::new(),
-        }
-        
-    }
-}
-
-#[derive(Debug)]
-struct Worker{
-    thread: thread::JoinHandle<Option<TcpStream>>,
-    _id: usize,
-}
-
-impl Worker{
-    fn new(mut stream: TcpStream, safe_block_headers: SafeVecHeader, safe_block_chain: SafeBlockChain, logger: Logger, finished: FinishedIndicator, id: usize)->Worker{
-
-        let thread = thread::spawn(move || loop {
-            logger.log(format!("Sigo vivo: {}", id));
-            match thread_loop(&mut stream, &safe_block_headers, &safe_block_chain, &logger, &finished){
-                Stops::GracefullStop => {
-                    logger.log(Stops::GracefullStop.log_message(id));
-                    return Some(stream);
-                },
-                Stops::UngracefullStop => {
-                    logger.log(Stops::UngracefullStop.log_message(id));
-                    return None
-                },
-                Stops::Continue => continue,
-            }
-
-        });
-
-        Worker{ thread, _id: id}
-    }
-
-    ///Joins the thread of the worker, returning an error if it was not possible to join it.
-    fn join_thread(self) -> Result<Option<TcpStream>, MessageReceiverError> {
-        match self.thread.join() {
-            Ok(stream) => Ok(stream),
-            Err(_) => Err(MessageReceiverError::ErrorWrokerPaniced),
-        }
-    }
-}
+use workers::*;
 
 fn insert_time_orderly(header: BlockHeader, vec_headers: &mut Vec<BlockHeader>){
     let mut i = vec_headers.len();
@@ -105,7 +50,12 @@ fn add_block_or_headers(mut received_block_headers: Vec<BlockHeader>, received_b
 
 }
 
-fn thread_loop(stream: &mut TcpStream, safe_block_headers: &SafeVecHeader, safe_block_chain: &SafeBlockChain, logger: &Logger, finished: &FinishedIndicator)-> Stops{
+pub fn message_receiver_thread_loop(stream: &mut TcpStream, 
+    safe_block_headers: &SafeVecHeader, 
+    safe_block_chain: &SafeBlockChain, 
+    logger: &Logger, 
+    finished: &FinishedIndicator
+)-> Stops{
 
     match finished.lock(){
         Ok(finish) => {
@@ -148,7 +98,7 @@ impl MessageReceiver{
                 }
             };
             let finished = Arc::new(Mutex::from(false));
-            let worker = Worker::new(current_stream, safe_headers.clone(), safe_blockchain.clone(), logger.clone(), finished.clone(), id);
+            let worker = Worker::new_message_receiver_worker(current_stream, safe_headers.clone(), safe_blockchain.clone(), logger.clone(), finished.clone(), id);
             workers.push(worker);
             finished_working_indicators.push(finished);
         };

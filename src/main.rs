@@ -28,9 +28,11 @@ fn main() {
     };
 
     //hace lo que quieras
-    thread::sleep(Duration::from_secs(30));
+    thread::sleep(Duration::from_secs(600));
 
     if let Err(error) = message_receiver.finish_receiving(){
-        eprintln!("{:?}", error)
+        return eprintln!("{:?}", error)
+        
     };
+    node.logger.log(String::from("program finished gracefully"));
 }

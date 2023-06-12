@@ -1,12 +1,13 @@
-pub mod block_downloader;
+pub mod peer_comunication;
 pub mod data_handler;
 pub mod handle_messages;
 pub mod handshake;
 pub mod initial_block_download;
 pub mod utxo_set;
-pub mod message_receiver;
+
 
 use self::{
+    peer_comunication::*,
     block_downloader::get_blocks_from_bundle,
     data_handler::NodeDataHandler,
     handle_messages::*, message_receiver::{MessageReceiver},
@@ -155,6 +156,22 @@ impl Node {
     fn receive_message(&mut self, stream_index: usize, ibd: bool)-> Result<String, NodeError>{
         let stream = &mut self.tcp_streams[stream_index];
         receive_message(stream, &self.block_headers, &self.blockchain, &self.logger, ibd)
+    }
+}
+
+
+impl Drop for Node {
+    fn drop(&mut self) {
+        self.logger.log(String::from("Saving received data"));
+        if self.store_headers_in_disk().is_err(){
+            self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
+            return;
+        };
+        if self.store_blocks_in_disk().is_err(){
+            self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
+            return;
+        };
+        self.logger.log(String::from("Finished storing data"));
     }
 }
 

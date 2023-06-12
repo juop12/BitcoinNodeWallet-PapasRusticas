@@ -7,75 +7,8 @@ use crate::{
 use std::{
     net::TcpStream,
     sync::{mpsc, Arc, Mutex},
-    thread,
 };
-
-enum Stops{
-    GracefullStop,
-    UngracefullStop,
-    Continue,
-}
-
-/// Struct that represents a worker thread in the thread pool.
-#[derive(Debug)]
-struct Worker {
-    thread: thread::JoinHandle<Option<TcpStream>>,
-    _id: usize,
-}
-
-type Bundle = Vec<[u8; 32]>;
-pub type SafeReceiver = Arc<Mutex<mpsc::Receiver<Bundle>>>;
-//pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
-
-impl Worker {
-    ///Creates a worker which attempts to execute tasks received trough the channel in a loop
-    fn new(
-        id: usize,
-        receiver: SafeReceiver,
-        mut stream: TcpStream,
-        safe_headers: SafeVecHeader,
-        safe_blockchain: SafeBlockChain,
-        missed_bundles_sender: mpsc::Sender<Bundle>,
-        logger: Logger,
-    ) -> Worker {
-
-        let thread = thread::spawn(move || loop {
-            let stop = thread_loop(
-                id,
-                &receiver,
-                &mut stream,
-                &safe_headers,
-                &safe_blockchain,
-                &missed_bundles_sender,
-                &logger,
-            );
-
-            match stop{
-                Stops::GracefullStop => return Some(stream),
-                Stops::UngracefullStop => return None,
-                Stops::Continue => continue,
-            }
-        });
-
-        Worker {
-            _id: id,
-            thread,
-        }
-    }
-
-    ///Joins the thread of the worker, returning an error if it was not possible to join it.
-    fn join_thread(self) -> Result<Option<TcpStream>, BlockDownloaderError> {
-        match self.thread.join() {
-            Ok(stream) => Ok(stream),
-            Err(_) => Err(BlockDownloaderError::ErrorWrokerPaniced),
-        }
-    }
-
-    /// Returns true if the thread has finished its execution.
-    fn is_finished(&self) -> bool {
-        self.thread.is_finished()
-    }
-}
+use workers::*;
 
 /// Gets a bundle from the shared reference and logs the errors
 fn get_bundle(id: usize, receiver: &SafeReceiver, logger: &Logger) -> Option<Bundle> {
@@ -103,7 +36,7 @@ fn get_bundle(id: usize, receiver: &SafeReceiver, logger: &Logger) -> Option<Bun
 /// The bool stored in Some represents whether the stop is a "Gracefull stop", meaning
 /// the thread must return true (for example when receiving an end of channel), or an
 /// "Ungracefull stop" meaning the loop failed at some point
-fn thread_loop(
+pub fn block_downloader_thread_loop(
     id: usize,
     receiver: &SafeReceiver,
     stream: &mut TcpStream,
@@ -197,7 +130,7 @@ impl BlockDownloader {
                 }
             };
 
-            let worker = Worker::new(
+            let worker = Worker::new_block_downloader_worker(
                 id,
                 receiver.clone(),
                 current_stream,
@@ -239,7 +172,7 @@ impl BlockDownloader {
         let mut working_peer_conection = None;
         for _ in 0..cantidad_workers {
             let end_of_channel: Vec<[u8; 32]> = Vec::new();
-            if self.sender.send(Vec::new()).is_err() {
+            if self.sender.send(end_of_channel).is_err() {
                 self.logger
                     .log(String::from("Falló en el envio al end of channel"));
                 return Err(BlockDownloaderError::ErrorSendingToThread);
