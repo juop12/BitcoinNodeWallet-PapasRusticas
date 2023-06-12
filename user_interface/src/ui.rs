@@ -16,6 +16,12 @@ pub struct UiWindow {
     pub wallet_sections: UiWalletSections,
 }
 
+pub enum UiError {
+    FailedToBuildUi,
+    FailedToFindObject,
+}
+    
+
 impl Ui{
     pub fn crear_app() {
         // Initialise gtk components

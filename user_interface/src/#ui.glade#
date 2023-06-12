@@ -181,12 +181,13 @@
                       <placeholder/>
                     </child>
                     <child type="label">
-                      <object class="GtkLabel">
+                      <object class="GtkLabel" id="RecentTransactionsLabel">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Recent Transactions</property>
                         <attributes>
                           <attribute name="font-desc" value="Khmer OS System 16"/>
+                          <attribute name="weight" value="bold"/>
                           <attribute name="foreground" value="#e5e5a5a50a0a"/>
                         </attributes>
                       </object>
@@ -333,6 +334,7 @@
                         <property name="label" translatable="yes">Balances</property>
                         <attributes>
                           <attribute name="font-desc" value="Khmer OS System 16"/>
+                          <attribute name="weight" value="bold"/>
                           <attribute name="foreground" value="#e5e5a5a50a0a"/>
                         </attributes>
                       </object>
