@@ -128,7 +128,8 @@ pub enum NodeError {
     ErrorSendingPong,
     ErrorReceivingMessage,
     ErrorValidatingBlock,
-    ErrorSharingReference
+    ErrorSharingReference,
+    ErrorGettingUtxo,
 }
 
 impl BtcError for NodeError {}

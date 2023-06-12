@@ -28,6 +28,7 @@ fn main() {
     };
 
     //hace lo que quieras
+    node.create_utxo_set();
     thread::sleep(Duration::from_secs(600));
 
     if let Err(error) = message_receiver.finish_receiving(){

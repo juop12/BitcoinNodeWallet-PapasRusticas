@@ -85,7 +85,7 @@ impl TxOut {
     }
 
     /// Returns the contents of Outpoint as a bytes vector.
-    fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes_vector = Vec::new();
         bytes_vector.extend_from_slice(&self.value.to_le_bytes());
         bytes_vector.extend_from_slice(&self.pk_script_length.to_bytes());
@@ -96,7 +96,7 @@ impl TxOut {
     /// If the bytes given can form a valid TxOut, it creates it, if not returns error.
     /// It is important to note that not all bytes passed will be used. The function
     /// will only use the bytes needed to create the TxOut
-    fn from_bytes(slice: &[u8]) -> Result<TxOut, TransactionError> {
+    pub fn from_bytes(slice: &[u8]) -> Result<TxOut, TransactionError> {
         if slice.len() < MIN_BYTES_TX_OUT {
             return Err(TransactionError::ErrorCreatingTxOutFromBytes);
         }
