@@ -8,7 +8,7 @@ pub struct WalletOverview{
 
 impl WalletOverview{
     pub fn new(builder: &gtk::Builder) -> Result<Self,UiError> {
-        let overview_fixed: gtk::Fixed = match builder.object("overviewFixed") {
+        let overview_fixed: gtk::Fixed = match builder.object("Overview") {
             Some(overview_fixed) => overview_fixed,
             None => return Err(UiError::FailedToFindObject),
         };

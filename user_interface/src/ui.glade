@@ -7,7 +7,7 @@
     <property name="step-increment">9.9999999999999995e-07</property>
     <property name="page-increment">10</property>
   </object>
-  <object class="GtkTreeStore" id="treeStore">
+  <object class="GtkTreeStore" id="TxTreeStore">
     <columns>
       <!-- column-name c1 -->
       <column type="gchararray"/>
@@ -15,8 +15,10 @@
       <column type="gchararray"/>
       <!-- column-name c3 -->
       <column type="gchararray"/>
-      <!-- column-name gfloat1 -->
-      <column type="gfloat"/>
+      <!-- column-name c4 -->
+      <column type="gchararray"/>
+      <!-- column-name c5 -->
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkWindow" id="Ventana">
@@ -31,7 +33,7 @@
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkMenuBar" id="User Options">
+          <object class="GtkMenuBar" id="UserOptions">
             <property name="name">Opciones de usuario</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
@@ -580,22 +582,22 @@
                         <property name="window-placement">top-right</property>
                         <property name="kinetic-scrolling">False</property>
                         <child>
-                          <object class="GtkTreeView" id="TransactionsGrid">
+                          <object class="GtkTreeView" id="TxTree">
                             <property name="width-request">800</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
-                            <property name="model">treeStore</property>
+                            <property name="model">TxTreeStore</property>
                             <property name="reorderable">True</property>
                             <property name="search-column">0</property>
                             <child internal-child="selection">
                               <object class="GtkTreeSelection"/>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="progress">
+                              <object class="GtkTreeViewColumn" id="Progress">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">70</property>
                                 <child>
-                                  <object class="GtkCellRendererProgress" id="RetrieveProgress"/>
+                                  <object class="GtkCellRendererText" id="ProgressR"/>
                                 </child>
                               </object>
                             </child>
@@ -605,9 +607,7 @@
                                 <property name="fixed-width">70</property>
                                 <property name="title" translatable="yes">Date</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="Date_renderer">
-                                    <property name="background-gdk">#616135358383</property>
-                                  </object>
+                                  <object class="GtkCellRendererText" id="DateR"/>
                                   <attributes>
                                     <attribute name="single-paragraph-mode">0</attribute>
                                     <attribute name="width-chars">0</attribute>
@@ -616,12 +616,12 @@
                               </object>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="type">
+                              <object class="GtkTreeViewColumn" id="Type">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">70</property>
                                 <property name="title" translatable="yes">Type</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="Type_renderer"/>
+                                  <object class="GtkCellRendererText" id="TypeR"/>
                                   <attributes>
                                     <attribute name="rise">0</attribute>
                                   </attributes>
@@ -629,31 +629,22 @@
                               </object>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="label">
+                              <object class="GtkTreeViewColumn" id="BlockHeader">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">400</property>
-                                <property name="title" translatable="yes">Label</property>
+                                <property name="title" translatable="yes">BlockHeader</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="Label_renderer"/>
+                                  <object class="GtkCellRendererText" id="BlockHeaderR"/>
                                 </child>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="amount">
+                              <object class="GtkTreeViewColumn" id="Amount">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">220</property>
                                 <property name="title" translatable="yes">Amount</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="Amount_renderer"/>
-                                </child>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkTreeViewColumn" id="progress1">
-                                <property name="sizing">fixed</property>
-                                <property name="fixed-width">70</property>
-                                <child>
-                                  <object class="GtkCellRendererProgress" id="RetrieveProgress1"/>
+                                  <object class="GtkCellRendererText" id="AmountR"/>
                                 </child>
                               </object>
                             </child>

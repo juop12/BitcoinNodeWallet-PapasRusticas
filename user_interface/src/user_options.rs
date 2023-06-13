@@ -9,7 +9,7 @@ pub struct UiUserOptions {
 
 impl UiUserOptions {
     pub fn new(builder: &gtk::Builder) -> Result<Self,UiError>{
-        let menu_bar: MenuBar = match builder.object("menuBar") {
+        let menu_bar: MenuBar = match builder.object("UserOptions") {
             Some(menu_bar) => menu_bar,
             None => panic!("Failed to find menuBar"),
         };
