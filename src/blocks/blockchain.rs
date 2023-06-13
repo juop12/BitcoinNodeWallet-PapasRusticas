@@ -16,7 +16,7 @@ pub struct BlockHeader {
     version: i32,
     prev_hash: [u8; 32],
     merkle_root_hash: [u8; 32],
-    time: u32,
+    pub time: u32,
     n_bits: u32,
     nonce: u32,
 }
@@ -101,11 +101,6 @@ impl BlockHeader {
         self.n_bits
     }
 
-    /// It returns the time when the BlockHeader was created.    
-    pub fn time(&self) -> u32 {
-        self.time
-    }
-
     /// It returns the merkle root hash of the BlockHeader.
     pub fn get_merkle_root(&self) -> &[u8; 32] {
         &self.merkle_root_hash
@@ -176,17 +171,27 @@ impl Block {
 
     /// It returns the time when the Block was created.
     pub fn time(&self) -> u32 {
-        self.header.time()
+        self.header.time
     }
 
     /// It returns the header of the block.
-    pub fn get_header(&self) -> &BlockHeader {
-        &self.header
+    pub fn get_header(&self) -> BlockHeader {
+        BlockHeader { 
+            version: self.header.version, 
+            prev_hash: self.header.prev_hash, 
+            merkle_root_hash: self.header.merkle_root_hash, 
+            time: self.header.time, 
+            n_bits: self.header.n_bits, 
+            nonce: self.header.nonce }
     }
 
     /// It returns the transactions of the block.
     pub fn get_transactions(&self) -> &Vec<Transaction> {
         &self.transactions
+    }
+
+    pub fn header_hash(&self) -> [u8;32]{
+        self.get_header().hash()
     }
 }
 

@@ -2,7 +2,7 @@ use crate::node::*;
 use block_downloader::*;
 use std::{
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::{Duration, Instant}, ops::Deref,
 };
 
 const HASHEDGENESISBLOCK: [u8; 32] = [
@@ -42,49 +42,18 @@ impl Node {
     fn create_block_downloader(
         &self,
         header_stream_index: usize,
-    ) -> Result<(BlockDownloader, SafeVecBlock), NodeError> {
-        let new_blocks: Vec<Block> = Vec::new();
-        let safe_new_blocks = Arc::new(Mutex::from(new_blocks));
+    ) -> Result<BlockDownloader, NodeError> {
         let block_downloader = BlockDownloader::new(
             &self.tcp_streams,
             header_stream_index,
-            &safe_new_blocks,
-            self.logger.clone(),
+            &self.block_headers,
+            &self.blockchain,
+            &self.logger,
         );
         match block_downloader {
-            Ok(block_downloader) => Ok((block_downloader, safe_new_blocks)),
+            Ok(block_downloader) => Ok(block_downloader),
             Err(_) => Err(NodeError::ErrorCreatingBlockDownloader),
         }
-    }
-
-    /// Requests block_downloader to download block bundles (16 blocks each),
-    /// that were created after the starting_block_time.
-    /// If at the end we do not have enough to form a full block bundle, then then unrequested block hashes are returned
-    fn request_blocks(
-        &mut self,
-        mut i: usize,
-        mut request_block_hashes_bundle: Vec<[u8; 32]>,
-        block_downloader: &BlockDownloader,
-        total_amount_of_blocks: &mut usize,
-    ) -> Result<Vec<[u8; 32]>, NodeError> {
-        while i < self.block_headers.len() {
-            if self.block_headers[i].time() > self.starting_block_time {
-                *total_amount_of_blocks += 1;
-                request_block_hashes_bundle.push(self.block_headers[i].hash());
-                if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE {
-                    if block_downloader
-                        .download_block_bundle(request_block_hashes_bundle)
-                        .is_err()
-                    {
-                        return Err(NodeError::ErrorDownloadingBlockBundle);
-                    }
-                    request_block_hashes_bundle = Vec::new();
-                }
-            }
-            i += 1;
-        }
-
-        Ok(request_block_hashes_bundle)
     }
 
     /// Receives messages from a given peer till it receives a headersMessage or 30 seconds have passed
@@ -113,33 +82,36 @@ impl Node {
         sync_node_index: usize,
         peer_timeout: u64
     ) -> Result<(), NodeError> {
-        let mut headers_received = self.block_headers.len();
+        let mut headers_received = self.get_block_headers()?.len();
         let mut last_hash = HASHEDGENESISBLOCK;
-        if !self.block_headers.is_empty() {
-            last_hash = self.block_headers[headers_received - 1].hash();
+        if !self.get_block_headers()?.is_empty() {
+            last_hash = self.get_block_headers()?[headers_received - 1].hash();
         }
 
         let mut request_block_hashes_bundle: Vec<[u8; 32]> = Vec::new();
-        let mut total_amount_of_blocks = self.blockchain.len();
+        let mut total_amount_of_blocks = self.get_block_headers()?.len();
 
-        while headers_received == self.block_headers.len() {
+        while headers_received == self.get_block_headers()?.len() {
             self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
 
             self.receive_headers_message(sync_node_index, peer_timeout)?;
 
             let i = headers_received;
             headers_received += 2000;
-            last_hash = self.block_headers[self.block_headers.len() - 1].hash();
+            let mut block_headers = self.get_block_headers()?;
+            last_hash = block_headers[block_headers.len() - 1].hash();
 
-            if i == self.block_headers.len() {
+            if i == block_headers.len() {
                 break;
             }
 
-            request_block_hashes_bundle = self.request_blocks(
+            request_block_hashes_bundle = request_blocks(
                 i,
+                &block_headers,
                 request_block_hashes_bundle,
                 block_downloader,
                 &mut total_amount_of_blocks,
+                self.starting_block_time
             )?;
             //p
             println!("#headers = {}", headers_received);
@@ -169,15 +141,14 @@ impl Node {
 
     /// Writes the necessary headers into disk, to be able to continue the IBD from the last point. 
     /// On error returns NodeError. Written starting from the given positions.
-    fn store_headers_in_disk(&mut self, headers_starting_position: usize) -> Result<(), NodeError> {
-        self.data_handler.save_headers_to_disk( &self.block_headers,
-headers_starting_position).map_err(|_| NodeError::ErrorSavingDataToDisk)
+    pub fn store_headers_in_disk(&mut self) -> Result<(), NodeError> {
+        self.data_handler.save_headers_to_disk(&self.block_headers, self.headers_in_disk).map_err(|_| NodeError::ErrorSavingDataToDisk)
     }
 
     /// Writes the necessary blocks into disk, to be able to continue the IBD from the last point. 
     /// On error returns NodeError. Written starting from the given positions.
-    fn store_blocks_in_disk(&mut self, blocks_starting_position: usize) -> Result<(), NodeError> {
-        self.data_handler.save_blocks_to_disk(&self.blockchain, &self.block_headers,blocks_starting_position).map_err(|_| NodeError::ErrorSavingDataToDisk)
+    pub fn store_blocks_in_disk(&mut self) -> Result<(), NodeError> {
+        self.data_handler.save_blocks_to_disk(&self.blockchain, &self.block_headers,self.headers_in_disk).map_err(|_| NodeError::ErrorSavingDataToDisk)
 
     }
 
@@ -194,16 +165,16 @@ headers_starting_position).map_err(|_| NodeError::ErrorSavingDataToDisk)
         };
 
         for block in blocks {
-            _ = self.blockchain.insert(block.get_header().hash(), block);
+            _ = self.get_blockchain()?.insert(block.get_header().hash(), block);
         }
-        self.block_headers.extend(headers);
+        self.get_block_headers()?.extend(headers);
         Ok(())
     }
 
     /// Downloads block and headers from a given peer.If a problem occurs while downloading headers it continues asking to another peer.
-    fn start_downloading(&mut self) -> Result<(BlockDownloader, SafeVecBlock), NodeError> {
+    fn start_downloading(&mut self) -> Result<BlockDownloader, NodeError> {
         let mut i = 0;
-        let (mut block_downloader, mut safe_new_blocks) = self.create_block_downloader(i)?;
+        let mut block_downloader = self.create_block_downloader(i)?;
 
         let mut peer_time_out = 1;
         while peer_time_out < MAXIMUM_PEER_TIME_OUT {
@@ -225,43 +196,9 @@ headers_starting_position).map_err(|_| NodeError::ErrorSavingDataToDisk)
             if let Err(error) = block_downloader.finish_downloading() {
                 self.logger.log_error(&error);
             }
-            (block_downloader, safe_new_blocks) = self.create_block_downloader(i)?;
+            block_downloader = self.create_block_downloader(i)?;
         }
-        Ok((block_downloader, safe_new_blocks))
-    }
-
-    /// Tells a block downloader that no more bundles will be sent, and after it finishes it inserts downloaded blocks into the blockchain.
-    fn ibd_finish_downloading(
-        &mut self,
-        mut block_downloader: BlockDownloader,
-        safe_new_blocks: Arc<Mutex<Vec<Block>>>,
-    ) -> Result<(), NodeError> {
-        match block_downloader.finish_downloading() {
-            Ok(_) => {
-                let inner_vector = match safe_new_blocks.lock() {
-                    Ok(inner) => inner,
-                    Err(_) => return Err(NodeError::ErrorDownloadingBlockBundle),
-                };
-                for block in inner_vector.iter() {
-                    let copied_block = match Block::from_bytes(&block.to_bytes()) {
-                        Ok(block) => block,
-                        Err(_) => return Err(NodeError::ErrorDownloadingBlockBundle),
-                    };
-
-                    if self
-                        .blockchain
-                        .insert(copied_block.get_header().hash(), copied_block)
-                        .is_some()
-                    {
-                        self.logger.log(String::from(
-                            "Redownloaded a block that was already in the blockchain",
-                        ));
-                    }
-                }
-            }
-            Err(_) => return Err(NodeError::ErrorDownloadingBlockBundle),
-        }
-        Ok(())
+        Ok(block_downloader)
     }
 
     /// Asks the node for the block headers starting from the given block hash,
@@ -271,35 +208,71 @@ headers_starting_position).map_err(|_| NodeError::ErrorSavingDataToDisk)
         self.logger.log(String::from("Started loading data from disk"));
         self.load_blocks_and_headers()?;
         self.logger.log(String::from("Finished loading data from disk"));
-        let new_headers_starting_position = self.block_headers.len();
 
-        let (block_downloader, safe_new_blocks) = self.start_downloading()?;
-
+        let mut aux_len= self.get_block_headers()?.len();
+        self.headers_in_disk = aux_len;
+        
+        let mut block_downloader = self.start_downloading()?;
+        
         self.logger.log(String::from("Started storing headers to disk"));
-        self.store_headers_in_disk(new_headers_starting_position)?;
+        self.store_headers_in_disk()?;
         self.logger.log(String::from("Finished storing headers to disk"));
-
-        self.ibd_finish_downloading(block_downloader, safe_new_blocks)?;
-
+        
+        block_downloader.finish_downloading().map_err(|_| NodeError::ErrorDownloadingBlockBundle);
+        
         //p
-        println!("# final de headers  = {}", self.block_headers.len());
-        println!("# final de blocks  = {}", self.blockchain.len());
+        println!("# final de headers  = {}", self.get_block_headers()?.len());
+        println!("# final de blocks  = {}", self.get_blockchain()?.len());
         self.logger.log(format!(
             "Final amount of headers after IBD = {}",
-            self.block_headers.len()
+            self.get_block_headers()?.len()
         ));
         self.logger.log(format!(
             "Final amount of blocks after IBD = {}",
-            self.blockchain.len()
+            self.get_blockchain()?.len()
         ));
-
+        
         self.logger.log(String::from("Started storing blocks to disk"));
-        self.store_blocks_in_disk(new_headers_starting_position)?;
+        self.store_blocks_in_disk()?;
         self.logger.log(String::from("Finished storing blocks to disk"));
+        
+        aux_len= self.get_block_headers()?.len();
+        self.headers_in_disk = aux_len;
 
         Ok(())
     }
 }
+
+/// Requests block_downloader to download block bundles (16 blocks each),
+    /// that were created after the starting_block_time.
+    /// If at the end we do not have enough to form a full block bundle, then then unrequested block hashes are returned
+    fn request_blocks(
+        mut i: usize,
+        block_headers: &Vec<BlockHeader>,
+        mut request_block_hashes_bundle: Vec<[u8; 32]>,
+        block_downloader: &BlockDownloader,
+        total_amount_of_blocks: &mut usize,
+        starting_block_time: u32,
+    ) -> Result<Vec<[u8; 32]>, NodeError> {
+        while i < block_headers.len() {
+            if block_headers[i].time > starting_block_time {
+                *total_amount_of_blocks += 1;
+                request_block_hashes_bundle.push(block_headers[i].hash());
+                if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE {
+                    if block_downloader
+                        .download_block_bundle(request_block_hashes_bundle)
+                        .is_err()
+                    {
+                        return Err(NodeError::ErrorDownloadingBlockBundle);
+                    }
+                    request_block_hashes_bundle = Vec::new();
+                }
+            }
+            i += 1;
+        }
+
+        Ok(request_block_hashes_bundle)
+    }
 
 #[cfg(test)]
 mod tests {
@@ -331,7 +304,7 @@ mod tests {
             node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, i)?;
         }
 
-        assert!(node.block_headers.len() == 2000);
+        assert!(node.get_block_headers()?.len() == 2000);
         Ok(())
     }
 
@@ -350,13 +323,12 @@ mod tests {
         };
         
         let mut node = Node::new(config)?;
-        let vec = Vec::new();
-        let safe_block_chain = Arc::new(Mutex::from(vec));
         let mut block_downloader = BlockDownloader::new(
             node.get_tcp_streams(),
             0,
-            &safe_block_chain,
-            node.logger.clone(),
+            &node.block_headers,
+            &node.blockchain,
+            &node.logger.clone(),
         )
         .unwrap();
 
@@ -370,7 +342,7 @@ mod tests {
         for j in 0..125 {
             let mut block_hashes_bundle: Vec<[u8; 32]> = Vec::new();
             for i in 0..16 {
-                block_hashes_bundle.push(node.block_headers[j * 16 + i].hash());
+                block_hashes_bundle.push(node.get_block_headers()?[j * 16 + i].hash());
             }
             block_downloader
                 .download_block_bundle(block_hashes_bundle)
@@ -379,7 +351,7 @@ mod tests {
 
         block_downloader.finish_downloading().unwrap();
 
-        let blocks = safe_block_chain.lock().unwrap();
+        let blocks = node.get_blockchain()?;
         println!("{}", blocks.len());
 
         assert!(blocks.len() == 2000);
