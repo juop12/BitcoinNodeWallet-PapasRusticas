@@ -38,6 +38,7 @@ mod test {
             begin_time: BEGIN_TIME_EPOCH,
             headers_path: String::from("data/headers.bin"),
             blocks_path: String::from("data/blocks.bin"),
+
             ipv6_enabled: false,
         };
 
