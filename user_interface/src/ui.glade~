@@ -123,9 +123,28 @@
             <child>
               <object class="GtkBox" id="Wallet">
                 <property name="name">Wallet</property>
+                <property name="width-request">500</property>
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="halign">end</property>
                 <property name="hexpand">True</property>
+                <child>
+                  <object class="GtkButton" id="Wallet Adder">
+                    <property name="label" translatable="yes">Add Wallet</property>
+                    <property name="name">Wallet Adder</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <property name="halign">end</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="padding">1</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
                 <child>
                   <object class="GtkLabel" id="Wallet Text">
                     <property name="name">Texto Wallet</property>
@@ -139,12 +158,13 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">0</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
                 <child>
                   <object class="GtkComboBoxText" id="Wallet Switcher">
                     <property name="name">Wallet Switch</property>
+                    <property name="width-request">200</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="focus-on-click">False</property>
@@ -158,7 +178,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">1</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
               </object>
@@ -219,7 +239,7 @@
                 </child>
                 <child>
                   <object class="GtkFrame" id="BalanceFrame">
-                    <property name="width-request">400</property>
+                    <property name="width-request">350</property>
                     <property name="height-request">150</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
@@ -312,7 +332,7 @@
                           <object class="GtkLabel" id="availableQuantity">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">0.00000000000000000</property>
+                            <property name="label" translatable="yes">0.000000</property>
                             <property name="yalign">0.3499999940395355</property>
                           </object>
                           <packing>
@@ -324,7 +344,7 @@
                           <object class="GtkLabel" id="pendingQuantity">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">0.00000000000000000</property>
+                            <property name="label" translatable="yes">0.000000</property>
                             <property name="yalign">0.5</property>
                           </object>
                           <packing>
@@ -336,7 +356,7 @@
                           <object class="GtkLabel" id="totalQuantity">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">0.00000000000000000</property>
+                            <property name="label" translatable="yes">0.000000</property>
                             <property name="yalign">0.3499999940395355</property>
                           </object>
                           <packing>
@@ -547,7 +567,7 @@
                     <property name="height-request">80</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Balance: 0.0000000000</property>
+                    <property name="label" translatable="yes">Balance: 0.000000</property>
                   </object>
                   <packing>
                     <property name="x">790</property>
@@ -597,7 +617,7 @@
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">70</property>
                                 <child>
-                                  <object class="GtkCellRendererProgress" id="RetrieveR"/>
+                                  <object class="GtkCellRendererText" id="ProgressR"/>
                                 </child>
                               </object>
                             </child>
@@ -781,6 +801,140 @@
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">3</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkDialog" id="Wallet Adder Dialog">
+    <property name="name">Wallet Adder Menu</property>
+    <property name="can-focus">False</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="Wallet Adder Menu">
+        <property name="name">Wallet Adder Menu</property>
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="Wallet Adder Button Box">
+            <property name="can-focus">False</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="Wallet Address Cancel Button">
+                <property name="label" translatable="yes">Cancel</property>
+                <property name="related-action"/>
+                <property name="name">Wallet Address Cancel Button</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+              </object>
+              <packing>
+                <property name="expandj">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="Wallet Adder Add Button">
+                <property name="label" translatable="yes">Add</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <!-- n-columns=2 n-rows=3 -->
+          <object class="GtkGrid" id="Wallet Adder Grid">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+            <property name="row-spacing">24</property>
+            <property name="column-spacing">20</property>
+            <property name="column-homogeneous">True</property>
+            <child>
+              <object class="GtkLabel" id="Wallet Adder Public Key Label">
+                <property name="name">Wallet Adder Public Key Label</property>
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Public Key:</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="Waller Adder Name Label">
+                <property name="name">Waller Adder Name Label</property>
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Name:</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="Wallet Adder Private Key Label">
+                <property name="name">Wallet Adder Private Key Label</property>
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Private Key:</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="Wallet Adder Public Key Entry">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="Wallet Adder Private Key Entry">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="Wallet Adder Name Entry">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
           </packing>
         </child>
       </object>
