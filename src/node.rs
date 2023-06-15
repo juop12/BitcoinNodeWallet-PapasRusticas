@@ -14,7 +14,7 @@ use self::{
 };
 use crate::{
     blocks::{
-        //transaction::TxOut,
+        transaction::TxOut,
         blockchain::*,
         proof::*,
     },
@@ -44,7 +44,8 @@ pub struct Node {
     block_headers: SafeVecHeader,
     starting_block_time: u32,
     blockchain: SafeBlockChain,
-    //utxo_set: HashMap<[u8;32], &'static TxOut>,
+    utxo_set: HashMap<Vec<u8>, TxOut>,
+
     headers_in_disk: usize,
     pub logger: Logger,
 }
@@ -66,7 +67,7 @@ impl Node {
             block_headers: Arc::new(Mutex::from(Vec::new())),
             starting_block_time,
             blockchain: Arc::new(Mutex::from(HashMap::new())),
-            //utxo_set: HashMap::new(),
+            utxo_set: HashMap::new(),
             data_handler,
             headers_in_disk: 0,
             logger,
@@ -145,6 +146,11 @@ impl Node {
     /// Returns a MutexGuard to the blockchain HashMap. 
     pub fn get_block_headers(&self) -> Result<MutexGuard<Vec<BlockHeader>>, NodeError>{
         self.block_headers.lock().map_err(|_| NodeError::ErrorSharingReference)
+    }
+
+    /// Returns a reference to the tcp_streams vector
+    pub fn get_utxo_set(&self) -> &HashMap<Vec<u8>, TxOut> {
+        &self.utxo_set
     }
 
     /// Central function that contains the node's information flow.

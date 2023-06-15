@@ -120,6 +120,14 @@ impl TxOut {
     fn amount_of_bytes(&self) -> usize {
         self.to_bytes().len()
     }
+
+    pub fn get_value(&self) -> &i64{
+        &self.value
+    }
+
+    pub fn get_pk_script(&self) -> &Vec<u8>{
+        &self.pk_script
+    }
 }
 
 impl TxIn {

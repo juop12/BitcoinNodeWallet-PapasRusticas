@@ -31,6 +31,9 @@ fn main() {
     node.create_utxo_set();
     thread::sleep(Duration::from_secs(600));
 
+    //algo que recibe pedido del thread principal.
+    //run_wallet();
+
     if let Err(error) = message_receiver.finish_receiving(){
         return eprintln!("{:?}", error)
         
