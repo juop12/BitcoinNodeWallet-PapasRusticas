@@ -9,15 +9,15 @@
   </object>
   <object class="GtkTreeStore" id="TxTreeStore">
     <columns>
-      <!-- column-name c1 -->
+      <!-- column-name progress_column -->
       <column type="gchararray"/>
-      <!-- column-name c2 -->
+      <!-- column-name date_column -->
       <column type="gchararray"/>
-      <!-- column-name c3 -->
+      <!-- column-name type_column -->
       <column type="gchararray"/>
-      <!-- column-name c4 -->
+      <!-- column-name blockHeader_column -->
       <column type="gchararray"/>
-      <!-- column-name c5 -->
+      <!-- column-name amount_column -->
       <column type="gchararray"/>
     </columns>
   </object>
@@ -465,7 +465,7 @@
                         <property name="can-focus">False</property>
                         <property name="spacing">30</property>
                         <child>
-                          <object class="GtkSpinButton">
+                          <object class="GtkSpinButton" id="SendAmount">
                             <property name="width-request">300</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
@@ -563,16 +563,44 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="Send Balance Text">
+                  <object class="GtkBox" id="BalanceBox">
                     <property name="width-request">100</property>
                     <property name="height-request">80</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Balance: 0.000000</property>
+                    <property name="homogeneous">True</property>
+                    <child>
+                      <object class="GtkLabel" id="Send Balance Text">
+                        <property name="width-request">100</property>
+                        <property name="height-request">80</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="halign">start</property>
+                        <property name="label" translatable="yes">Balance:</property>
+                        <property name="justify">right</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="BalanceAmount">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">0.000000</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
                   </object>
                   <packing>
-                    <property name="x">790</property>
-                    <property name="y">500</property>
+                    <property name="x">777</property>
+                    <property name="y">473</property>
                   </packing>
                 </child>
               </object>
@@ -611,7 +639,7 @@
                             <property name="reorderable">True</property>
                             <property name="search-column">0</property>
                             <child internal-child="selection">
-                              <object class="GtkTreeSelection"/>
+                              <object class="GtkTreeSelection" id="TxTreeSelection"/>
                             </child>
                             <child>
                               <object class="GtkTreeViewColumn" id="Progress">
@@ -619,6 +647,9 @@
                                 <property name="fixed-width">70</property>
                                 <child>
                                   <object class="GtkCellRendererText" id="ProgressR"/>
+                                  <attributes>
+                                    <attribute name="text">0</attribute>
+                                  </attributes>
                                 </child>
                               </object>
                             </child>
@@ -628,10 +659,11 @@
                                 <property name="fixed-width">70</property>
                                 <property name="title" translatable="yes">Date</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="DateR"/>
+                                  <object class="GtkCellRendererText" id="DateR">
+                                    <property name="editable">True</property>
+                                  </object>
                                   <attributes>
-                                    <attribute name="single-paragraph-mode">0</attribute>
-                                    <attribute name="width-chars">0</attribute>
+                                    <attribute name="text">1</attribute>
                                   </attributes>
                                 </child>
                               </object>
@@ -644,7 +676,7 @@
                                 <child>
                                   <object class="GtkCellRendererText" id="TypeR"/>
                                   <attributes>
-                                    <attribute name="rise">0</attribute>
+                                    <attribute name="text">2</attribute>
                                   </attributes>
                                 </child>
                               </object>
@@ -656,6 +688,9 @@
                                 <property name="title" translatable="yes">BlockHeader</property>
                                 <child>
                                   <object class="GtkCellRendererText" id="BlockHeaderR"/>
+                                  <attributes>
+                                    <attribute name="text">3</attribute>
+                                  </attributes>
                                 </child>
                               </object>
                             </child>
@@ -666,6 +701,9 @@
                                 <property name="title" translatable="yes">Amount</property>
                                 <child>
                                   <object class="GtkCellRendererText" id="AmountR"/>
+                                  <attributes>
+                                    <attribute name="text">4</attribute>
+                                  </attributes>
                                 </child>
                               </object>
                             </child>
