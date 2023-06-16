@@ -32,13 +32,13 @@ impl Node {
                     };
         
                     for tx in block.get_transactions() {
-                        for tx_in in tx.tx_in().iter() {
+                        for tx_in in tx.tx_in.iter() {
                             let outpoint_bytes = tx_in.previous_output().to_bytes();
         
                             utxo_set.remove(&outpoint_bytes);
                         }
         
-                        for (index, tx_out) in tx.tx_out().iter().enumerate() {
+                        for (index, tx_out) in tx.tx_out.iter().enumerate() {
                             //p ver si queremos nomas las p2pkh
                             if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
                                 let outpoint = Outpoint::new(tx.hash(), index as u32);

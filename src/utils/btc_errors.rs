@@ -54,6 +54,7 @@ pub enum MessageError {
     ErrorCreatingNotFoundMessage,
     ErrorSendingNotFoundMessage,
     ErrorSendingBlockHeadersMessage,
+    ErrorSendingTxMessage
 }
 
 impl BtcError for MessageError {}

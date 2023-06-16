@@ -1,5 +1,6 @@
 use crate::utils::{btc_errors::TransactionError, variable_length_integer::VarLenInt};
-use bitcoin_hashes::{sha256d, Hash};
+use bitcoin_hashes::{sha256d, hash160, Hash};
+
 
 const MIN_BYTES_TX_IN: usize = 41;
 const MIN_BYTES_TX_OUT: usize = 9;
@@ -47,9 +48,9 @@ pub struct TxOut {
 pub struct Transaction {
     version: i32,
     tx_in_count: VarLenInt,
-    tx_in: Vec<TxIn>,
+    pub tx_in: Vec<TxIn>,
     tx_out_count: VarLenInt,
-    tx_out: Vec<TxOut>,
+    pub tx_out: Vec<TxOut>,
     lock_time: u32, // siempre va 0.
 }
 
@@ -134,7 +135,7 @@ impl TxOut {
     }
 
     /// Returns true if the pk_script of the tx_out follows the p2pkh protocol
-    pub fn pk_hash_under_p2pkh_protocol(&self)->Option<&[u8]>{
+    pub fn pk_hash_under_p2pkh_protocol(&self) -> Option<&[u8]>{
         if self.pk_script_length.to_usize() != P2PKH_SCRIPT_LENGTH{
             return None;
         }
@@ -311,13 +312,19 @@ impl Transaction {
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
 
-    pub fn tx_out(&self) -> &Vec<TxOut> {
-        &self.tx_out
-    }
+    // fn get_pk_script(&self, pub_key: [u8; 33]) -> [u8; P2PKH_SCRIPT_LENGTH]{
+    //     let pk_script: [u8; P2PKH_SCRIPT_LENGTH] = [0; P2PKH_SCRIPT_LENGTH];
+    //     let pk_hash = hash160::Hash::hash(&pub_key.as_slice());
 
-    pub fn tx_in(&self) -> &Vec<TxIn> {
-        &self.tx_in
-    }
+    //     pk_script[OP_DUP_POSITION] = OP_DUP;
+    //     pk_script[OP_HASH160_POSITION] = OP_HASH160;
+    //     pk_script[P2PKH_HASH_LENGTH_POSITION] = P2PKH_HASH_LENGTH;
+    //     pk_script[3..23] = pk_hash.as_slice();
+    //     pk_script[OP_EQUALVERIFY_POSITION] = OP_EQUALVERIFY;
+    //     pk_script[OP_CHECKSIG_POSITION] = OP_CHECKSIG; 
+        
+    //     pk_script
+    // }
 }
 
 #[cfg(test)]

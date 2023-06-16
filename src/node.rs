@@ -213,8 +213,13 @@ pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, bl
                 handle_inv_message(stream, msg_bytes, block_headers, blockchain, pending_tx, logger)?;
             }
         }
-        "block\0\0\0\0\0\0\0" => handle_block_message(msg_bytes, block_headers, blockchain, logger, ibd)?,
+        "block\0\0\0\0\0\0\0" => handle_block_message(msg_bytes, block_headers, blockchain, pending_tx, logger, ibd)?,
         "headers\0\0\0\0\0" => handle_block_headers_message(msg_bytes, block_headers)?,
+        "tx\0\0\0\0\0\0\0\0\0\0" => {
+            if !ibd{
+                handle_tx_message(msg_bytes, pending_tx)?;
+            }
+        }
         _ => {},
     };
 

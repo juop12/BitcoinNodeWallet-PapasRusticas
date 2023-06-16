@@ -29,26 +29,28 @@ fn main() {
     };
 
     //hace lo que quieras
-    node.create_utxo_set();
+    node.create_utxo_set()/* .map_err(|error| eprintln!("{:?}", error)) */;
+
     let inicio = Instant::now();
     node.get_utxo_balance([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]); // Llamamos a la función pasada como argumento
     let duracion = inicio.elapsed();
 
     println!("La función tardó: {:?}", duracion);
     thread::sleep(Duration::from_secs(600));
-
     
 
     /*
     while(){
         wallet.ciclo_wallet(&node) => {
-            node.haceralgo()
             //recibis de la ui
-            //haces ese algo
+            //if ui quiere cambiar wallet
+            //      wallet llama a nodo.change_wallet(), se dropea y se instancia una nueva
+
             //le pedis cosas al nodo
         }
         node.actualizar_wallet(&wallet) => {
-            wallet.actualizar(transaction);
+            //se actualiza el nodo a si mismo, tiene guardado cual es el ultimo bloque "procesado", y procesa los que le faltan
+            //wallet.actualizar(transaction);
             
             //tengo un nuevo pending
             //me llego una transaccion a actualizar
