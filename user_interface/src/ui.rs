@@ -73,11 +73,9 @@ fn start_window(builder: &Builder){
 
 pub fn add_tx(builder: &Builder, transaction: String) {
     let tx_tree_store = builder.object("TxTreeStore").unwrap();
-    let progress = "0".to_string();
     let date = "0".to_string();
-    let tx_type = "0".to_string();
     let amount = "0".to_string();
-    add_row(tx_tree_store, progress, date, transaction, amount)
+    add_row(tx_tree_store, date, transaction, amount)
 }
 
 fn activate_wallet_adder(builder: &Builder){
