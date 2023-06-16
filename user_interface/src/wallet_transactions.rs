@@ -11,11 +11,11 @@ const BLOCK_HEADER_COLUMN: u32 = 3;
 const AMOUNT_COLUMN: u32 = 4;
 
 
-pub fn add_row(tx_tree_store: TreeStore, progress: String, date: String, tx_type: String, label: String, amount: String){
+pub fn add_row(tx_tree_store: TreeStore, progress: String, date: String, label: String, amount: String){
     let tree_iter = tx_tree_store.append(None);
     tx_tree_store.set_value(&tree_iter, PROGRESS_COLUMN, &glib::Value::from(&progress));
     tx_tree_store.set_value(&tree_iter, DATE_COLUMN, &glib::Value::from(&date));
-    tx_tree_store.set_value(&tree_iter, TYPE_COLUMN, &glib::Value::from(tx_type));
+    tx_tree_store.set_value(&tree_iter, TYPE_COLUMN, &glib::Value::from("Mined"));
     tx_tree_store.set_value(&tree_iter, BLOCK_HEADER_COLUMN, &glib::Value::from(label));
     tx_tree_store.set_value(&tree_iter, AMOUNT_COLUMN, &glib::Value::from(&amount));
 }

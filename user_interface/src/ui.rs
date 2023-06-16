@@ -7,7 +7,7 @@ use crate::wallet_overview::update_available_balance;
 use crate::wallet_overview::update_pending_balance;
 use crate::wallet_send::update_balance;
 use crate::wallet_send::activate_use_available_balance;
-
+use crate::wallet_send::activate_clear_all_button;
 
 pub enum UiError {
     FailedToBuildUi,
@@ -21,12 +21,16 @@ pub fn start_app(){
             return;
         },
     };
-    
-    activate_wallet_adder(&builder);
-    activate_use_available_balance(&builder);
+    initialize_elements(&builder);
 
     add_examples(&builder);
     start_window(&builder);
+}
+
+fn initialize_elements(builder: &Builder){
+    activate_wallet_adder(builder);
+    activate_use_available_balance(builder);
+    activate_clear_all_button(builder);
 }
 
 //Editar para hacer pruebas con diferentes valores
@@ -73,7 +77,7 @@ pub fn add_tx(builder: &Builder, transaction: String) {
     let date = "0".to_string();
     let tx_type = "0".to_string();
     let amount = "0".to_string();
-    add_row(tx_tree_store, progress, date, tx_type, transaction, amount)
+    add_row(tx_tree_store, progress, date, transaction, amount)
 }
 
 fn activate_wallet_adder(builder: &Builder){
