@@ -1,4 +1,7 @@
+
 use crate::node::*;
+
+use super::peer_comunication::block_downloader::send_get_data_message_for_blocks;
 
 ///Handles the headers message by hashing the last received header and asking for more headers.
 pub fn handle_block_headers_message(msg_bytes: Vec<u8>, safe_block_headers: &SafeVecHeader) -> Result<(), NodeError> {
@@ -47,26 +50,42 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
 
 ///Handles the inv message by asking for the blocks that are not in the blockchain.
 ///If the block is already in the blockchain, it is not saved.
-pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, safe_blockchain: &SafeBlockChain, logger: &Logger) -> Result<(), NodeError> {
+pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, safe_blockchain: &SafeBlockChain, safe_pending_tx: &SafePendingTx, logger: &Logger) -> Result<(), NodeError> {
     let inv_msg = match InvMessage::from_bytes(&msg_bytes) {
         Ok(msg) => msg,
         Err(_) => return Err(NodeError::ErrorRecevingBroadcastedInventory),
     };
 
-    let hashes = inv_msg.get_block_hashes();
-    let mut request_hashes = Vec::new();
+    let block_hashes = inv_msg.get_block_hashes();
+    let transaction_hashes = inv_msg.get_transaction_hashes();
+
+    let mut request_block_hashes = Vec::new();
+    let mut request_transaction_hashes = Vec::new();
+
     match safe_blockchain.lock(){
         Ok(blockchain) => {
-            for hash in hashes{
+            for hash in block_hashes{
                 if !blockchain.contains_key(&hash){
-                    request_hashes.push(hash);
+                    request_block_hashes.push(hash);
+                }
+            }
+        },
+        Err(_) => return Err(NodeError::ErrorSharingReference),
+    };
+
+    match safe_pending_tx.lock(){
+        Ok(pending_tx) => {
+            for hash in transaction_hashes{
+                if !pending_tx.contains_key(&hash){
+                    request_transaction_hashes.push(hash);
                 }
             }
         },
         Err(_) => return Err(NodeError::ErrorSharingReference),
     };
     
-    get_blocks_from_bundle(request_hashes, stream, safe_headers, safe_blockchain, logger).map_err(|_| NodeError::ErrorDownloadingBlockBundle)
+    send_get_data_message_for_blocks(request_block_hashes, stream).map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
+    send_get_data_message_for_transactions(request_transaction_hashes, stream)
 }
 
 ///Handles the ping message by sending a pong message.
@@ -83,4 +102,18 @@ pub fn handle_ping_message(stream: &mut TcpStream, header_message: &HeaderMessag
         return Err(NodeError::ErrorSendingPong);
     }
     Ok(())
+}
+
+/// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
+/// Returns an error if it was not possible to send the message.
+pub fn send_get_data_message_for_transactions(
+    hashes: Vec<[u8; 32]>,
+    stream: &mut TcpStream,
+) -> Result<(), NodeError> {
+    let get_data_message = GetDataMessage::create_message_inventory_transaction_type(hashes);
+
+    match get_data_message.send_to(stream) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(NodeError::ErrorGettingTx),
+    }
 }

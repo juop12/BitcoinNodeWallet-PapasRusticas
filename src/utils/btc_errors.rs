@@ -130,6 +130,7 @@ pub enum NodeError {
     ErrorValidatingBlock,
     ErrorSharingReference,
     ErrorGettingUtxo,
+    ErrorGettingTx
 }
 
 impl BtcError for NodeError {}

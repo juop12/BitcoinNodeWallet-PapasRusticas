@@ -6,6 +6,18 @@ const MIN_BYTES_TX_OUT: usize = 9;
 const MIN_BYTES_TRANSACTION: usize = 10;
 const OUTPOINT_BYTES: usize = 36;
 
+const P2PKH_SCRIPT_LENGTH: usize = 25; 
+const OP_DUP: u8 = 0x76;
+const OP_DUP_POSITION: usize = 0;
+const OP_HASH160: u8 = 0xA9;
+const OP_HASH160_POSITION: usize = 1;
+const P2PKH_HASH_LENGTH:u8 = 20;
+const P2PKH_HASH_LENGTH_POSITION:usize = 2;
+const OP_EQUALVERIFY:u8 = 0x88;
+const OP_EQUALVERIFY_POSITION: usize = 23;
+const OP_CHECKSIG: u8 = 0xAC;
+const OP_CHECKSIG_POSITION: usize = 24;
+
 /// Struct that represents the Outpoint, that is used in the TxIn struct.
 #[derive(Debug, PartialEq)]
 pub struct Outpoint {
@@ -25,9 +37,9 @@ pub struct TxIn {
 /// Struct that represents the TxOut used in the struct Transaction
 #[derive(Debug, PartialEq)]
 pub struct TxOut {
-    value: i64,
-    pk_script_length: VarLenInt,
-    pk_script: Vec<u8>,
+    pub value: i64,
+    pub pk_script_length: VarLenInt,
+    pub pk_script: Vec<u8>,
 }
 
 /// Implementation of a Transaction in a Bitcoin block.
@@ -121,12 +133,27 @@ impl TxOut {
         self.to_bytes().len()
     }
 
-    pub fn get_value(&self) -> &i64{
-        &self.value
-    }
-
-    pub fn get_pk_script(&self) -> &Vec<u8>{
-        &self.pk_script
+    /// Returns true if the pk_script of the tx_out follows the p2pkh protocol
+    pub fn pk_hash_under_p2pkh_protocol(&self)->Option<&[u8]>{
+        if self.pk_script_length.to_usize() != P2PKH_SCRIPT_LENGTH{
+            return None;
+        }
+        if self.pk_script[OP_DUP_POSITION] != OP_DUP{
+            return None;
+        }
+        if self.pk_script[P2PKH_HASH_LENGTH_POSITION] != P2PKH_HASH_LENGTH{
+            return None;
+        }
+        if self.pk_script[OP_HASH160_POSITION] != OP_HASH160{
+            return None;
+        }
+        if self.pk_script[OP_EQUALVERIFY_POSITION] != OP_EQUALVERIFY{
+            return None;
+        }
+        if self.pk_script[OP_CHECKSIG_POSITION] != OP_CHECKSIG{
+            return None;
+        }
+        return Some(&self.pk_script[3..23])
     }
 }
 

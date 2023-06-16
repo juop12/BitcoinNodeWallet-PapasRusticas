@@ -3,6 +3,7 @@ use proyecto::utils::config::*;
 use std::env;
 use std::thread;
 use std::time::Duration;
+use std::time::Instant;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -29,7 +30,32 @@ fn main() {
 
     //hace lo que quieras
     node.create_utxo_set();
+    let inicio = Instant::now();
+    node.get_utxo_balance([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]); // Llamamos a la función pasada como argumento
+    let duracion = inicio.elapsed();
+
+    println!("La función tardó: {:?}", duracion);
     thread::sleep(Duration::from_secs(600));
+
+    
+
+    /*
+    while(){
+        wallet.ciclo_wallet(&node) => {
+            node.haceralgo()
+            //recibis de la ui
+            //haces ese algo
+            //le pedis cosas al nodo
+        }
+        node.actualizar_wallet(&wallet) => {
+            wallet.actualizar(transaction);
+            
+            //tengo un nuevo pending
+            //me llego una transaccion a actualizar
+        }
+    }*/
+    //vec<Wallets>
+
 
     //algo que recibe pedido del thread principal.
     //run_wallet();

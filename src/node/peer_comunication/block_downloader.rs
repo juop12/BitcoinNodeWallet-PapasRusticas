@@ -218,7 +218,9 @@ fn receive_block(
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
     
-    match receive_message(stream, safe_headers, safe_blockchain, logger, true){
+    let dummy_pending_tx = Arc::new(Mutex::new(HashMap::new()));
+
+    match receive_message(stream, safe_headers, safe_blockchain, &dummy_pending_tx, logger, true){
         Ok(message_cmd) => {
             match message_cmd.as_str() {
                 "block\0\0\0\0\0\0\0" => return Ok(()),
@@ -239,7 +241,7 @@ fn receive_block(
 
 /// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
 /// Returns an error if it was not possible to send the message.
-fn send_get_data_message_for_blocks(
+pub fn send_get_data_message_for_blocks(
     hashes: Vec<[u8; 32]>,
     stream: &mut TcpStream,
 ) -> Result<(), BlockDownloaderError> {
@@ -252,7 +254,7 @@ fn send_get_data_message_for_blocks(
 }
 
 /// Receives a vector of block hashes and a TcpStream, and returns a vector of blocks that were requested to the stream
-pub fn get_blocks_from_bundle(
+fn get_blocks_from_bundle(
     requested_block_hashes: Vec<[u8; 32]>,
     stream: &mut TcpStream,
     safe_headers: &SafeVecHeader,

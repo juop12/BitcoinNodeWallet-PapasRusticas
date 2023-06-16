@@ -39,11 +39,14 @@ impl Node {
                         }
         
                         for (index, tx_out) in tx.tx_out().iter().enumerate() {
-                            let outpoint = Outpoint::new(tx.hash(), index as u32);
-                            let tx_out_outpoint_bytes = outpoint.to_bytes();
-                            let tx_out: TxOut = TxOut::from_bytes(&tx_out.to_bytes()).map_err(|_|NodeError::ErrorGettingUtxo)?;
-        
-                            utxo_set.insert(tx_out_outpoint_bytes, tx_out);
+                            //p ver si queremos nomas las p2pkh
+                            if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
+                                let outpoint = Outpoint::new(tx.hash(), index as u32);
+                                let tx_out_outpoint_bytes = outpoint.to_bytes();
+                                let tx_out: TxOut = TxOut::from_bytes(&tx_out.to_bytes()).map_err(|_|NodeError::ErrorGettingUtxo)?;
+            
+                                utxo_set.insert(tx_out_outpoint_bytes, tx_out);
+                            }
                         }
                     }
                 }
@@ -64,9 +67,11 @@ impl Node {
         let mut balance = 0;
         let pk_hash = hash160::Hash::hash(&pub_key.as_slice());
 
-        for (_, tx_out) in self.get_utxo_set(){
-            if pk_hash.to_byte_array() == tx_out.get_pk_script()[3..23]{
-                balance += *tx_out.get_value();
+        for (_, tx_out) in &self.utxo_set{
+            if let Some(p2pkh_hash) = tx_out.pk_hash_under_p2pkh_protocol(){
+                if pk_hash.to_byte_array() == p2pkh_hash{
+                    balance += tx_out.value;
+                }
             }
         }
 
