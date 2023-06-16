@@ -603,6 +603,33 @@
                     <property name="y">473</property>
                   </packing>
                 </child>
+                <child>
+                  <object class="GtkLabel" id="Fee Amount Label">
+                    <property name="name">Fee Amount Label</property>
+                    <property name="height-request">40</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="label" translatable="yes">Fee Amount: 0.000000</property>
+                  </object>
+                  <packing>
+                    <property name="x">40</property>
+                    <property name="y">188</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="Total Amount Label">
+                    <property name="name">Total Amount Label</property>
+                    <property name="height-request">39</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Total Amount to be sent: 0.000000</property>
+                  </object>
+                  <packing>
+                    <property name="x">40</property>
+                    <property name="y">251</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="name">Send</property>
@@ -903,7 +930,7 @@
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="vexpand">True</property>
-            <property name="row-spacing">24</property>
+            <property name="row-spacing">30</property>
             <property name="column-spacing">20</property>
             <property name="column-homogeneous">True</property>
             <child>
