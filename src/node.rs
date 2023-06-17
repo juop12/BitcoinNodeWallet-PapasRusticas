@@ -45,7 +45,8 @@ pub struct Node {
     starting_block_time: u32,
     blockchain: SafeBlockChain,
     utxo_set: HashMap<Vec<u8>, TxOut>,
-    pending_tx: SafePendingTx,
+    pub balance: i64,
+    pub pending_tx: SafePendingTx,
     last_proccesed_block: usize,
     wallet_pk_hash: [u8;20],
 
@@ -73,6 +74,7 @@ impl Node {
             utxo_set: HashMap::new(),
             data_handler,
             pending_tx: Arc::new(Mutex::from(HashMap::new())),
+            balance: 0,
             last_proccesed_block: 0,
             wallet_pk_hash: [0;20],
             headers_in_disk: 0,
@@ -154,6 +156,11 @@ impl Node {
         self.block_headers.lock().map_err(|_| NodeError::ErrorSharingReference)
     }
 
+    /// Returns a MutexGuard to the pending tx HashMap. 
+    pub fn get_pending_tx(&self) -> Result<MutexGuard<HashMap<[u8;32],Transaction>>, NodeError>{
+        self.pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)
+    }
+
     /// Central function that contains the node's information flow.
     pub fn run(&self) -> Result<MessageReceiver, NodeError> {
 
@@ -163,6 +170,11 @@ impl Node {
     fn receive_message(&mut self, stream_index: usize, ibd: bool)-> Result<String, NodeError>{
         let stream = &mut self.tcp_streams[stream_index];
         receive_message(stream, &self.block_headers, &self.blockchain, &self.pending_tx, &self.logger, ibd)
+    }
+
+    pub fn set_wallet(&mut self, pk_hash: [u8;20]){
+        self.wallet_pk_hash = pk_hash;
+        self.balance = self.get_utxo_balance(pk_hash);
     }
 }
 

@@ -194,6 +194,25 @@ impl Block {
         self.get_header().hash()
     }
 
+    pub fn get_utxos_from(&self, wallet_pk_hash: [u8;20])->Vec<(Vec<u8>,TxOut)>{
+        let mut utxos = Vec::new();
+        for tx in &self.transactions{
+            for (index, tx_out) in tx.tx_out.iter().enumerate() {
+                //p ver si queremos nomas las p2pkh
+                if tx_out.belongs_to(wallet_pk_hash){
+                    println!("la utxo pertenece a nuestra wallet");
+                    if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
+                        let outpoint = Outpoint::new(tx.hash(), index as u32);
+                        let tx_out_outpoint_bytes = outpoint.to_bytes();
+                        let tx_out: TxOut = tx_out.clone();
+    
+                        utxos.push((tx_out_outpoint_bytes, tx_out));
+                    }
+                }
+            }
+        };
+        utxos
+    }
     
 }
 

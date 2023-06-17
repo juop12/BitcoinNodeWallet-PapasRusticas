@@ -156,6 +156,19 @@ impl TxOut {
         }
         return Some(&self.pk_script[3..23])
     }
+
+    pub fn clone(&self) ->TxOut{
+        TxOut { value: self.value,
+            pk_script_length: VarLenInt::new(self.pk_script_length.to_usize()), 
+            pk_script: self.pk_script.clone() }
+    }
+
+    pub fn belongs_to(&self, pk_hash: [u8;20]) -> bool{
+        if let Some(owner_pk_hash) = self.pk_hash_under_p2pkh_protocol(){
+            return pk_hash == owner_pk_hash;
+        }
+        false
+    }
 }
 
 impl TxIn {

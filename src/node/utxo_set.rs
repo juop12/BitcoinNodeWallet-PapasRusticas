@@ -61,7 +61,7 @@ impl Node {
         Ok(())
     }
 
-    pub fn update_utxo(&self)->Result<(), NodeError>{
+    pub fn update_utxo(&mut self)->Result<(), NodeError>{
         let mut block_hashes = Vec::new();
         match self.get_block_headers(){
             Ok(block_headers) => {
@@ -72,32 +72,48 @@ impl Node {
             Err(error) => return Err(error),
         }
         
+        let mut new_utxos = Vec::new();
         match self.get_blockchain(){
             Ok(blockchain) => {
                 for hash in block_hashes{
                     if let Some(block) = blockchain.get(&hash){
-                        block.get_utxos_from(self.wallet_pk_hash);
+                        let utxos = block.get_utxos_from(self.wallet_pk_hash);
+                        new_utxos.extend(utxos);
                     }
                 }
             },
             Err(error) => return Err(error),
         };
+        for (key ,utxo) in new_utxos{
+            self.insert_utxo(key, utxo)
+        }
+        self.last_proccesed_block += 1;
         Ok(())
     }
 
+    fn insert_utxo(&mut self, key: Vec<u8>, tx_out: TxOut){
+        self.balance += tx_out.value;
+        self.utxo_set.insert(key, tx_out);
+    }
+
+    fn remove_utxo(&mut self, key: Vec<u8>) -> Option<TxOut>{
+        let tx_out = self.utxo_set.remove(&key)?;
+        self.balance -= tx_out.value;
+        
+        Some(tx_out)
+    }
     ///-
-    pub fn get_utxo_balance(&self, pub_key: [u8; 33]) -> i64 {
+    pub fn get_utxo_balance(&self, pk_hash: [u8; 20]) -> i64 {
         let mut balance = 0;
-        let pk_hash = hash160::Hash::hash(&pub_key.as_slice());
 
         for (_, tx_out) in &self.utxo_set{
             if let Some(p2pkh_hash) = tx_out.pk_hash_under_p2pkh_protocol(){
-                if pk_hash.to_byte_array() == p2pkh_hash{
+                if pk_hash == p2pkh_hash{
                     balance += tx_out.value;
                 }
             }
         }
-
+        
         return balance;
     }
 }

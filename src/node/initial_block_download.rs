@@ -238,6 +238,8 @@ impl Node {
         
         aux_len= self.get_block_headers()?.len();
         self.headers_in_disk = aux_len;
+        
+        self.last_proccesed_block = aux_len;
 
         Ok(())
     }
