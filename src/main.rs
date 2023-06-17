@@ -3,6 +3,8 @@ use proyecto::utils::config::*;
 use std::env;
 use std::thread;
 use std::time::Duration;
+use user_interface::start_app;
+
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -20,6 +22,8 @@ fn main() {
         Err(error) => return eprintln!("{:?}", error),
     };
     node.initial_block_download().unwrap();
+
+    start_app();
 
     node.logger.log("node, running".to_string());
     let message_receiver = match node.run() {

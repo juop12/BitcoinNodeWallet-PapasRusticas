@@ -687,6 +687,7 @@ dependencies = [
  "bitcoin_hashes",
  "chrono",
  "rand",
+ "user_interface",
 ]
 
 [[package]]
