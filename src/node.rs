@@ -46,6 +46,8 @@ pub struct Node {
     blockchain: SafeBlockChain,
     utxo_set: HashMap<Vec<u8>, TxOut>,
     pending_tx: SafePendingTx,
+    last_proccesed_block: usize,
+    wallet_pk_hash: [u8;20],
 
     headers_in_disk: usize,
     pub logger: Logger,
@@ -71,6 +73,8 @@ impl Node {
             utxo_set: HashMap::new(),
             data_handler,
             pending_tx: Arc::new(Mutex::from(HashMap::new())),
+            last_proccesed_block: 0,
+            wallet_pk_hash: [0;20],
             headers_in_disk: 0,
             logger,
         }

@@ -193,6 +193,8 @@ impl Block {
     pub fn header_hash(&self) -> [u8;32]{
         self.get_header().hash()
     }
+
+    
 }
 
 #[cfg(test)]

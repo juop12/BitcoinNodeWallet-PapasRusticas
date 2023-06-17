@@ -61,6 +61,29 @@ impl Node {
         Ok(())
     }
 
+    pub fn update_utxo(&self)->Result<(), NodeError>{
+        let mut block_hashes = Vec::new();
+        match self.get_block_headers(){
+            Ok(block_headers) => {
+                for i in self.last_proccesed_block..block_headers.len(){
+                    block_hashes.push(block_headers[i].hash());
+                }
+            },
+            Err(error) => return Err(error),
+        }
+        
+        match self.get_blockchain(){
+            Ok(blockchain) => {
+                for hash in block_hashes{
+                    if let Some(block) = blockchain.get(&hash){
+                        block.get_utxos_from(self.wallet_pk_hash);
+                    }
+                }
+            },
+            Err(error) => return Err(error),
+        };
+        Ok(())
+    }
 
     ///-
     pub fn get_utxo_balance(&self, pub_key: [u8; 33]) -> i64 {
