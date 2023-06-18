@@ -1,5 +1,5 @@
 use super::message_trait::*;
-use crate::blocks::Transaction;
+use crate::blocks::{Transaction, transaction};
 use crate::messages::*;
 
 /// Struct that represents a block message.
@@ -27,5 +27,15 @@ impl Message for TxMessage {
     /// Gets the header message corresponding to the corresponding message
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError> {
         HeaderMessage::new("tx", &self.to_bytes())
+    }
+}
+
+impl TxMessage{
+
+    pub fn new(tx: Transaction) -> TxMessage{
+
+        TxMessage { 
+            tx
+        }
     }
 }

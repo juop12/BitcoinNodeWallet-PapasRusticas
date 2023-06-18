@@ -33,7 +33,7 @@ impl Node {
         
                     for tx in block.get_transactions() {
                         for tx_in in tx.tx_in.iter() {
-                            let outpoint_bytes = tx_in.previous_output().to_bytes();
+                            let outpoint_bytes = tx_in.previous_output.to_bytes();
         
                             utxo_set.remove(&outpoint_bytes);
                         }
@@ -115,6 +115,35 @@ impl Node {
         }
         
         return balance;
+    }
+
+    pub fn get_utxos_sum_up_to(&self, amount: i64) -> Result<(Vec<Outpoint>, i64), NodeError>{
+        
+        let mut unspent_balance = 0;
+        let mut unspent_outpoint = Vec::new();
+        let mut iter = self.utxo_set.iter();
+        let curr = iter.next();
+        let mut i = 0;
+        
+        while (unspent_balance < amount) && (curr.is_some()){
+            if let Some((outpoint_bytes, utx_out)) = curr{
+                if utx_out.belongs_to(self.wallet_pk_hash){
+                    unspent_balance += utx_out.value;
+                    let outpoint = Outpoint::from_bytes(&outpoint_bytes).map_err(|_| NodeError::ErrorSendingTransaction)?;
+                    unspent_outpoint.push(outpoint);
+                }
+            } 
+            iter.next();
+            println!("utxo set length {}", self.utxo_set.len());
+            i += 1;
+            println!("iteracion: {}", i);
+        };
+        
+        if unspent_balance < amount {
+            return Err(NodeError::ErrorNotEnoughSatoshis);
+        }
+        
+        Ok((unspent_outpoint, unspent_balance))
     }
 }
 

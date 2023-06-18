@@ -1,6 +1,5 @@
 use proyecto::node::*;
 use proyecto::wallet::*;
-use proyecto::wallet::*;
 use proyecto::utils::config::*;
 use std::env;
 use std::thread;
@@ -32,6 +31,8 @@ fn main() {
     };
 
     //hace lo que quieras
+
+    println!("por crear utxo set");
     node.create_utxo_set()/* .map_err(|error| eprintln!("{:?}", error)) */;
 
     
@@ -39,32 +40,49 @@ fn main() {
     
     //thread::sleep(Duration::from_secs(600));
     
-    let a = [
+    let pub_key = [
         0x03, 0x57, 0xDD, 0x61, 0x2F, 0x9E, 0x51, 0xD0, 0x1C, 0x5C, 0xAC, 0x84, 0x35, 0xCB, 0x6C, 0x40, 0x15, 0x71, 0x50, 0x7C, 0xAF, 0xE3, 0x09, 0xE4, 0xA9, 0xBB, 0x48, 0xA4, 0x0B, 0x11, 0x8B, 0xF8, 0xFF
     ];
     
-    let b = [
+    let priv_key = [
         0x8A, 0x39, 0x27, 0x84, 0x29, 0x20, 0x92, 0xB1, 0x94, 0x1F, 0x8A, 0x72, 0xB0, 0x94, 0x37, 0x16 , 0x04, 0x51, 0x8F, 0x55, 0x30, 0xA5, 0x8D, 0x66, 0xCA, 0x9D, 0xE3, 0x7E, 0x35, 0x6F, 0x8B, 0xBB
     ];
 
-    let mut wallet = Wallet::new(a, b);
+    // Address de prueba para enviar.
+    println!("por crear la walle");
+    let mut wallet = Wallet::new(pub_key, priv_key);
     
+    println!("por setee la wallet");
     node.set_wallet(wallet.get_pk_hash());
-    let inicio = Instant::now();
-
+    
+    // 1371463 = 0,01371463 * 100000000
+    // address = miHXVsyAd3dG78Ri78NUmAfCyoHXaYkibp (address de prueba para recibir)
+    let address = [
+        0x6f, 0x1e, 0x5e, 0x45, 0x66, 0x9c, 0x7b, 0x22, 0x93, 0x53, 0x4f, 0xa5, 0x54, 0x14, 0x1b, 0xcd, 0x2c, 0x5d, 0x11, 0x3e, 0xe3, 0x3f, 0xbb, 0x13, 0x6f
+        ];
+        
+    println!("por mandar la transaccion");
+    wallet.create_transaction(&mut node, 20000, 2000, address).expect("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        
+    let mut inicio = Instant::now(); 
     
     while(true){
         //wallet le habla al nodo
         node.update_utxo().unwrap();
         wallet.update(node.balance);
-        println!("Balance: {}",node.balance);
-        for (_,tx) in node.get_pending_tx().unwrap().iter(){
-            for tx_out in &tx.tx_out{
-                if tx_out.belongs_to(wallet.get_pk_hash()){
-                    println!("hay en pending");
-                }
-            }
+        if inicio.elapsed() > Duration::from_secs(5){
+            inicio = Instant::now();
+            println!("Balance: {}",node.balance);
         }
+        
+        //for (_,tx) in node.get_pending_tx().unwrap().iter(){
+        //    for tx_out in &tx.tx_out{
+        //        if tx_out.belongs_to(wallet.get_pk_hash()){
+        //            println!("hay en pending");
+        //        }
+        //    }
+        //}
+        
     }
 
     /*

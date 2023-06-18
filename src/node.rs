@@ -176,6 +176,35 @@ impl Node {
         self.wallet_pk_hash = pk_hash;
         self.balance = self.get_utxo_balance(pk_hash);
     }
+
+    pub fn send_transaction(&mut self, transaction: Transaction) -> Result<(), NodeError>{
+        
+        let message = TxMessage::new(transaction);
+        let mut sent = false;
+        
+        for (i, stream) in self.tcp_streams.iter_mut().enumerate() {
+            println!("mandando al peer{i}");
+            if message.send_to(stream).is_ok(){
+                sent = true;
+            }
+        }
+        
+        if !sent {
+            return Err(NodeError::ErrorSendingTransaction);
+        }
+        
+        let transaction = message.tx;
+        
+        for txin in &transaction.tx_in{
+            self.utxo_set.remove(&txin.previous_output.to_bytes());
+        }
+
+        self.get_pending_tx()?.insert(transaction.hash(), transaction);
+        
+        println!("Se envio una transaccion"); //p
+        
+        Ok(())
+    }
 }
 
 
