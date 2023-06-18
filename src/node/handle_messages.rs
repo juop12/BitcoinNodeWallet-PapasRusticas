@@ -50,6 +50,7 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
             println!("Pending tiene {}", pending_tx.len());
         }
     }
+    
     let mut blockchain = safe_blockchain.lock().map_err(|_| NodeError::ErrorSharingReference)?;
     blockchain.insert(block.header_hash(),block);
             

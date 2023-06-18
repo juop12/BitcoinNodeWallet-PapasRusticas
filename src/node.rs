@@ -175,6 +175,7 @@ impl Node {
     pub fn set_wallet(&mut self, pk_hash: [u8;20]){
         self.wallet_pk_hash = pk_hash;
         self.balance = self.get_utxo_balance(pk_hash);
+        println!("balance {}",self.balance);
     }
 
     pub fn send_transaction(&mut self, transaction: Transaction) -> Result<(), NodeError>{
@@ -196,9 +197,11 @@ impl Node {
         let transaction = message.tx;
         
         for txin in &transaction.tx_in{
-            self.utxo_set.remove(&txin.previous_output.to_bytes());
+            self.remove_utxo(txin.previous_output.to_bytes());
         }
 
+        println!("{:?}", transaction.to_bytes()); //p
+        
         self.get_pending_tx()?.insert(transaction.hash(), transaction);
         
         println!("Se envio una transaccion"); //p

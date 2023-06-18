@@ -84,6 +84,7 @@ impl Node {
             },
             Err(error) => return Err(error),
         };
+        
         for (key ,utxo) in new_utxos{
             self.insert_utxo(key, utxo)
         }
@@ -92,26 +93,34 @@ impl Node {
     }
 
     fn insert_utxo(&mut self, key: Vec<u8>, tx_out: TxOut){
-        self.balance += tx_out.value;
+        if tx_out.belongs_to(self.wallet_pk_hash){   
+            self.balance += tx_out.value;
+        }
         self.utxo_set.insert(key, tx_out);
     }
 
-    fn remove_utxo(&mut self, key: Vec<u8>) -> Option<TxOut>{
+    pub fn remove_utxo(&mut self, key: Vec<u8>) -> Option<TxOut>{
         let tx_out = self.utxo_set.remove(&key)?;
-        self.balance -= tx_out.value;
+        if tx_out.belongs_to(self.wallet_pk_hash){
+            self.balance -= tx_out.value;
+        }
         
         Some(tx_out)
     }
+    
     ///-
     pub fn get_utxo_balance(&self, pk_hash: [u8; 20]) -> i64 {
         let mut balance = 0;
 
         for (_, tx_out) in &self.utxo_set{
-            if let Some(p2pkh_hash) = tx_out.pk_hash_under_p2pkh_protocol(){
-                if pk_hash == p2pkh_hash{
-                    balance += tx_out.value;
-                }
+            if tx_out.belongs_to(pk_hash){
+                balance += tx_out.value;
             }
+            //if let Some(p2pkh_hash) = tx_out.pk_hash_under_p2pkh_protocol(){
+            //    if pk_hash == p2pkh_hash{
+            //        balance += tx_out.value;
+            //    }
+            //}
         }
         
         return balance;
@@ -121,23 +130,26 @@ impl Node {
         
         let mut unspent_balance = 0;
         let mut unspent_outpoint = Vec::new();
-        let mut iter = self.utxo_set.iter();
-        let curr = iter.next();
         let mut i = 0;
         
-        while (unspent_balance < amount) && (curr.is_some()){
-            if let Some((outpoint_bytes, utx_out)) = curr{
-                if utx_out.belongs_to(self.wallet_pk_hash){
-                    unspent_balance += utx_out.value;
-                    let outpoint = Outpoint::from_bytes(&outpoint_bytes).map_err(|_| NodeError::ErrorSendingTransaction)?;
-                    unspent_outpoint.push(outpoint);
-                }
-            } 
-            iter.next();
-            println!("utxo set length {}", self.utxo_set.len());
+        for (outpoint_bytes, utx_out) in &self.utxo_set{
+            if unspent_balance > amount{
+                break;
+            }
+
+            if utx_out.belongs_to(self.wallet_pk_hash){
+                unspent_balance += utx_out.value;
+                println!("balance = {unspent_balance}");
+                let outpoint = Outpoint::from_bytes(&outpoint_bytes).map_err(|_| NodeError::ErrorSendingTransaction)?;
+                unspent_outpoint.push(outpoint);
+            }
+
+            if i % 1000 == 0{
+                println!("utxo set length {}",self.utxo_set.len());
+                println!("iteracion: {}", i);
+            }
             i += 1;
-            println!("iteracion: {}", i);
-        };
+        }
         
         if unspent_balance < amount {
             return Err(NodeError::ErrorNotEnoughSatoshis);

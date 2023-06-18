@@ -62,7 +62,7 @@ fn main() {
         ];
         
     println!("por mandar la transaccion");
-    wallet.create_transaction(&mut node, 20000, 2000, address).expect("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    wallet.create_transaction(&mut node, 1000000, 60000, address).expect("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
         
     let mut inicio = Instant::now(); 
     
