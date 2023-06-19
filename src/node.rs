@@ -178,6 +178,15 @@ impl Node {
         println!("balance {}",self.balance);
     }
 
+    fn print_transaction(tx_bytes: Vec<u8>){
+        let hex_string = tx_bytes
+            .iter()
+            .map(|byte| format!("{:02X}", byte))
+            .collect::<String>();
+
+        println!("String hexadecimal: {}", hex_string);
+    }
+
     pub fn send_transaction(&mut self, transaction: Transaction) -> Result<(), NodeError>{
         
         let message = TxMessage::new(transaction);
@@ -200,8 +209,8 @@ impl Node {
             self.remove_utxo(txin.previous_output.to_bytes());
         }
 
-        println!("{:?}", transaction.to_bytes()); //p
-        
+        print_transaction_from_bytes_to_hex_characters(transaction.to_bytes());//p
+
         self.get_pending_tx()?.insert(transaction.hash(), transaction);
         
         println!("Se envio una transaccion"); //p
@@ -224,6 +233,15 @@ impl Drop for Node {
         };
         self.logger.log(String::from("Finished storing data"));
     }
+}
+
+pub fn print_transaction_from_bytes_to_hex_characters(tx_bytes: Vec<u8>){
+    let hex_string = tx_bytes
+        .iter()
+        .map(|byte| format!("{:02X}", byte))
+        .collect::<String>();
+
+    println!("Transaction in hexadecimal: {}", hex_string);
 }
 
 /// Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.

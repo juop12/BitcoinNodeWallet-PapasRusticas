@@ -1,4 +1,4 @@
-use crate::utils::{btc_errors::TransactionError, variable_length_integer::VarLenInt};
+use crate::{utils::{btc_errors::TransactionError, variable_length_integer::VarLenInt}, node::print_transaction_from_bytes_to_hex_characters};
 use bitcoin_hashes::{sha256d, sha256, hash160, Hash};
 use secp256k1::{SecretKey, Secp256k1, Message};
 
@@ -13,7 +13,7 @@ const OP_DUP: u8 = 0x76;
 const OP_DUP_POSITION: usize = 0;
 const OP_HASH160: u8 = 0xA9;
 const OP_HASH160_POSITION: usize = 1;
-const P2PKH_HASH_LENGTH:u8 = 20;
+const P2PKH_HASH_LENGTH:u8 = 0x14;
 const P2PKH_HASH_LENGTH_POSITION:usize = 2;
 const OP_EQUALVERIFY:u8 = 0x88;
 const OP_EQUALVERIFY_POSITION: usize = 23;
@@ -145,10 +145,10 @@ impl TxOut {
         if self.pk_script[OP_DUP_POSITION] != OP_DUP{
             return None;
         }
-        if self.pk_script[P2PKH_HASH_LENGTH_POSITION] != P2PKH_HASH_LENGTH{
+        if self.pk_script[OP_HASH160_POSITION] != OP_HASH160{
             return None;
         }
-        if self.pk_script[OP_HASH160_POSITION] != OP_HASH160{
+        if self.pk_script[P2PKH_HASH_LENGTH_POSITION] != P2PKH_HASH_LENGTH{
             return None;
         }
         if self.pk_script[OP_EQUALVERIFY_POSITION] != OP_EQUALVERIFY{
@@ -261,6 +261,10 @@ impl Transaction {
         let mut tx_in_vector = Vec::new();
 
         for outpoint in unspent_outpoints{
+            println!("outpoints");
+            print_transaction_from_bytes_to_hex_characters(outpoint.to_bytes());
+            
+            //let outpoint = Outpoint::new(b, outpoint.index);
             let txin = TxIn::create_unsigned_with(pub_key, outpoint);
             tx_in_vector.push(txin);
         }
@@ -280,7 +284,6 @@ impl Transaction {
         let tx_out_vector = vec![tx_out_receiver, tx_out_change];
 
         println!("txouts creadas");
-
 
         let mut raw_tx = Transaction::new(
             1, //bip = 1? somo pts?
@@ -320,24 +323,29 @@ impl Transaction {
         
         // 2
         tx_bytes.extend(SIGHASH_ALL);
+
+        print_transaction_from_bytes_to_hex_characters(tx_bytes.clone());
         
-        // 3
-        let message = sha256::Hash::hash(&tx_bytes).to_byte_array();
-        
-        // 4
-        let secp = Secp256k1::new();
-        let secret_key = SecretKey::from_slice(&priv_key).unwrap();
+        // 3 Conseguimos z.
+        // let message = sha256::Hash::hash(&tx_bytes).to_byte_array();
         // This is unsafe unless the supplied byte slice is the output of a cryptographic hash function.
         // See the above example for how to use this library together with `bitcoin-hashes-std`.
-        let message = Message::from_slice(&message).unwrap();
+        let message = Message::from_hashed_data::<sha256::Hash>(&tx_bytes);
+        println!("Z: {}", message);
 
-        let sig = secp.sign_ecdsa(&message, &secret_key);
+        // 4
+        //let secp = Secp256k1::new();
+        let secret_key = SecretKey::from_slice(&priv_key).unwrap();
+
+        let sig = secret_key.sign_ecdsa(message);
+        //let sig = secp.sign_ecdsa(&message, &secret_key); // firma.
         
         // 5
         let mut sig = sig.serialize_der().to_vec();
         sig.push(SIGHASH_ALL[0]);
+        println!("Long sig {} (71 es 47)", sig.len());
 
-        // 6 Ya la tenemos LOCOOOOOOOOOOOOOOOOOO!
+        // 6 Ya la tenemos!
 
         // 7
         let len_sig = VarLenInt::new(sig.len());
@@ -348,6 +356,7 @@ impl Transaction {
         signature_script.extend(len_sec.to_bytes());
         signature_script.extend(pub_key);
 
+        
         Ok(signature_script)
     }
     
@@ -428,7 +437,7 @@ impl Transaction {
 }
 
 fn get_pk_script_from_pubkey(pub_key: [u8; 33]) -> [u8; P2PKH_SCRIPT_LENGTH]{
-    let mut pk_hash = hash160::Hash::hash(&pub_key.as_slice());
+    let pk_hash = hash160::Hash::hash(&pub_key.as_slice());
     
     get_pk_script(pk_hash.to_byte_array())
 }
