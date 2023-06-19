@@ -23,7 +23,9 @@ fn main() {
     };
     node.initial_block_download().unwrap();
 
-    start_app();
+    thread::spawn(move || {
+        start_app();
+    });
 
     node.logger.log("node, running".to_string());
     let message_receiver = match node.run() {
