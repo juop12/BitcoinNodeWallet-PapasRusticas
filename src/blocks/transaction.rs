@@ -323,22 +323,15 @@ impl Transaction {
         
         // 2
         tx_bytes.extend(SIGHASH_ALL);
-
-        print_transaction_from_bytes_to_hex_characters(tx_bytes.clone());
         
         // 3 Conseguimos z.
-        // let message = sha256::Hash::hash(&tx_bytes).to_byte_array();
-        // This is unsafe unless the supplied byte slice is the output of a cryptographic hash function.
-        // See the above example for how to use this library together with `bitcoin-hashes-std`.
-        let message = Message::from_hashed_data::<sha256::Hash>(&tx_bytes);
+        let message = Message::from_hashed_data::<sha256d::Hash>(&tx_bytes);
         println!("Z: {}", message);
 
         // 4
-        //let secp = Secp256k1::new();
         let secret_key = SecretKey::from_slice(&priv_key).unwrap();
 
         let sig = secret_key.sign_ecdsa(message);
-        //let sig = secp.sign_ecdsa(&message, &secret_key); // firma.
         
         // 5
         let mut sig = sig.serialize_der().to_vec();
