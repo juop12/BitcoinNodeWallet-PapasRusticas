@@ -84,7 +84,7 @@ checksum = "0d261e256854913907f67ed06efbc3338dfe6179796deefc1ff763fc1aee5535"
 [[package]]
 name = "cairo-rs"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "bitflags",
  "cairo-sys-rs",
@@ -97,7 +97,7 @@ dependencies = [
 [[package]]
 name = "cairo-sys-rs"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "glib-sys",
  "libc",
@@ -292,7 +292,7 @@ dependencies = [
 [[package]]
 name = "gdk-pixbuf"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "bitflags",
  "gdk-pixbuf-sys",
@@ -305,7 +305,7 @@ dependencies = [
 [[package]]
 name = "gdk-pixbuf-sys"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "gio-sys",
  "glib-sys",
@@ -344,7 +344,7 @@ dependencies = [
 [[package]]
 name = "gio"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "bitflags",
  "futures-channel",
@@ -363,7 +363,7 @@ dependencies = [
 [[package]]
 name = "gio-sys"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -375,7 +375,7 @@ dependencies = [
 [[package]]
 name = "glib"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "bitflags",
  "futures-channel",
@@ -397,7 +397,7 @@ dependencies = [
 [[package]]
 name = "glib-macros"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "anyhow",
  "heck",
@@ -411,7 +411,7 @@ dependencies = [
 [[package]]
 name = "glib-sys"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "libc",
  "system-deps",
@@ -420,7 +420,7 @@ dependencies = [
 [[package]]
 name = "gobject-sys"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "glib-sys",
  "libc",
@@ -601,7 +601,7 @@ checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 [[package]]
 name = "pango"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "bitflags",
  "gio",
@@ -614,7 +614,7 @@ dependencies = [
 [[package]]
 name = "pango-sys"
 version = "0.18.0"
-source = "git+https://github.com/gtk-rs/gtk-rs-core#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
+source = "git+https://github.com/gtk-rs/gtk-rs-core.git#009aca95fe5300a6f8bb86ed5f47f32e8aa72162"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -698,6 +698,7 @@ dependencies = [
  "chrono",
  "rand",
  "secp256k1",
+ "user_interface",
 ]
 
 [[package]]
@@ -955,6 +956,8 @@ checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
 name = "user_interface"
 version = "0.1.0"
 dependencies = [
+ "gio",
+ "glib",
  "gtk",
 ]
 

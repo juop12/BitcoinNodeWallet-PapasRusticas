@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 gtk = {git = "https://github.com/gtk-rs/gtk3-rs.git" }
+gio = { git = "https://github.com/gtk-rs/gtk-rs-core.git", package = "gio" }
+glib = { git = "https://github.com/gtk-rs/gtk-rs-core.git", package = "glib" }
