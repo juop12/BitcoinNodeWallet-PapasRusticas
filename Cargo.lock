@@ -574,6 +574,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "node"
+version = "0.1.0"
+dependencies = [
+ "bitcoin_hashes",
+ "bs58",
+ "chrono",
+ "rand",
+ "secp256k1",
+]
+
+[[package]]
 name = "num-integer"
 version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -693,12 +704,10 @@ dependencies = [
 name = "proyecto"
 version = "0.1.0"
 dependencies = [
- "bitcoin_hashes",
- "bs58",
- "chrono",
- "rand",
- "secp256k1",
- "user_interface",
+ "gio",
+ "glib",
+ "gtk",
+ "node",
 ]
 
 [[package]]
@@ -951,15 +960,6 @@ name = "unicode-width"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
-
-[[package]]
-name = "user_interface"
-version = "0.1.0"
-dependencies = [
- "gio",
- "glib",
- "gtk",
-]
 
 [[package]]
 name = "version-compare"
