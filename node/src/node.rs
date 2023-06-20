@@ -1,0 +1,366 @@
+pub mod peer_comunication;
+pub mod data_handler;
+pub mod handle_messages;
+pub mod handshake;
+pub mod initial_block_download;
+pub mod utxo_set;
+
+
+use self::{
+    peer_comunication::*,
+    data_handler::NodeDataHandler,
+    handle_messages::*, message_receiver::{MessageReceiver},
+};
+use crate::{
+    blocks::{
+        transaction::TxOut,
+        blockchain::*,
+        proof::*, Transaction,
+    },
+    messages::*,
+    utils::btc_errors::NodeError,
+    utils::{config::*, log::*},
+};
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+    net::{SocketAddr, TcpStream, ToSocketAddrs},
+    sync::{Arc, Mutex, MutexGuard},
+};
+
+const MESSAGE_HEADER_SIZE: usize = 24;
+const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
+
+pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
+pub type SafeVecHeader = Arc<Mutex<Vec<BlockHeader>>>;
+pub type SafePendingTx = Arc<Mutex<HashMap<[u8;32],Transaction>>>;
+
+/// Struct that represents the bitcoin node
+pub struct Node {
+    version: i32,
+    sender_address: SocketAddr,
+    tcp_streams: Vec<TcpStream>,
+    data_handler: NodeDataHandler,
+    block_headers: SafeVecHeader,
+    starting_block_time: u32,
+    blockchain: SafeBlockChain,
+    utxo_set: HashMap<Vec<u8>, TxOut>,
+    pub balance: i64,
+    pub pending_tx: SafePendingTx,
+    last_proccesed_block: usize,
+    wallet_pk_hash: [u8;20],
+
+    headers_in_disk: usize,
+    pub logger: Logger,
+}
+
+impl Node {
+    /// It creates and returns a Node with the default values
+    fn _new(
+        version: i32,
+        local_host: [u8; 4],
+        local_port: u16,
+        logger: Logger,
+        data_handler: NodeDataHandler,
+        starting_block_time: u32,
+    ) -> Node {
+        Node {
+            version,
+            sender_address: SocketAddr::from((local_host, local_port)),
+            tcp_streams: Vec::new(),
+            block_headers: Arc::new(Mutex::from(Vec::new())),
+            starting_block_time,
+            blockchain: Arc::new(Mutex::from(HashMap::new())),
+            utxo_set: HashMap::new(),
+            data_handler,
+            pending_tx: Arc::new(Mutex::from(HashMap::new())),
+            balance: 0,
+            last_proccesed_block: 0,
+            wallet_pk_hash: [0;20],
+            headers_in_disk: 0,
+            logger,
+        }
+    }
+
+    /// Node constructor, it creates a new node and performs the handshake with the sockets obtained
+    /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
+    /// tcp_streams vector. Returns the node
+    pub fn new(config: Config) -> Result<Node, NodeError> {
+        let logger = match Logger::from_path(config.log_path.as_str()) {
+            Ok(logger) => logger,
+            Err(_) => return Err(NodeError::ErrorCreatingNode),
+        };
+        let data_handler = match NodeDataHandler::new(&config.headers_path, &config.blocks_path) {
+            Ok(handler) => handler,
+            Err(_) => return Err(NodeError::ErrorCreatingNode),
+        };
+        let mut node = Node::_new(
+            config.version,
+            config.local_host,
+            config.local_port,
+            logger,
+            data_handler,
+            config.begin_time,
+        );
+        let mut address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port, config.ipv6_enabled);
+        address_vector.reverse(); // Generally the first nodes are slow, so we reverse the vector to connect to the fastest nodes first
+
+        for addr in address_vector {
+            match node.handshake(addr) {
+                Ok(tcp_stream) => node.tcp_streams.push(tcp_stream),
+                Err(error) => node.logger.log_error(&error),
+            }
+        }
+        node.logger.log(format!(
+            "Amount of peers conected = {}",
+            node.tcp_streams.len()
+        ));
+
+        if node.tcp_streams.is_empty() {
+            Err(NodeError::ErrorCreatingNode)
+        } else {
+            Ok(node)
+        }
+    }
+
+    /// Receives a dns address as a String and returns a Vector that contains all the addresses
+    /// returned by the dns. If an error occured (for example, the dns address is not valid), it
+    /// returns an empty Vector.
+    /// The socket address requires a dns and a DNS_PORT, which is set to 18333 because it is
+    /// the port used by the bitcoin core testnet.
+    fn peer_discovery(&self, dns: &str, dns_port: u16, ipv6_enabled: bool) -> Vec<SocketAddr> {
+        let mut socket_address_vector = Vec::new();
+
+        if let Ok(address_iter) = (dns, dns_port).to_socket_addrs() {
+            for address in address_iter {
+                if address.is_ipv4() || ipv6_enabled {
+                    socket_address_vector.push(address);
+                }
+            }
+        }
+        socket_address_vector
+    }
+
+    /// Returns a reference to the tcp_streams vector
+    pub fn get_tcp_streams(&self) -> &Vec<TcpStream> {
+        &self.tcp_streams
+    }
+
+    /// Returns a MutexGuard to the blockchain HashMap. 
+    pub fn get_blockchain(&self) -> Result<MutexGuard<HashMap<[u8; 32], Block>>, NodeError>{
+        self.blockchain.lock().map_err(|_| NodeError::ErrorSharingReference)
+    }
+
+    /// Returns a MutexGuard to the blockchain HashMap. 
+    pub fn get_block_headers(&self) -> Result<MutexGuard<Vec<BlockHeader>>, NodeError>{
+        self.block_headers.lock().map_err(|_| NodeError::ErrorSharingReference)
+    }
+
+    /// Returns a MutexGuard to the pending tx HashMap. 
+    pub fn get_pending_tx(&self) -> Result<MutexGuard<HashMap<[u8;32],Transaction>>, NodeError>{
+        self.pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)
+    }
+
+    /// Central function that contains the node's information flow.
+    pub fn run(&self) -> Result<MessageReceiver, NodeError> {
+
+        Ok(MessageReceiver::new(&self.tcp_streams, &self.blockchain, &self.block_headers, &self.pending_tx ,&self.logger))
+    }
+
+    fn receive_message(&mut self, stream_index: usize, ibd: bool)-> Result<String, NodeError>{
+        let stream = &mut self.tcp_streams[stream_index];
+        receive_message(stream, &self.block_headers, &self.blockchain, &self.pending_tx, &self.logger, ibd)
+    }
+
+    pub fn set_wallet(&mut self, pk_hash: [u8;20]){
+        self.wallet_pk_hash = pk_hash;
+        self.balance = self.get_utxo_balance(pk_hash);
+        println!("balance {}",self.balance);
+    }
+
+    fn print_transaction(tx_bytes: Vec<u8>){
+        let hex_string = tx_bytes
+            .iter()
+            .map(|byte| format!("{:02X}", byte))
+            .collect::<String>();
+
+        println!("String hexadecimal: {}", hex_string);
+    }
+
+    pub fn send_transaction(&mut self, transaction: Transaction) -> Result<(), NodeError>{
+        
+        let message = TxMessage::new(transaction);
+        let mut sent = false;
+        
+        for (i, stream) in self.tcp_streams.iter_mut().enumerate() {
+            println!("mandando al peer{i}");
+            if message.send_to(stream).is_ok(){
+                sent = true;
+            }
+        }
+        
+        if !sent {
+            return Err(NodeError::ErrorSendingTransaction);
+        }
+        
+        let transaction = message.tx;
+        
+        for txin in &transaction.tx_in{
+            self.remove_utxo(txin.previous_output.to_bytes());
+        }
+
+        let tx_hex = get_hex_from_bytes(transaction.to_bytes());//p
+
+        println!("Transaction {tx_hex}");
+
+        self.get_pending_tx()?.insert(transaction.hash(), transaction);
+        
+        println!("Se envio una transaccion"); //p
+        
+        Ok(())
+    }
+}
+
+
+impl Drop for Node {
+    fn drop(&mut self) {
+        self.logger.log(String::from("Saving received data"));
+        if self.store_headers_in_disk().is_err(){
+            self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
+            return;
+        };
+        if self.store_blocks_in_disk().is_err(){
+            self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
+            return;
+        };
+        self.logger.log(String::from("Finished storing data"));
+    }
+}
+
+pub fn get_bytes_from_hex(hex_string: &str) -> Vec<u8>{
+    hex_string
+        .as_bytes()
+        .chunks(2)
+        .map(|chunk| u8::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16).unwrap())
+        .collect::<Vec<u8>>()
+}
+
+pub fn get_hex_from_bytes(bytes_vec: Vec<u8>) -> String{
+    bytes_vec
+        .iter()
+        .map(|byte| format!("{:02X}", byte))
+        .collect::<String>()
+}
+
+/// Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
+/// On error returns ErrorReceivingMessage
+pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderMessage, NodeError> {
+    let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
+
+    if stream.read_exact(&mut header_bytes).is_err() {
+        return Err(NodeError::ErrorReceivingMessageHeader);
+    };
+
+    match HeaderMessage::from_bytes(&header_bytes) {
+        Ok(header_message) => Ok(header_message),
+        Err(_) => Err(NodeError::ErrorReceivingMessageHeader),
+    }
+}
+
+/// Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
+pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, blockchain: &SafeBlockChain, pending_tx: &SafePendingTx, logger: &Logger, ibd: bool) -> Result<String, NodeError> {
+    let block_headers_msg_h = receive_message_header(stream)?;
+
+    logger.log(block_headers_msg_h.get_command_name());
+
+    let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
+    if stream.read_exact(&mut msg_bytes).is_err() {
+        return Err(NodeError::ErrorReceivingMessage);
+    }
+
+    match block_headers_msg_h.get_command_name().as_str() {
+        "ping\0\0\0\0\0\0\0\0" => {
+            handle_ping_message(stream, &block_headers_msg_h, msg_bytes)?;
+        }
+        "inv\0\0\0\0\0\0\0\0\0" => {
+            if !ibd {
+                handle_inv_message(stream, msg_bytes, block_headers, blockchain, pending_tx, logger)?;
+            }
+        }
+        "block\0\0\0\0\0\0\0" => handle_block_message(msg_bytes, block_headers, blockchain, pending_tx, logger, ibd)?,
+        "headers\0\0\0\0\0" => handle_block_headers_message(msg_bytes, block_headers)?,
+        "tx\0\0\0\0\0\0\0\0\0\0" => {
+            if !ibd{
+                handle_tx_message(msg_bytes, pending_tx)?;
+            }
+        }
+        _ => {},
+    };
+
+    Ok(block_headers_msg_h.get_command_name())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::mock_tcp_stream::*;
+
+
+    const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
+    const LOCAL_PORT: u16 = 1001;
+    const DNS_PORT: u16 = 18333;
+    const VERSION: i32 = 70015;
+    const STARTING_BLOCK_TIME: u32 = 1681084800;
+    const LOG_FILE_PATH: &str = "tests_txt/test_log.txt";
+    const HEADERS_FILE_PATH: &str = "tests_txt/headers.bin";
+    const BLOCKS_FILE_PATH: &str = "tests_txt/blocks.bin";
+
+
+    #[test]
+    fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address() {
+        let logger = Logger::from_path(LOG_FILE_PATH).unwrap();
+        let data_handler = NodeDataHandler::new(HEADERS_FILE_PATH, BLOCKS_FILE_PATH).unwrap();
+        let node = Node::_new(
+            VERSION,
+            LOCAL_HOST,
+            LOCAL_PORT,
+            logger,
+            data_handler,
+            STARTING_BLOCK_TIME,
+        );
+        let address_vector = node.peer_discovery("does_not_exist", DNS_PORT, false);
+
+        assert!(address_vector.is_empty());
+    }
+
+    #[test]
+    fn peer_discovery_test_2_returns_ip_vector_when_receiving_valid_dns() {
+        let logger = Logger::from_path(LOG_FILE_PATH).unwrap();
+        let data_handler = NodeDataHandler::new(HEADERS_FILE_PATH, BLOCKS_FILE_PATH).unwrap();
+        let node = Node::_new(
+            VERSION,
+            LOCAL_HOST,
+            LOCAL_PORT,
+            logger,
+            data_handler,
+            STARTING_BLOCK_TIME,
+        );
+        let address_vector = node.peer_discovery(DNS_ADDRESS, DNS_PORT, false);
+
+        assert!(!address_vector.is_empty());
+    }
+
+    #[test]
+    fn node_test_1_receive_header_message() -> Result<(), NodeError> {
+        let mut stream = MockTcpStream::new();
+
+        let expected_hm =
+            HeaderMessage::new("test message", &Vec::from("test".as_bytes())).unwrap();
+        stream.read_buffer = expected_hm.to_bytes();
+
+        let received_hm = receive_message_header(&mut stream)?;
+
+        assert_eq!(received_hm, expected_hm);
+        Ok(())
+    }
+}
