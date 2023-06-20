@@ -1,9 +1,10 @@
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::io::Write;
+use std::{
+    {fs, fs::File, fs::OpenOptions},
+    sync::{mpsc, mpsc::Sender},
+    io::Write,
+    thread,
+    };
 use chrono::Utc;
-use std::sync::{mpsc, mpsc::Sender};
-use std::thread;
 
 use super::BtcError;
 
@@ -68,6 +69,11 @@ impl Logger {
 
 /// A handler for opening the log file in write mode, on error returns ErrorOpeningFile
 fn _open_log_handler(path: &str) -> Result<File, LoggerError> {
+
+    if let Err(_) = fs::remove_file(path){
+        return Err(LoggerError::ErrorOpeningFile);
+    }
+
     match OpenOptions::new().create(true).write(true).open(path) {
         Ok(file) => Ok(file),
         Err(_) => Err(LoggerError::ErrorOpeningFile),

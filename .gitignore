@@ -11,6 +11,3 @@ data/*.bin
 # Ignora todos los archivos de prueba.
 tests_txt/*.bin
 tests_txt/*.txt
-
-#Ignora el backup de la ui
-/user_interface/target/*ui.glade~

@@ -1,39 +1,36 @@
 use gtk::prelude::*;
-use gtk::{glib,Application, ApplicationWindow, Builder, Box};
+use gtk::{glib, Application, ApplicationWindow, Builder, Box, Button, Dialog};
+use std::sync::{mpsc, mpsc::Receiver, mpsc::Sender};
+use gtk::glib::{Sender as S, Receiver as R};
 
-use crate::user_options::UiUserOptions;
-use crate::wallet_sections::UiWalletSections;
-
-pub struct Ui {
-    pub app: Application,
-    pub window: ApplicationWindow,
-}
-
-pub struct UiWindow {
-    pub window: ApplicationWindow,
-    pub window_box: Box,
-    pub user_options: UiUserOptions,
-    pub wallet_sections: UiWalletSections,
-}
+use crate::wallet_transactions::add_row;
+use crate::wallet_overview::update_available_balance;
+use crate::wallet_overview::update_pending_balance;
+use crate::wallet_send::update_balance;
+use crate::wallet_send::activate_use_available_balance;
+use crate::wallet_send::activate_clear_all_button;
+pub use crate::utils::*;
 
 pub enum UiError {
     FailedToBuildUi,
     FailedToFindObject,
 }
-    
 
-impl Ui{
-    pub fn crear_app() {
-        // Initialise gtk components
-    if gtk::init().is_err() {
-        println!("Unable to load GTK.");
-        return;
-    }
-    let glade_src = include_str!("ui.glade");
+pub fn start_app(){
+    let builder = match obtain_builder(){
+        Ok(builder) => builder,
+        Err(_) => {
+            return;
+        },
+    };
 
-    // Load glade file
-    let builder = Builder::from_string(&glade_src);
+    initialize_elements(&builder);
 
+    add_examples(&builder);
+    start_window(&builder);
+}
+
+fn start_window(builder: &Builder){
     // Create Window
     let window: gtk::Window = match builder.object("Ventana"){
         Some(window) => window,
@@ -50,23 +47,52 @@ impl Ui{
     // Show the window and call the main() loop of gtk
     window.show_all();
     gtk::main();
-    }
 }
 
-// fn cambiarle_el_color_al_separator(builde: &Builder){
-//     let separator: gtk::Separator = match builde.object("labelSeparator"){
-//         Some(separator) => separator,
-//         None => return,
-//     };
-//     let style_context = separator.style_context();
-//     style_context.add_class("my-separator");
-//     let css_provider = gtk::CssProvider::new();
-//     css_provider.load_from_data(b".my-separator { background-color: gold; }");
+fn obtain_builder() -> Result<Builder,UiError>{
+    // Initialise gtk components
+    if gtk::init().is_err() {
+        return Err(UiError::FailedToBuildUi)
+    }
+    let glade_src = include_str!("ui.glade");
 
-//     gtk::StyleContext::add_provider_for_screen(
-//         &separator.screen().expect("Error retrieving screen"),
-//         &css_provider,
-//         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-//     );
+    // Load glade file
+    Ok(Builder::from_string(&glade_src))
+}
 
-// }
+fn initialize_elements(builder: &Builder){
+    activate_wallet_adder(builder);
+    activate_use_available_balance(builder);
+    activate_clear_all_button(builder);
+}
+
+//Editar para hacer pruebas con diferentes valores
+fn add_examples(builder: &Builder){
+    update_available_balance(&builder, "15.00");
+    update_pending_balance(&builder, "5.01");
+    add_tx(&builder, "lorem ipsum".to_string());
+    update_balance(&builder, "69.420");
+}
+
+pub fn add_tx(builder: &Builder, transaction: String) {
+    let tx_tree_store = builder.object("TxTreeStore").unwrap();
+    let date = "0".to_string();
+    let amount = "0".to_string();
+    add_row(tx_tree_store, date, transaction, amount)
+}
+
+fn activate_wallet_adder(builder: &Builder){
+    let button: Button = match builder.object("Wallet Adder"){
+        Some(button) => button,
+        None => return,
+    };
+    let wallet_adder: Dialog = match builder.object("Wallet Adder Dialog"){
+        Some(wallet_adder) => wallet_adder,
+        None => return,
+    };
+    button.connect_clicked(move |_| {
+        wallet_adder.show_all();
+        wallet_adder.run();
+        wallet_adder.hide();
+    });
+}

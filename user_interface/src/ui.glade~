@@ -7,21 +7,24 @@
     <property name="step-increment">9.9999999999999995e-07</property>
     <property name="page-increment">10</property>
   </object>
-  <object class="GtkTreeStore" id="treeStore">
+  <object class="GtkTreeStore" id="TxTreeStore">
     <columns>
-      <!-- column-name c1 -->
+      <!-- column-name progress_column -->
+      <column type="gint"/>
+      <!-- column-name date_column -->
       <column type="gchararray"/>
-      <!-- column-name c2 -->
+      <!-- column-name type_column -->
       <column type="gchararray"/>
-      <!-- column-name c3 -->
+      <!-- column-name blockHeader_column -->
       <column type="gchararray"/>
-      <!-- column-name gfloat1 -->
-      <column type="gfloat"/>
+      <!-- column-name amount_column -->
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkWindow" id="Ventana">
     <property name="name">Ventana</property>
     <property name="can-focus">False</property>
+    <property name="title" translatable="yes">Bitcoin</property>
     <property name="default-width">1000</property>
     <property name="default-height">600</property>
     <child>
@@ -31,7 +34,7 @@
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkMenuBar" id="User Options">
+          <object class="GtkMenuBar" id="UserOptions">
             <property name="name">Opciones de usuario</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
@@ -121,9 +124,28 @@
             <child>
               <object class="GtkBox" id="Wallet">
                 <property name="name">Wallet</property>
+                <property name="width-request">500</property>
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="halign">end</property>
                 <property name="hexpand">True</property>
+                <child>
+                  <object class="GtkButton" id="Wallet Adder">
+                    <property name="label" translatable="yes">Add Wallet</property>
+                    <property name="name">Wallet Adder</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <property name="halign">end</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="padding">1</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
                 <child>
                   <object class="GtkLabel" id="Wallet Text">
                     <property name="name">Texto Wallet</property>
@@ -137,12 +159,13 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">0</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
                 <child>
                   <object class="GtkComboBoxText" id="Wallet Switcher">
                     <property name="name">Wallet Switch</property>
+                    <property name="width-request">200</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="focus-on-click">False</property>
@@ -156,7 +179,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">1</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
               </object>
@@ -217,7 +240,7 @@
                 </child>
                 <child>
                   <object class="GtkFrame" id="BalanceFrame">
-                    <property name="width-request">400</property>
+                    <property name="width-request">350</property>
                     <property name="height-request">150</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
@@ -310,7 +333,7 @@
                           <object class="GtkLabel" id="availableQuantity">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">0.00000000000000000</property>
+                            <property name="label" translatable="yes">0.000000</property>
                             <property name="yalign">0.3499999940395355</property>
                           </object>
                           <packing>
@@ -322,7 +345,7 @@
                           <object class="GtkLabel" id="pendingQuantity">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">0.00000000000000000</property>
+                            <property name="label" translatable="yes">0.000000</property>
                             <property name="yalign">0.5</property>
                           </object>
                           <packing>
@@ -334,7 +357,7 @@
                           <object class="GtkLabel" id="totalQuantity">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">0.00000000000000000</property>
+                            <property name="label" translatable="yes">0.000000</property>
                             <property name="yalign">0.3499999940395355</property>
                           </object>
                           <packing>
@@ -442,7 +465,7 @@
                         <property name="can-focus">False</property>
                         <property name="spacing">30</property>
                         <child>
-                          <object class="GtkSpinButton">
+                          <object class="GtkSpinButton" id="SendAmount">
                             <property name="width-request">300</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
@@ -540,16 +563,58 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="Send Balance Text">
+                  <object class="GtkBox" id="BalanceBox">
                     <property name="width-request">100</property>
                     <property name="height-request">80</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="label" translatable="yes">Balance: 0.0000000000</property>
+                    <property name="homogeneous">True</property>
+                    <child>
+                      <object class="GtkLabel" id="Send Balance Text">
+                        <property name="width-request">100</property>
+                        <property name="height-request">80</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="halign">start</property>
+                        <property name="label" translatable="yes">Balance:</property>
+                        <property name="justify">right</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="BalanceAmount">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">0.000000</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
                   </object>
                   <packing>
-                    <property name="x">790</property>
-                    <property name="y">500</property>
+                    <property name="x">777</property>
+                    <property name="y">473</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="Fee Amount Label">
+                    <property name="name">Fee Amount Label</property>
+                    <property name="height-request">80</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="label" translatable="yes">Fee Amount:</property>
+                  </object>
+                  <packing>
+                    <property name="x">40</property>
+                    <property name="y">188</property>
                   </packing>
                 </child>
               </object>
@@ -580,22 +645,25 @@
                         <property name="window-placement">top-right</property>
                         <property name="kinetic-scrolling">False</property>
                         <child>
-                          <object class="GtkTreeView" id="TransactionsGrid">
+                          <object class="GtkTreeView" id="TxTree">
                             <property name="width-request">800</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
-                            <property name="model">treeStore</property>
+                            <property name="model">TxTreeStore</property>
                             <property name="reorderable">True</property>
                             <property name="search-column">0</property>
                             <child internal-child="selection">
-                              <object class="GtkTreeSelection"/>
+                              <object class="GtkTreeSelection" id="TxTreeSelection"/>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="progress">
+                              <object class="GtkTreeViewColumn" id="Progress">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">70</property>
                                 <child>
-                                  <object class="GtkCellRendererProgress" id="RetrieveProgress"/>
+                                  <object class="GtkCellRendererProgress"/>
+                                  <attributes>
+                                    <attribute name="value">0</attribute>
+                                  </attributes>
                                 </child>
                               </object>
                             </child>
@@ -605,55 +673,51 @@
                                 <property name="fixed-width">70</property>
                                 <property name="title" translatable="yes">Date</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="Date_renderer">
-                                    <property name="background-gdk">#616135358383</property>
+                                  <object class="GtkCellRendererText" id="DateR">
+                                    <property name="editable">True</property>
                                   </object>
                                   <attributes>
-                                    <attribute name="single-paragraph-mode">0</attribute>
-                                    <attribute name="width-chars">0</attribute>
+                                    <attribute name="text">1</attribute>
                                   </attributes>
                                 </child>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="type">
+                              <object class="GtkTreeViewColumn" id="Type">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">70</property>
                                 <property name="title" translatable="yes">Type</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="Type_renderer"/>
+                                  <object class="GtkCellRendererText" id="TypeR"/>
                                   <attributes>
-                                    <attribute name="rise">0</attribute>
+                                    <attribute name="text">2</attribute>
                                   </attributes>
                                 </child>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="label">
+                              <object class="GtkTreeViewColumn" id="BlockHeader">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">400</property>
-                                <property name="title" translatable="yes">Label</property>
+                                <property name="title" translatable="yes">BlockHeader</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="Label_renderer"/>
+                                  <object class="GtkCellRendererText" id="BlockHeaderR"/>
+                                  <attributes>
+                                    <attribute name="text">3</attribute>
+                                  </attributes>
                                 </child>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="amount">
+                              <object class="GtkTreeViewColumn" id="Amount">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">220</property>
                                 <property name="title" translatable="yes">Amount</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="Amount_renderer"/>
-                                </child>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkTreeViewColumn" id="progress1">
-                                <property name="sizing">fixed</property>
-                                <property name="fixed-width">70</property>
-                                <child>
-                                  <object class="GtkCellRendererProgress" id="RetrieveProgress1"/>
+                                  <object class="GtkCellRendererText" id="AmountR"/>
+                                  <attributes>
+                                    <attribute name="text">4</attribute>
+                                  </attributes>
                                 </child>
                               </object>
                             </child>
@@ -681,7 +745,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkComboBoxText" id="FilterBox1">
+                  <object class="GtkComboBoxText" id="TypeFilterBox">
                     <property name="width-request">100</property>
                     <property name="height-request">40</property>
                     <property name="visible">True</property>
@@ -697,7 +761,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkComboBoxText" id="FilterBox">
+                  <object class="GtkComboBoxText" id="DateFilterBox">
                     <property name="width-request">100</property>
                     <property name="height-request">40</property>
                     <property name="visible">True</property>
@@ -718,9 +782,9 @@
                     <property name="height-request">40</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
-                    <property name="primary-icon-name">edit-find-symbolic</property>
                     <property name="primary-icon-activatable">False</property>
                     <property name="primary-icon-sensitive">False</property>
+                    <property name="placeholder-text" translatable="yes">Enter adress, transaction ID or label to search</property>
                   </object>
                   <packing>
                     <property name="x">270</property>
@@ -733,6 +797,10 @@
                     <property name="height-request">40</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
+                    <property name="invisible-char"> </property>
+                    <property name="caps-lock-warning">False</property>
+                    <property name="placeholder-text" translatable="yes">Min amount</property>
+                    <property name="input-purpose">number</property>
                   </object>
                   <packing>
                     <property name="x">730</property>
@@ -790,6 +858,139 @@
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">3</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkDialog" id="Wallet Adder Dialog">
+    <property name="name">Wallet Adder Menu</property>
+    <property name="can-focus">False</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="Wallet Adder Menu">
+        <property name="name">Wallet Adder Menu</property>
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="Wallet Adder Button Box">
+            <property name="can-focus">False</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="Wallet Address Cancel Button">
+                <property name="label" translatable="yes">Cancel</property>
+                <property name="name">Wallet Address Cancel Button</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="Wallet Adder Add Button">
+                <property name="label" translatable="yes">Add</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <!-- n-columns=2 n-rows=3 -->
+          <object class="GtkGrid" id="Wallet Adder Grid">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+            <property name="row-spacing">30</property>
+            <property name="column-spacing">20</property>
+            <property name="column-homogeneous">True</property>
+            <child>
+              <object class="GtkLabel" id="Wallet Adder Public Key Label">
+                <property name="name">Wallet Adder Public Key Label</property>
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Public Key:</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="Waller Adder Name Label">
+                <property name="name">Waller Adder Name Label</property>
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Name:</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="Wallet Adder Private Key Label">
+                <property name="name">Wallet Adder Private Key Label</property>
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">Private Key:</property>
+              </object>
+              <packing>
+                <property name="left-attach">0</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="Wallet Adder Public Key Entry">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="Wallet Adder Private Key Entry">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="Wallet Adder Name Entry">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+              </object>
+              <packing>
+                <property name="left-attach">1</property>
+                <property name="top-attach">2</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
           </packing>
         </child>
       </object>
