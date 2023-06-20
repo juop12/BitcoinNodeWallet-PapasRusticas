@@ -1,12 +1,11 @@
 #Ignora los target
 /target
-/user_interface/target
 
 # Ignora todos los logs.
 *.txt
 
 # Ignora todos los archivos con data.
-data/*.bin
+node/data/*.bin
 
 # Ignora todos los archivos de prueba.
 tests_txt/*.bin
