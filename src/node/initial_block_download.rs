@@ -1,9 +1,6 @@
 use crate::node::*;
 use block_downloader::*;
-use std::{
-    sync::{Arc, Mutex},
-    time::{Duration, Instant}, ops::Deref,
-};
+use std::time::{Duration, Instant};
 
 const HASHEDGENESISBLOCK: [u8; 32] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68, 0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
@@ -279,7 +276,6 @@ impl Node {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{Arc, Mutex};
 
     const STARTING_BLOCK_TIME: u32 = 1681084800;
     const HEADERS_FILE_PATH: &str = "tests_txt/ibd_test_headers.bin";

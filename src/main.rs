@@ -14,7 +14,7 @@ fn main() {
         return eprintln!("cantidad de argumentos inválida");
     }
 
-    let config = match Config::from_path(args[1].as_str()) {
+    let config = match Config::from_path(args[1].as_str()){
         Ok(config) => config,
         Err(error) => return eprintln!("{:?}", error),
     };
@@ -23,24 +23,31 @@ fn main() {
         Ok(node) => node,
         Err(error) => return eprintln!("{:?}", error),
     };
-    node.initial_block_download().unwrap();
 
-    node.logger.log("node, running".to_string());
+    if let Err(error) = node.initial_block_download(){
+        return eprintln!("{:?}", error);
+    };
+
+    node.logger.log(format!("node, running"));
+
     let message_receiver = match node.run() {
         Ok(message_receiver) => message_receiver,
         Err(error) => return eprintln!("{:?}", error),
     };
 
-    //hace lo que quieras
-
     println!("por crear utxo set");
-    node.create_utxo_set()/* .map_err(|error| eprintln!("{:?}", error)) */;
+    if let Err(error) = node.create_utxo_set(){
+        return eprintln!("{:?}", error);
+    };
 
-    
-    //node.get_utxo_balance([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]); // Llamamos a la función pasada como argumento
-    
+
     //thread::sleep(Duration::from_secs(600));
+
+    // Inicio de wallets.
+    //==========================================================================
     
+
+
     let pub_key = [
         0x03, 0x57, 0xDD, 0x61, 0x2F, 0x9E, 0x51, 0xD0, 0x1C, 0x5C, 0xAC, 0x84, 0x35, 0xCB, 0x6C, 0x40, 0x15, 0x71, 0x50, 0x7C, 0xAF, 0xE3, 0x09, 0xE4, 0xA9, 0xBB, 0x48, 0xA4, 0x0B, 0x11, 0x8B, 0xF8, 0xFF
     ];
@@ -58,14 +65,9 @@ fn main() {
     println!("por setee la wallet");
     node.set_wallet(wallet.get_pk_hash());
     
-    // 1371463 = 0,01371463 * 100000000
-    //let decoded = bs58::decode("he11owor1d").into_vec()?;
-    let a =  bs58::decode("miHXVsyAd3dG78Ri78NUmAfCyoHXaYkibp").into_vec().unwrap();
+    let address_bytes =  bs58::decode("miHXVsyAd3dG78Ri78NUmAfCyoHXaYkibp").into_vec().unwrap();
     let mut address:[u8;25] = [0;25];
-    address.copy_from_slice(&a);
-    // let address = [
-    //     0x6f, 0x1e, 0x5e, 0x45, 0x66, 0x9c, 0x7b, 0x22, 0x93, 0x53, 0x4f, 0xa5, 0x54, 0x14, 0x1b, 0xcd, 0x2c, 0x5d, 0x11, 0x3e, 0xe3, 0x3f, 0xbb, 0x13, 0x6f
-    //     ];
+    address.copy_from_slice(&address_bytes);
         
     println!("por mandar la transaccion");
     //wallet.create_transaction(&mut node, 1000000, 60000, address).expect("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
@@ -108,11 +110,6 @@ fn main() {
             //me llego una transaccion a actualizar
         }
     }*/
-    //vec<Wallets>
-
-
-    //algo que recibe pedido del thread principal.
-    //run_wallet();
 
     if let Err(error) = message_receiver.finish_receiving(){
         return eprintln!("{:?}", error)

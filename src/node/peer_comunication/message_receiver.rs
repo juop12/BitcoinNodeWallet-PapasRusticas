@@ -1,12 +1,11 @@
 use crate::{
     node::*,
-    utils::{btc_errors::MessageReceiverError},
+    utils::btc_errors::MessageReceiverError,
 };
 
 use std::{
     net::TcpStream,
     sync::{Arc, Mutex},
-    thread,
 };
 use workers::*;
 

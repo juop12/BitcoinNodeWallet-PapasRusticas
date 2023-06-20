@@ -1,94 +1,122 @@
 use crate::blocks::transaction::*;
 use crate::node::*;
 use std::collections::HashMap;
-use bitcoin_hashes::{hash160, Hash};
 
 
 impl Node {
+    ///-
+    fn _create_utxo_set(&self, block_headers: &Vec<BlockHeader>, utxo_set: &mut HashMap<Vec<u8>, TxOut>) -> Result<(), NodeError>{
+
+        let blockchain = self.get_blockchain().map_err(|_|NodeError::ErrorSharingReference)?;
+        let starting_position = block_headers.len() - blockchain.len();
+        
+        //p arreglar esto
+        for (index, header) in block_headers[starting_position..].iter().enumerate() {
+            let hash = header.hash();
+            let block = match blockchain.get(&hash) {
+                Some(block) => block,
+                None => {
+                    self.logger.log(format!("Colud not find block number {} in create_utxo_set", index+starting_position));
+                    continue;
+                }
+            };
+        
+            update_utxo_set_with_transactions(block, utxo_set)?;
+        }
+        
+        self.logger.log(format!("UTxO Set created with {} UTxOs", utxo_set.len())); 
+
+        Ok(())
+    }
+
     /// Creates the utxo set from the blockchain and returns it.
     /// Logs when error.
     pub fn create_utxo_set(&mut self) -> Result<(), NodeError> {
 
-        self.logger
-            .log(format!("Initializing UTxO Set creation"));
+        self.logger.log(format!("Initializing UTxO Set creation"));
 
         let mut utxo_set = HashMap::new();
-        
-        //p esto puede fallar pero por ahora le meto un unwrap
+
         match self.get_block_headers(){
-            Ok(block_headers) => {
-                let blockchain = self.get_blockchain().map_err(|_|NodeError::ErrorSharingReference)?;
-                let starting_position = block_headers.len() - blockchain.len();
-        
-                for header in &block_headers[starting_position..] {
-                    let hash = header.hash();
-                    let block = match blockchain.get(&hash) {
-                        Some(block) => block,
-                        None => {
-                            self.logger
-                                .log(String::from("Colud not find block in create_utxo_set"));
-                            continue;
-                        }
-                    };
-        
-                    for tx in block.get_transactions() {
-                        for tx_in in tx.tx_in.iter() {
-                            let outpoint_bytes = tx_in.previous_output.to_bytes();
-        
-                            utxo_set.remove(&outpoint_bytes);
-                        }
-        
-                        for (index, tx_out) in tx.tx_out.iter().enumerate() {
-                            //p ver si queremos nomas las p2pkh
-                            if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
-                                let outpoint = Outpoint::new(tx.hash(), index as u32);
-                                let tx_out_outpoint_bytes = outpoint.to_bytes();
-                                let tx_out: TxOut = TxOut::from_bytes(&tx_out.to_bytes()).map_err(|_|NodeError::ErrorGettingUtxo)?;
-            
-                                utxo_set.insert(tx_out_outpoint_bytes, tx_out);
-                            }
-                        }
-                    }
-                }
-        
-                self.logger
-                    .log(format!("UTxO Set created with {} UTxOs", utxo_set.len())); 
-            }
+            Ok(block_headers) => self._create_utxo_set(&block_headers, &mut utxo_set)?,
             Err(_) => return Err(NodeError::ErrorSharingReference),
         };
-        
+
         self.utxo_set = utxo_set;
+
         Ok(())
     }
-
-    pub fn update_utxo(&mut self)->Result<(), NodeError>{
+    
+    fn get_unproccesed_blocks_hashes(&mut self)->Result<Vec<[u8;32]>, NodeError>{
         let mut block_hashes = Vec::new();
         match self.get_block_headers(){
             Ok(block_headers) => {
                 for i in self.last_proccesed_block..block_headers.len(){
                     block_hashes.push(block_headers[i].hash());
                 }
+                Ok(block_hashes)
             },
-            Err(error) => return Err(error),
+            Err(error) => Err(error),
+        }
+    }
+
+    fn get_utxos_from_unproccessed_blocks(&self, block_hashes: &Vec<[u8;32]>, blockchain: &HashMap<[u8;32], Block>)->Vec<(Vec<u8>, TxOut)>{
+        let mut new_utxos = Vec::new();
+        
+        for hash in block_hashes{
+            if let Some(block) = blockchain.get(hash){
+                let utxos = block.get_utxos();
+                new_utxos.extend(utxos);
+            }
         }
         
-        let mut new_utxos = Vec::new();
-        match self.get_blockchain(){
-            Ok(blockchain) => {
-                for hash in block_hashes{
-                    if let Some(block) = blockchain.get(&hash){
-                        let utxos = block.get_utxos_from(self.wallet_pk_hash);
-                        new_utxos.extend(utxos);
+        new_utxos
+    }
+
+    fn get_spent_utxos_from_unproccesed_blocks(&self, block_hashes: &Vec<[u8;32]>, blockchain: &HashMap<[u8;32], Block>)-> Vec<Vec<u8>>{
+        let mut spent_utxos = Vec::new();
+        
+        for hash in block_hashes{
+            if let Some(block) = blockchain.get(hash){
+                for tx in &block.transactions{
+                    for txin in &tx.tx_in{
+                        let utxo_key = txin.previous_output.to_bytes();
+                        if self.utxo_set.contains_key(&utxo_key){
+                            spent_utxos.push(utxo_key);
+                        }
                     }
                 }
+            }
+        }
+
+        spent_utxos
+    }
+
+    // Proccesses all blocks received between the last time a block was proccessed and now
+    pub fn update_utxo(&mut self)->Result<(), NodeError>{
+        
+        let block_hashes = self.get_unproccesed_blocks_hashes()?;
+        if block_hashes.is_empty(){
+            return Ok(());
+        }
+        
+        let (spent_utxos, new_utxos) = match self.get_blockchain(){
+            Ok(blockchain) => {
+                (self.get_spent_utxos_from_unproccesed_blocks(&block_hashes, &blockchain),
+                self.get_utxos_from_unproccessed_blocks(&block_hashes, &blockchain))
             },
             Err(error) => return Err(error),
         };
-        
+
+        for spent_utxo in spent_utxos{
+            self.remove_utxo(spent_utxo);
+        }
         for (key ,utxo) in new_utxos{
             self.insert_utxo(key, utxo)
         }
-        self.last_proccesed_block += 1;
+
+        self.last_proccesed_block += block_hashes.len();
+        
         Ok(())
     }
 
@@ -116,21 +144,16 @@ impl Node {
             if tx_out.belongs_to(pk_hash){
                 balance += tx_out.value;
             }
-            //if let Some(p2pkh_hash) = tx_out.pk_hash_under_p2pkh_protocol(){
-            //    if pk_hash == p2pkh_hash{
-            //        balance += tx_out.value;
-            //    }
-            //}
         }
         
         return balance;
     }
 
+    ///-
     pub fn get_utxos_sum_up_to(&self, amount: i64) -> Result<(Vec<Outpoint>, i64), NodeError>{
         
         let mut unspent_balance = 0;
         let mut unspent_outpoint = Vec::new();
-        let mut i = 0;
         
         for (outpoint_bytes, utx_out) in &self.utxo_set{
             if unspent_balance > amount{
@@ -139,16 +162,10 @@ impl Node {
 
             if utx_out.belongs_to(self.wallet_pk_hash){
                 unspent_balance += utx_out.value;
-                println!("balance = {unspent_balance}");
+
                 let outpoint = Outpoint::from_bytes(&outpoint_bytes).map_err(|_| NodeError::ErrorSendingTransaction)?;
                 unspent_outpoint.push(outpoint);
             }
-
-            if i % 1000 == 0{
-                println!("utxo set length {}",self.utxo_set.len());
-                println!("iteracion: {}", i);
-            }
-            i += 1;
         }
         
         if unspent_balance < amount {
@@ -159,3 +176,33 @@ impl Node {
     }
 }
 
+///-
+fn insert_new_utxo(tx_hash: [u8; 32], tx_out: &TxOut, index: usize, utxo_set: &mut HashMap<Vec<u8>, TxOut>) -> Result<(), NodeError>{
+    let outpoint = Outpoint::new(tx_hash, index as u32);
+    let tx_out_outpoint_bytes = outpoint.to_bytes();
+    let tx_out: TxOut = TxOut::from_bytes(&tx_out.to_bytes()).map_err(|_|NodeError::ErrorGettingUtxo)?;
+
+    utxo_set.insert(tx_out_outpoint_bytes, tx_out);
+
+    Ok(())
+}
+
+///-
+fn update_utxo_set_with_transactions(block: &Block, utxo_set: &mut HashMap<Vec<u8>, TxOut>) -> Result<(), NodeError> {
+    for tx in block.get_transactions() {
+        for tx_in in tx.tx_in.iter() {
+            let outpoint_bytes = tx_in.previous_output.to_bytes();
+
+            utxo_set.remove(&outpoint_bytes);
+        }
+
+        for (index, tx_out) in tx.tx_out.iter().enumerate() {
+            //p ver si queremos nomas las p2pkh
+            if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
+                insert_new_utxo(tx.hash(), tx_out, index, utxo_set)?;
+            }
+        }
+    }
+
+    Ok(())
+}

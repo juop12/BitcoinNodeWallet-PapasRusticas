@@ -25,6 +25,7 @@ pub enum TransactionError {
     ErrorCreatingTxInFromBytes,
     ErrorCreatingTxOutFromBytes,
     ErrorCreatingOutpointFromBytes,
+    ErrorCreatingSignature,
 }
 
 impl BtcError for TransactionError {}

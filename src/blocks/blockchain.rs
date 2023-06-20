@@ -26,7 +26,7 @@ pub struct BlockHeader {
 pub struct Block {
     header: BlockHeader,
     transaction_count: VarLenInt,
-    transactions: Vec<Transaction>,
+    pub transactions: Vec<Transaction>,
 }
 
 impl BlockHeader {
@@ -192,6 +192,25 @@ impl Block {
 
     pub fn header_hash(&self) -> [u8;32]{
         self.get_header().hash()
+    }
+
+    pub fn get_utxos(&self)->Vec<(Vec<u8>, TxOut)>{
+        let mut utxos = Vec::new();
+        
+        for tx in &self.transactions{
+            for (index, tx_out) in tx.tx_out.iter().enumerate() {
+                //p ver si queremos nomas las p2pkh
+                if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
+                    let outpoint = Outpoint::new(tx.hash(), index as u32);
+                    let tx_out_outpoint_bytes = outpoint.to_bytes();
+                    let tx_out: TxOut = tx_out.clone();
+
+                    utxos.push((tx_out_outpoint_bytes, tx_out));
+                }
+            }
+        };
+        
+        utxos
     }
 
     pub fn get_utxos_from(&self, wallet_pk_hash: [u8;20])->Vec<(Vec<u8>,TxOut)>{
