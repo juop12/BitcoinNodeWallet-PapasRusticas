@@ -1,6 +1,5 @@
 #Ignora los target
 /target
-/user_interface/target
 
 # Ignora todos los logs.
 *.txt
