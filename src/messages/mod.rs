@@ -8,6 +8,7 @@ pub mod message_trait;
 pub mod not_found_message;
 pub mod verack_message;
 pub mod version_message;
+pub mod tx_message;
 
 pub use block_headers_message::BlockHeadersMessage;
 pub use block_message::BlockMessage;
@@ -19,3 +20,4 @@ pub use message_trait::Message;
 pub use not_found_message::NotFoundMessage;
 pub use verack_message::VerACKMessage;
 pub use version_message::VersionMessage;
+pub use tx_message::TxMessage;

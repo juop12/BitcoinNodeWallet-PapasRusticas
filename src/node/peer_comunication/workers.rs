@@ -84,11 +84,11 @@ impl Worker {
         }
     }
 
-    pub fn new_message_receiver_worker(mut stream: TcpStream, safe_block_headers: SafeVecHeader, safe_block_chain: SafeBlockChain, logger: Logger, finished: FinishedIndicator, id: usize)->Worker{
+    pub fn new_message_receiver_worker(mut stream: TcpStream, safe_block_headers: SafeVecHeader, safe_block_chain: SafeBlockChain, safe_pending_tx: SafePendingTx,logger: Logger, finished: FinishedIndicator, id: usize)->Worker{
 
         let thread = thread::spawn(move || loop {
             logger.log(format!("Sigo vivo: {}", id));
-            match message_receiver_thread_loop(&mut stream, &safe_block_headers, &safe_block_chain, &logger, &finished){
+            match message_receiver_thread_loop(&mut stream, &safe_block_headers, &safe_block_chain, &safe_pending_tx, &logger, &finished){
                 Stops::GracefullStop => {
                     logger.log(Stops::GracefullStop.log_message(id));
                     return Some(stream);

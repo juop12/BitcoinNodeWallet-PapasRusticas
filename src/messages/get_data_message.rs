@@ -31,10 +31,16 @@ impl Message for GetDataMessage {
 }
 
 impl GetDataMessage {
-    /// Creates a new GetDataMessage with the given inventory entries interpreted as block hashes..
+    /// Creates a new GetDataMessage with the given inventory entries interpreted as block hashes.
     pub fn create_message_inventory_block_type(inventory_entries: Vec<[u8; 32]>) -> GetDataMessage {
         GetDataMessage {
             inv: InvMessage::create_message_inventory_block_type(inventory_entries),
+        }
+    }
+
+    pub fn create_message_inventory_transaction_type(inventory_entries: Vec<[u8; 32]>) -> GetDataMessage {
+        GetDataMessage {
+            inv: InvMessage::create_message_inventory_transaction_type(inventory_entries),
         }
     }
 }

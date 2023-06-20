@@ -25,6 +25,7 @@ pub enum TransactionError {
     ErrorCreatingTxInFromBytes,
     ErrorCreatingTxOutFromBytes,
     ErrorCreatingOutpointFromBytes,
+    ErrorCreatingSignature,
 }
 
 impl BtcError for TransactionError {}
@@ -54,6 +55,7 @@ pub enum MessageError {
     ErrorCreatingNotFoundMessage,
     ErrorSendingNotFoundMessage,
     ErrorSendingBlockHeadersMessage,
+    ErrorSendingTxMessage
 }
 
 impl BtcError for MessageError {}
@@ -130,6 +132,9 @@ pub enum NodeError {
     ErrorValidatingBlock,
     ErrorSharingReference,
     ErrorGettingUtxo,
+    ErrorGettingTx,
+    ErrorSendingTransaction,
+    ErrorNotEnoughSatoshis,
 }
 
 impl BtcError for NodeError {}

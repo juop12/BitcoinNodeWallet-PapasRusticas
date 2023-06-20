@@ -2,6 +2,7 @@ use super::message_trait::*;
 use crate::utils::variable_length_integer::VarLenInt;
 
 const BLOCK_IDENTIFIER: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
+const TRANSACTION_IDENTIFIER: [u8; 4] = [0x01, 0x00, 0x00, 0x00];
 const INVENTORY_ENTRY_SIZE: usize = 36;
 
 /// Struct that represents an element of the inventory.
@@ -81,6 +82,15 @@ impl InvMessage {
         Self::new(inventory)
     }
 
+    /// Creates a new InvMessage with the given block hashes.
+    pub fn create_message_inventory_transaction_type(inventory_entries: Vec<[u8; 32]>) -> InvMessage {
+        let mut inventory: Vec<Entry> = Vec::new();
+        for hash in inventory_entries {
+            inventory.push(Entry::as_transaction_entry(hash))
+        }
+        Self::new(inventory)
+    }
+
     /// Returns the block hashes of the inventory.
     pub fn get_block_hashes(&self) -> Vec<[u8; 32]> {
         let mut block_hashes: Vec<[u8; 32]> = Vec::new();
@@ -91,6 +101,17 @@ impl InvMessage {
         }
         block_hashes
     }
+
+    /// Returns the block hashes of the inventory.
+    pub fn get_transaction_hashes(&self) -> Vec<[u8; 32]> {
+        let mut transaction_hashes: Vec<[u8; 32]> = Vec::new();
+        for entry in &self.inventory {
+            if entry.is_transaction_type() {
+                transaction_hashes.push(entry.hash);
+            }
+        }
+        transaction_hashes
+    }
 }
 
 impl Entry {
@@ -98,6 +119,14 @@ impl Entry {
     fn as_block_entry(hash: [u8; 32]) -> Entry {
         Entry {
             inv_type: BLOCK_IDENTIFIER,
+            hash,
+        }
+    }
+
+    /// Returns a new entry with a block identifier and the given hash.
+    fn as_transaction_entry(hash: [u8; 32]) -> Entry {
+        Entry {
+            inv_type: TRANSACTION_IDENTIFIER,
             hash,
         }
     }
@@ -125,6 +154,11 @@ impl Entry {
     /// Returns true if the entry is a block type.
     fn is_block_type(&self) -> bool {
         self.inv_type == BLOCK_IDENTIFIER
+    }
+
+    /// Returns true if the entry is a block type.
+    fn is_transaction_type(&self) -> bool {
+        self.inv_type == TRANSACTION_IDENTIFIER
     }
 }
 

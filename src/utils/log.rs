@@ -1,11 +1,10 @@
+use chrono::Utc;
 use std::{
     {fs, fs::File, fs::OpenOptions},
     sync::{mpsc, mpsc::Sender},
     io::Write,
     thread,
     };
-use chrono::Utc;
-
 use super::BtcError;
 
 
@@ -71,7 +70,7 @@ impl Logger {
 fn _open_log_handler(path: &str) -> Result<File, LoggerError> {
 
     if let Err(_) = fs::remove_file(path){
-        return Err(LoggerError::ErrorOpeningFile);
+        //return Err(LoggerError::ErrorOpeningFile); //p
     }
 
     match OpenOptions::new().create(true).write(true).open(path) {

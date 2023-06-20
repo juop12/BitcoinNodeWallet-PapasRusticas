@@ -1,12 +1,11 @@
 use crate::{
     node::*,
-    utils::{btc_errors::MessageReceiverError},
+    utils::btc_errors::MessageReceiverError,
 };
 
 use std::{
     net::TcpStream,
     sync::{Arc, Mutex},
-    thread,
 };
 use workers::*;
 
@@ -53,6 +52,7 @@ fn add_block_or_headers(mut received_block_headers: Vec<BlockHeader>, received_b
 pub fn message_receiver_thread_loop(stream: &mut TcpStream, 
     safe_block_headers: &SafeVecHeader, 
     safe_block_chain: &SafeBlockChain, 
+    safe_pending_tx: &SafePendingTx,
     logger: &Logger, 
     finished: &FinishedIndicator
 )-> Stops{
@@ -67,7 +67,7 @@ pub fn message_receiver_thread_loop(stream: &mut TcpStream,
         
     }
 
-    if receive_message(stream, safe_block_headers, safe_block_chain, &logger, false).is_err(){
+    if receive_message(stream, safe_block_headers, safe_block_chain, safe_pending_tx, &logger, false).is_err(){
         return Stops::UngracefullStop;
     }
     Stops::Continue
@@ -81,7 +81,7 @@ pub struct MessageReceiver {
 }
 
 impl MessageReceiver{
-    pub fn new(outbound_connections: &Vec<TcpStream>, safe_blockchain: SafeBlockChain, safe_headers: SafeVecHeader, logger: &Logger)->MessageReceiver{
+    pub fn new(outbound_connections: &Vec<TcpStream>, safe_blockchain: &SafeBlockChain, safe_headers: &SafeVecHeader, safe_pending_tx: &SafePendingTx, logger: &Logger)->MessageReceiver{
         let amount_of_peers = outbound_connections.len();
         let mut workers = Vec::new();
         let mut finished_working_indicators = Vec::new();
@@ -98,7 +98,7 @@ impl MessageReceiver{
                 }
             };
             let finished = Arc::new(Mutex::from(false));
-            let worker = Worker::new_message_receiver_worker(current_stream, safe_headers.clone(), safe_blockchain.clone(), logger.clone(), finished.clone(), id);
+            let worker = Worker::new_message_receiver_worker(current_stream, safe_headers.clone(), safe_blockchain.clone(), safe_pending_tx.clone(), logger.clone(), finished.clone(), id);
             workers.push(worker);
             finished_working_indicators.push(finished);
         };
