@@ -77,18 +77,21 @@ pub fn run(args: Vec<String>) {
     println!("por mandar la transaccion");
     
     //thread::sleep(Duration::from_secs(60));
-    //wallet.create_transaction(&mut node, 70000, 30000, address).expect("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        
+    wallet.create_transaction(&mut node, 70000, 30000, address).expect("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    
     let mut inicio = Instant::now(); 
     
     while(true){
         //wallet le habla al nodo
         node.update_utxo().unwrap();
         wallet.update(node.balance);
-        if inicio.elapsed() > Duration::from_secs(5){
-            inicio = Instant::now();
-            println!("Balance: {}",node.balance);
-        }
+        
+        thread::sleep(Duration::from_secs(5));
+        //p esta version esta mejor porque despues podemos poner la respuesta a la ui ahi, para que sea en tiempo real con un time receive, pero que la wallet se ac
+        //if inicio.elapsed() > Duration::from_secs(5){
+        //    inicio = Instant::now();
+        //}
+        println!("Balance: {}",node.balance);
         
         //for (_,tx) in node.get_pending_tx().unwrap().iter(){
         //    for tx_out in &tx.tx_out{

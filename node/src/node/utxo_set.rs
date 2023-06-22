@@ -46,44 +46,27 @@ impl Node {
 
         Ok(())
     }
-    
-    fn get_unproccesed_blocks_hashes(&mut self)->Result<Vec<[u8;32]>, NodeError>{
-        let mut block_hashes = Vec::new();
-        match self.get_block_headers(){
-            Ok(block_headers) => {
-                for i in self.last_proccesed_block..block_headers.len(){
-                    block_hashes.push(block_headers[i].hash());
-                }
-                Ok(block_hashes)
-            },
-            Err(error) => Err(error),
-        }
-    }
 
-    fn get_utxos_from_unproccessed_blocks(&self, block_hashes: &Vec<[u8;32]>, blockchain: &HashMap<[u8;32], Block>)->Vec<(Vec<u8>, TxOut)>{
+    fn get_utxos_from_unproccessed_blocks(&self, block_hash: &[u8;32], blockchain: &HashMap<[u8;32], Block>)->Vec<(Vec<u8>, TxOut)>{
         let mut new_utxos = Vec::new();
         
-        for hash in block_hashes{
-            if let Some(block) = blockchain.get(hash){
-                let utxos = block.get_utxos();
-                new_utxos.extend(utxos);
-            }
+        if let Some(block) = blockchain.get(block_hash){
+            let utxos = block.get_utxos();
+            new_utxos.extend(utxos);
         }
         
         new_utxos
     }
 
-    fn get_spent_utxos_from_unproccesed_blocks(&self, block_hashes: &Vec<[u8;32]>, blockchain: &HashMap<[u8;32], Block>)-> Vec<Vec<u8>>{
+    fn get_spent_utxos_from_unproccesed_blocks(&self, block_hash: &[u8;32], blockchain: &HashMap<[u8;32], Block>)-> Vec<Vec<u8>>{
         let mut spent_utxos = Vec::new();
         
-        for hash in block_hashes{
-            if let Some(block) = blockchain.get(hash){
-                for tx in &block.transactions{
-                    for txin in &tx.tx_in{
-                        let utxo_key = txin.previous_output.to_bytes();
-                        if self.utxo_set.contains_key(&utxo_key){
-                            spent_utxos.push(utxo_key);
-                        }
+        if let Some(block) = blockchain.get(block_hash){
+            for tx in &block.transactions{
+                for txin in &tx.tx_in{
+                    let utxo_key = txin.previous_output.to_bytes();
+                    if self.utxo_set.contains_key(&utxo_key){
+                        spent_utxos.push(utxo_key);
                     }
                 }
             }
@@ -94,16 +77,22 @@ impl Node {
 
     // Proccesses all blocks received between the last time a block was proccessed and now
     pub fn update_utxo(&mut self)->Result<(), NodeError>{
-        
-        let block_hashes = self.get_unproccesed_blocks_hashes()?;
-        if block_hashes.is_empty(){
-            return Ok(());
-        }
+        println!("Updateando bloque {}", self.last_proccesed_block);
+        let unproccesed_block_hash = match self.get_block_headers(){
+            Ok(blockchain) => {
+                if self.last_proccesed_block >= blockchain.len(){
+                    return Ok(());
+                }
+                
+                blockchain[self.last_proccesed_block].hash()
+            }
+            Err(error) => return Err(error),
+        };
         
         let (spent_utxos, new_utxos) = match self.get_blockchain(){
             Ok(blockchain) => {
-                (self.get_spent_utxos_from_unproccesed_blocks(&block_hashes, &blockchain),
-                self.get_utxos_from_unproccessed_blocks(&block_hashes, &blockchain))
+                (self.get_spent_utxos_from_unproccesed_blocks(&unproccesed_block_hash, &blockchain),
+                self.get_utxos_from_unproccessed_blocks(&unproccesed_block_hash, &blockchain))
             },
             Err(error) => return Err(error),
         };
@@ -115,7 +104,8 @@ impl Node {
             self.insert_utxo(key, utxo)
         }
 
-        self.last_proccesed_block += block_hashes.len();
+        //self.last_proccesed_block += block_hashes.len();
+        self.last_proccesed_block += 1;
         
         Ok(())
     }
