@@ -2,7 +2,7 @@ use crate::node::*;
 use crate::utils::ui_communication;
 use crate::wallet::*;
 use crate::utils::config::*;
-use crate::utils::ui_communication::{UIWalletCommunicationProtocol as UiActions};
+use crate::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
 //use user_interface::start_app;
 use std::thread;
 use std::time::Duration;
@@ -11,7 +11,7 @@ use bs58::*;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use std::sync::mpsc;
 
-pub fn run(args: Vec<String>, glib_sender: GlibSender<UiActions>, receiver: mpsc::Receiver<String>) {
+pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mpsc::Receiver<UIRequest>) {
 
     if args.len() != 2 {
         return eprintln!("cantidad de argumentos inválida");
@@ -20,7 +20,7 @@ pub fn run(args: Vec<String>, glib_sender: GlibSender<UiActions>, receiver: mpsc
     let config = match Config::from_path(args[1].as_str()){
         Ok(config) => config,
         Err(error) => {
-            glib_sender.send(UiActions::ConfigError(error)).unwrap_or_else(|e| eprintln!("Error sending message to UI: {:?}", e));
+            sender_to_ui.send(UIResponse::ConfigError(error)).unwrap_or_else(|e| eprintln!("Error sending message to UI: {:?}", e));
             return;// eprintln!("{:?}", error);
         },
     };
@@ -28,18 +28,18 @@ pub fn run(args: Vec<String>, glib_sender: GlibSender<UiActions>, receiver: mpsc
     let mut node = match Node::new(config) {
         Ok(node) => node,
         Err(error) => {
-            glib_sender.send(UiActions::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error sending message to UI: {:?}", e));
+            sender_to_ui.send(UIResponse::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error sending message to UI: {:?}", e));
             return;// eprintln!("{:?}", error);
         },
     };
 
     if let Err(error) = node.initial_block_download(){
-        glib_sender.send(UiActions::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error sending message to UI: {:?}", e));
+        sender_to_ui.send(UIResponse::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error sending message to UI: {:?}", e));
         return;// eprintln!("{:?}", error);
     };
 
     if let Err(error) = node.create_utxo_set(){
-        glib_sender.send(UiActions::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error saending message to UI: {:?}", e));
+        sender_to_ui.send(UIResponse::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error saending message to UI: {:?}", e));
         return;// eprintln!("{:?}", error);
     };
   
@@ -52,7 +52,7 @@ pub fn run(args: Vec<String>, glib_sender: GlibSender<UiActions>, receiver: mpsc
     let message_receiver = match node.run() {
         Ok(message_receiver) => message_receiver,
         Err(error) => {
-            glib_sender.send(UiActions::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error saending message to UI: {:?}", e));
+            sender_to_ui.send(UIResponse::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error saending message to UI: {:?}", e));
             return;// eprintln!("{:?}", error);
         },
     };    

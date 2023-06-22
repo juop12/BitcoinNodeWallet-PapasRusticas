@@ -1,9 +1,9 @@
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, ApplicationInhibitFlags, Builder, Box, Button, Dialog, Window};
-use std::sync::{mpsc, mpsc::Receiver, mpsc::Sender};
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc;
 use std::thread;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
-use std::sync::mpsc::{Sender as S, Receiver as R};
 use crate::wallet_transactions::add_row;
 use crate::wallet_overview::update_available_balance;
 use crate::wallet_overview::update_pending_balance;
@@ -11,32 +11,25 @@ use crate::wallet_send::update_balance;
 use crate::wallet_send::activate_use_available_balance;
 use crate::wallet_send::activate_clear_all_button;
 use node::run::*;
-use node::utils::ui_communication::{UIWalletCommunicationProtocol as UiActions};
+use node::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
 
 pub enum UiError {
     FailedToBuildUi,
     FailedToFindObject,
 }
 
-pub fn start_app(args: Vec<String>){
-    let glade_src = include_str!("ui.glade");
-    let application = Application::builder().build();
-    application.connect_activate(move |app| run_app(app, glade_src, args.clone()));
-    let vector: Vec<String> = Vec::new();
-    application.run_with_args(&vector);
-}
 
 fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
     // Create Window
     let builder = Builder::from_string(glade_src);
     initialize_elements(&builder);
     start_window(app, &builder);
-    let (glib_sender, glib_receiver) = glib::MainContext::channel::<UiActions>(glib::PRIORITY_DEFAULT);
-    let (sender, receiver) = mpsc::channel::<String>(); //p por ahora String, despues le definimos bien el tipo de dato
+    let (glib_sender, glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
+    let (sender, receiver) = mpsc::channel::<UIRequest>(); //p por ahora String, despues le definimos bien el tipo de dato
     thread::spawn(move || {run(args, glib_sender.clone(), receiver)});
     glib_receiver.attach(None, |action| {
         match action {
-            UiActions::NodeRunningError(error) => {glib::Continue(true)},
+            UIResponse::NodeRunningError(error) => {glib::Continue(true)},
             _ => glib::Continue(true),
         };
         glib::Continue(true)
@@ -90,4 +83,24 @@ fn activate_wallet_adder(builder: &Builder){
         wallet_adder.run();
         wallet_adder.hide();
     });
+}
+
+// fn obtain_wallet_update(builder: &Builder, sender: Sender<String>) {
+//     //send update request to wallet
+    
+//     //receive
+//     //update_available_balance(builder, amount1);
+//     //update_pending_balance(builder, amount2);
+    
+
+    
+// }
+
+
+pub fn start_app(args: Vec<String>){
+    let glade_src = include_str!("ui.glade");
+    let application = Application::builder().build();
+    application.connect_activate(move |app| run_app(app, glade_src, args.clone()));
+    let vector: Vec<String> = Vec::new();
+    application.run_with_args(&vector);
 }
