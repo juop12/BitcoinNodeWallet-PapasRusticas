@@ -2,6 +2,11 @@ use bitcoin_hashes::{hash160, Hash};
 use crate::blocks::transaction::*;
 use crate::node::*;
 use crate::utils::btc_errors::NodeError;
+use secp256k1::{SecretKey};
+
+const BASE_58_CHAR_PRIV_KEY_LENGTH: usize = 52;
+const BASE_58_CHAR_PUB_KEY_LENGTH: usize = 52;
+const HEX_CHAR_PRIV_KEY_LENGTH: usize = 64;
 
 pub struct Wallet{
     pub_key: [u8; 33],
@@ -27,14 +32,18 @@ impl Wallet{
 
     pub fn update(&mut self, balance: i64){
         self.balance = balance;
-    }    
+    }
+
+    pub fn create(pub_key: String, priv_key: String){
+        
+    }
 
     pub fn create_transaction(&self, node: &mut Node, amount: i64, fee: i64, address: [u8; 25]) -> Result<(), NodeError>{
         
         let (unspent_outpoints, unspent_balance) = node.get_utxos_sum_up_to(amount + fee)?;
-        if unspent_outpoints.len() < 2{
-            panic!("not happening");
-        }
+        //if unspent_outpoints.len() < 2{
+        //    panic!("not happening");
+        //}
         println!("Se agarraron {} outpoints", unspent_outpoints.len());
 
         let transaction = Transaction::create(amount, fee, unspent_outpoints, unspent_balance, self.pub_key, self.priv_key, address)

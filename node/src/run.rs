@@ -1,5 +1,5 @@
 use crate::node::*;
-use crate::utils::ui_communication;
+use crate::utils::{ui_communication, BtcError};
 use crate::wallet::*;
 use crate::utils::config::*;
 use crate::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
@@ -11,54 +11,70 @@ use bs58::*;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use std::sync::mpsc;
 
-pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mpsc::Receiver<UIRequest>) {
-
+fn initialize_node(args: Vec<String>)->Option<Node>{
     if args.len() != 2 {
-        return eprintln!("cantidad de argumentos inválida");
+        eprintln!("cantidad de argumentos inválida");
+        return None;
     }
 
     let config = match Config::from_path(args[1].as_str()){
         Ok(config) => config,
         Err(error) => {
-            sender_to_ui.send(UIResponse::ConfigError(error)).unwrap_or_else(|e| eprintln!("Error sending message to UI: {:?}", e));
-            return;// eprintln!("{:?}", error);
+            eprintln!("ConfigError: {:?}", error);
+            return None; 
         },
     };
-
+    
     let mut node = match Node::new(config) {
         Ok(node) => node,
         Err(error) => {
-            sender_to_ui.send(UIResponse::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error sending message to UI: {:?}", e));
-            return;// eprintln!("{:?}", error);
+            eprintln!("NodeError: {:?}", error);
+            return None;
         },
     };
-
+    
     if let Err(error) = node.initial_block_download(){
-        sender_to_ui.send(UIResponse::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error sending message to UI: {:?}", e));
-        return;// eprintln!("{:?}", error);
+        eprintln!("Error IBD: {:?}", error);
+        return None;
     };
-
+    
     if let Err(error) = node.create_utxo_set(){
-        sender_to_ui.send(UIResponse::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error saending message to UI: {:?}", e));
-        return;// eprintln!("{:?}", error);
+        eprintln!("Error creating UTXO set: {:?}", error);
+        return None;
     };
-  
-    //thread::spawn(move || {
-    //    start_app();
-    //});
+    Some(node)
+}
 
-    node.logger.log(format!("node, running"));
-  
+
+pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mpsc::Receiver<UIRequest>) {
+
+    let node = initialize_node(args);
+    let mut node = match node{
+        Some(node) => node,
+        None => {
+            sender_to_ui.send(UIResponse::ErrorInitializingNode).unwrap_or_else(|e| eprintln!("Error saending message to UI: {:?}", e));
+            return;
+        }
+    };
+    
     let message_receiver = match node.run() {
         Ok(message_receiver) => message_receiver,
         Err(error) => {
             sender_to_ui.send(UIResponse::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error saending message to UI: {:?}", e));
-            return;// eprintln!("{:?}", error);
+            return;
         },
-    };    
+    };
+
+    node.logger.log(format!("node, running"));
 
     
-    //thread::sleep(Duration::from_secs(600));
+    while true{
+        let ui_request = receiver.recv().expect("Error receiving message from UI");
+        if let UIRequest::ChangeWallet(pub_key, priv_key) = ui_request{
+            Wallet::create(pub_key, priv_key);
+        }
+        
+    }
     
     // Inicio de wallets.
     //=========================================================================
