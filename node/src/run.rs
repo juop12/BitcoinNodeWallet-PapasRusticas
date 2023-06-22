@@ -91,7 +91,7 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
     println!("por mandar la transaccion");
     
     //thread::sleep(Duration::from_secs(60));
-    wallet.create_transaction(&mut node, 70000, 30000, address).expect("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    //wallet.create_transaction(&mut node, 70000, 30000, address).expect("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     
     let mut inicio = Instant::now(); 
     

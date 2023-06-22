@@ -4,7 +4,12 @@
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkAdjustment" id="Amount Adjustment">
     <property name="upper">21000000</property>
-    <property name="step-increment">9.9999999999999995e-07</property>
+    <property name="step-increment">1.0000000000000001e-09</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="Fee Adjustment">
+    <property name="upper">21000000</property>
+    <property name="step-increment">1.0000000000000001e-09</property>
     <property name="page-increment">10</property>
   </object>
   <object class="GtkTreeStore" id="TxTreeStore">
@@ -465,12 +470,12 @@
                         <property name="can-focus">False</property>
                         <property name="spacing">30</property>
                         <child>
-                          <object class="GtkSpinButton" id="SendAmount">
+                          <object class="GtkSpinButton" id="Send Amount">
                             <property name="width-request">300</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="adjustment">Amount Adjustment</property>
-                            <property name="digits">6</property>
+                            <property name="digits">9</property>
                             <property name="update-policy">if-valid</property>
                           </object>
                           <packing>
@@ -563,7 +568,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkBox" id="BalanceBox">
+                  <object class="GtkBox" id="Balance Box">
                     <property name="width-request">100</property>
                     <property name="height-request">80</property>
                     <property name="visible">True</property>
@@ -604,17 +609,82 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="Fee Amount Label">
-                    <property name="name">Fee Amount Label</property>
-                    <property name="height-request">80</property>
+                  <object class="GtkBox" id="Fee Box">
+                    <property name="width-request">100</property>
+                    <property name="height-request">40</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="halign">start</property>
-                    <property name="label" translatable="yes">Fee Amount:</property>
+                    <child>
+                      <object class="GtkLabel" id="Fee Amount Label">
+                        <property name="name">Fee Amount Label</property>
+                        <property name="height-request">40</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="halign">start</property>
+                        <property name="label" translatable="yes">Fee Amount</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkSpinButton" id="Fee Amount">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="adjustment">Fee Adjustment</property>
+                        <property name="digits">9</property>
+                        <property name="update-policy">if-valid</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
                   </object>
                   <packing>
                     <property name="x">40</property>
-                    <property name="y">188</property>
+                    <property name="y">190</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox" id="Total Amount Box">
+                    <property name="width-request">200</property>
+                    <property name="height-request">80</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <child>
+                      <object class="GtkLabel" id="Total Amount  Text Label">
+                        <property name="name">Total Amount Label</property>
+                        <property name="height-request">39</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Total Amount to be sent:</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="Total Amount Label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">0.000</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="x">40</property>
+                    <property name="y">250</property>
                   </packing>
                 </child>
               </object>
@@ -819,45 +889,6 @@
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkBox" id="connectionBox">
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <child>
-              <object class="GtkLabel" id="connection status">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">connecting to peers...</property>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel" id="time since last refresh">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">2 days behind</property>
-                <attributes>
-                  <attribute name="weight" value="bold"/>
-                  <attribute name="background" value="#1c1c7171d8d8"/>
-                </attributes>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">True</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">3</property>
           </packing>
         </child>
       </object>

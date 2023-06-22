@@ -1,9 +1,10 @@
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, ApplicationInhibitFlags, Builder, Box, Button, Dialog, Window};
+use gtk::{Application, ApplicationWindow, ApplicationInhibitFlags, Builder, Box, Button, Dialog, Window, Adjustment, Label};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::mpsc;
 use std::thread;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
+use crate::activate_adjustments;
 use crate::wallet_transactions::add_row;
 use crate::wallet_overview::update_available_balance;
 use crate::wallet_overview::update_pending_balance;
@@ -49,9 +50,29 @@ fn start_window(app: &Application, builder: &Builder) {
 }
 
 fn initialize_elements(builder: &Builder){
+    add_examples(builder);
     activate_wallet_adder(builder);
     activate_use_available_balance(builder);
     activate_clear_all_button(builder);
+    activate_adjustments(builder);
+    update_adjustments_max_value(builder);
+}
+
+fn update_adjustments_max_value(builder: &Builder){
+    let balance_amount: Label = match builder.object("BalanceAmount"){
+        Some(balance_label) => balance_label,
+        None => return,
+    };
+    let send_amount_adjustment: Adjustment = match builder.object("Amount Adjustment"){
+        Some(adjustment) => adjustment,
+        None => return,
+    };
+    let fee_amount_adjustment: Adjustment = match builder.object("Fee Adjustment"){
+        Some(adjustment) => adjustment,
+        None => return,
+    };
+    send_amount_adjustment.set_upper(balance_amount.label().parse::<f64>().unwrap_or(0.0));
+    fee_amount_adjustment.set_upper(balance_amount.label().parse::<f64>().unwrap_or(0.0));
 }
 
 //Editar para hacer pruebas con diferentes valores

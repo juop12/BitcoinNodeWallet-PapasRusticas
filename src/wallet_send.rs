@@ -5,11 +5,35 @@ use crate::UiError;
 
 
 pub fn update_balance(balance :&Builder, amount :&str) {
-    let balance_label: Label = match balance.object("BalanceAmount"){
+    let balance_label: Label = match balance.object("Balance Amount"){
         Some(balance_label) => balance_label,
         None => return,
     };
     balance_label.set_label(amount);
+}
+
+fn update_total_amount(builder: &Builder) {
+    let total_amount_label: Label = builder.object("Total Amount Label").unwrap();
+    let send_amount: SpinButton = builder.object("Send Amount").unwrap();
+    let fee_amount: SpinButton = builder.object("Fee Amount").unwrap();
+    
+    let total_amount = send_amount.value() + fee_amount.value();
+    total_amount_label.set_label(&total_amount.to_string());
+}
+
+pub fn activate_adjustments(builder: &Builder){
+
+    let send_amount: SpinButton = builder.object("Send Amount").unwrap();
+    let fee_amount: SpinButton = builder.object("Fee Amount").unwrap();
+    let mut builder_clone = builder.clone();
+    send_amount.connect_value_changed(move |_| {
+        update_total_amount(&builder_clone);
+    });
+    
+    builder_clone = builder.clone();
+    fee_amount.connect_value_changed(move |_| {
+        update_total_amount(&builder_clone);
+    });
 }
 
 fn use_available_balance(available_balance_label: &SpinButton, balance_amount: &Label) {
@@ -26,11 +50,11 @@ pub fn activate_use_available_balance(builder: &Builder){
         Some(button) => button,
         None => return,
     };
-    let available_balance_label: SpinButton = match builder.object("SendAmount"){
+    let available_balance_label: SpinButton = match builder.object("Send Amount"){
         Some(available_balance_label) => available_balance_label,
         None => return ,
     };
-    let balance_amount: Label = match builder.object("BalanceAmount"){
+    let balance_amount: Label = match builder.object("Balance Amount"){
         Some(balance_label) => balance_label,
         None => return,
     };
@@ -44,8 +68,12 @@ pub fn activate_clear_all_button(builder: &Builder){
         Some(button) => button,
         None => return,
     };
-    let available_balance_label: SpinButton = match builder.object("SendAmount"){
+    let available_balance_button: SpinButton = match builder.object("Send Amount"){
         Some(available_balance_label) => available_balance_label,
+        None => return ,
+    };
+    let fee_button: SpinButton = match builder.object("Fee Amount"){
+        Some(fee_button) => fee_button,
         None => return ,
     };
     let pay_to_entry: Entry = match builder.object("Pay To Entry"){
@@ -54,7 +82,8 @@ pub fn activate_clear_all_button(builder: &Builder){
     };
     
     button.connect_clicked(move |_| {
-        available_balance_label.set_value(0.0);
+        available_balance_button.set_value(0.0);
+        fee_button.set_value(0.0);
         pay_to_entry.set_text("");
     });
 }
