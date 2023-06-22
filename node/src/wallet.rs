@@ -31,7 +31,11 @@ impl Wallet{
 
     pub fn create_transaction(&self, node: &mut Node, amount: i64, fee: i64, address: [u8; 25]) -> Result<(), NodeError>{
         
-        let (unspent_outpoints, unspent_balance) = node.get_utxos_sum_up_to(amount)?;
+        let (unspent_outpoints, unspent_balance) = node.get_utxos_sum_up_to(amount + fee)?;
+        if unspent_outpoints.len() < 2{
+            panic!("not happening");
+        }
+        println!("Se agarraron {} outpoints", unspent_outpoints.len());
 
         let transaction = Transaction::create(amount, fee, unspent_outpoints, unspent_balance, self.pub_key, self.priv_key, address)
             .map_err(|_| NodeError::ErrorSendingTransaction)?;

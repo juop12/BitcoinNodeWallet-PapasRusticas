@@ -20,14 +20,21 @@ pub fn handle_block_headers_message(msg_bytes: Vec<u8>, safe_block_headers: &Saf
     Ok(())
 }
 
-///Handles the block message by validating the proof of work and the proof of inclusion and the saving it.
+/// Handles the block message by validating the proof of work and the proof of inclusion and the saving it.
 /// If the block is already in the blockchain, it is not saved.
 pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, safe_blockchain: &SafeBlockChain, safe_pending_tx: &SafePendingTx, logger: &Logger, ibd: bool) -> Result<(), NodeError> {
     let block = match BlockMessage::from_bytes(&msg_bytes) {
         Ok(block_msg) => block_msg.block,
         Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
     };
+    
+    let mut blockchain = safe_blockchain.lock().map_err(|_| NodeError::ErrorSharingReference)?;
+    
     let block_header = block.get_header();
+    
+    if blockchain.contains_key(&block_header.hash()){
+        return Ok(());
+    }
 
     if !validate_proof_of_work(&block_header) {
         logger.log(String::from("Proof of work failed for a block"));
@@ -38,7 +45,7 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
         return Err(NodeError::ErrorValidatingBlock)
     };
 
-    if !ibd{
+    if !ibd {
         let mut block_headers = safe_headers.lock().map_err(|_| NodeError::ErrorSharingReference)?;
         block_headers.push(block_header);
     }
@@ -51,7 +58,6 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
         }
     }
     
-    let mut blockchain = safe_blockchain.lock().map_err(|_| NodeError::ErrorSharingReference)?;
     blockchain.insert(block.header_hash(),block);
             
     Ok(())
