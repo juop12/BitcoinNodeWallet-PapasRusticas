@@ -1,5 +1,6 @@
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, ApplicationInhibitFlags, Builder, Box, Button, Dialog, Window, Adjustment, Label};
+use gtk::{Application, ApplicationWindow, ApplicationInhibitFlags, Builder, Box, Button, Dialog, Entry,Window, Adjustment, Label, ComboBoxText};
+use std::alloc::handle_alloc_error;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::mpsc;
 use std::thread;
@@ -14,11 +15,13 @@ use crate::wallet_send::activate_clear_all_button;
 use node::run::*;
 use node::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
 
+const GLADE_SRC: &str = "ui.glade";
+const PRIV_KEY_LEN_BASE_58: usize = 32;
+
 pub enum UiError {
     FailedToBuildUi,
     FailedToFindObject,
 }
-
 
 fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
     // Create Window
@@ -41,10 +44,6 @@ fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
 
 fn start_window(app: &Application, builder: &Builder) {
     let window: Window = builder.object("Ventana").unwrap();
-    // window.connect_delete_event(|_, _| {
-    //     app.quit();
-    //     Inhibit(true)
-    // });
     window.set_application(Some(app));
     window.show_all();
 }
@@ -56,6 +55,7 @@ fn initialize_elements(builder: &Builder){
     activate_clear_all_button(builder);
     activate_adjustments(builder);
     update_adjustments_max_value(builder);
+    wallet_adder_actions(builder);
 }
 
 fn update_adjustments_max_value(builder: &Builder){
@@ -88,6 +88,58 @@ pub fn add_tx(builder: &Builder, transaction: String) {
     let date = "0".to_string();
     let amount = "0".to_string();
     add_row(tx_tree_store, date, transaction, amount)
+}
+
+fn handle_add_wallet(builder: &Builder){
+    let name: Entry = builder.object("Wallet Adder Name Entry").unwrap();
+    let priv_key: Entry = builder.object("Wallet Adder Private Key Entry").unwrap();
+    let invalid_key_dialog: Dialog = builder.object("Invalid Private Key Dialog").unwrap();
+    let wallet_selector : ComboBoxText = builder.object("Wallet Switcher").unwrap();
+    let priv_key_text = priv_key.text();
+    let name_text = name.text();
+    if priv_key_text.len() != PRIV_KEY_LEN_BASE_58 {
+        invalid_key_dialog.show_all();
+        invalid_key_dialog.run();
+        return;
+    }
+    let success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").unwrap();
+    //let wallet = UIRequest::ChangeWallet(priv_key_text.try_into().unwrap());
+    wallet_selector.append(None,name_text.as_str());
+    name.set_text("");
+    priv_key.set_text("");
+    success_dialog.run();
+    success_dialog.show_all();
+    
+    //send wallet to wallet
+}
+
+fn wallet_adder_actions(builder: &Builder) {
+    let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
+    let cancel_button: Button = builder.object("Wallet Adder Cancel Button").unwrap();
+    let add_button: Button = builder.object("Wallet Adder Add Button").unwrap();
+    let invalid_key_button: Button = builder.object("Invalid Private Key Button").unwrap();
+    let invalid_key_dialog: Dialog = builder.object("Invalid Private Key Dialog").unwrap();
+    let success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").unwrap();
+    let success_button: Button = builder.object("Wallet Adder Success Button").unwrap();
+
+    let wallet_adder_clone = wallet_adder.clone();
+    cancel_button.connect_clicked(move |_| {
+        wallet_adder.hide();
+    });
+    let builder_clone = builder.clone();
+    add_button.connect_clicked(move |_| {
+        handle_add_wallet(&builder_clone);
+    });
+
+    invalid_key_button.connect_clicked(move |_| {
+        invalid_key_dialog.hide();
+    });
+
+    success_button.connect_clicked(move |_| {
+        success_dialog.hide();
+        wallet_adder_clone.hide();
+    });
+    
 }
 
 fn activate_wallet_adder(builder: &Builder){

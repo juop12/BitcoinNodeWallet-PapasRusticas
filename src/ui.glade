@@ -12,6 +12,61 @@
     <property name="step-increment">1.0000000000000001e-09</property>
     <property name="page-increment">10</property>
   </object>
+  <object class="GtkDialog" id="Invalid Private Key Dialog">
+    <property name="name">Invalid Private Key Dialog</property>
+    <property name="can-focus">False</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="width-request">500</property>
+        <property name="height-request">100</property>
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="hexpand">True</property>
+            <property name="vexpand">True</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="Invalid Private Key Button">
+                <property name="label" translatable="yes">Ok</property>
+                <property name="name">Invalid Private Key Button</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Invalid Private Key Label">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+            <property name="label" translatable="yes">Error: The entered Private Key for the new Wallet is invalid</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
   <object class="GtkTreeStore" id="TxTreeStore">
     <columns>
       <!-- column-name progress_column -->
@@ -909,9 +964,9 @@
             <property name="can-focus">False</property>
             <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton" id="Wallet Address Cancel Button">
+              <object class="GtkButton" id="Wallet Adder Cancel Button">
                 <property name="label" translatable="yes">Cancel</property>
-                <property name="name">Wallet Address Cancel Button</property>
+                <property name="name">Wallet Adder Cancel Button</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
@@ -943,7 +998,7 @@
           </packing>
         </child>
         <child>
-          <!-- n-columns=2 n-rows=3 -->
+          <!-- n-columns=2 n-rows=2 -->
           <object class="GtkGrid" id="Wallet Adder Grid">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
@@ -951,18 +1006,6 @@
             <property name="row-spacing">30</property>
             <property name="column-spacing">20</property>
             <property name="column-homogeneous">True</property>
-            <child>
-              <object class="GtkLabel" id="Wallet Adder Public Key Label">
-                <property name="name">Wallet Adder Public Key Label</property>
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Public Key:</property>
-              </object>
-              <packing>
-                <property name="left-attach">0</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
             <child>
               <object class="GtkLabel" id="Waller Adder Name Label">
                 <property name="name">Waller Adder Name Label</property>
@@ -972,7 +1015,7 @@
               </object>
               <packing>
                 <property name="left-attach">0</property>
-                <property name="top-attach">2</property>
+                <property name="top-attach">0</property>
               </packing>
             </child>
             <child>
@@ -988,17 +1031,8 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEntry" id="Wallet Adder Public Key Entry">
-                <property name="visible">True</property>
-                <property name="can-focus">True</property>
-              </object>
-              <packing>
-                <property name="left-attach">1</property>
-                <property name="top-attach">0</property>
-              </packing>
-            </child>
-            <child>
               <object class="GtkEntry" id="Wallet Adder Private Key Entry">
+                <property name="name">Wallet Adder Private Key Entry</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
               </object>
@@ -1009,14 +1043,73 @@
             </child>
             <child>
               <object class="GtkEntry" id="Wallet Adder Name Entry">
+                <property name="name">Wallet Adder Name Entry</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
               </object>
               <packing>
                 <property name="left-attach">1</property>
-                <property name="top-attach">2</property>
+                <property name="top-attach">0</property>
               </packing>
             </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkDialog" id="Wallet Adder Success Dialog">
+    <property name="name">Wallet Adder Success Dialog</property>
+    <property name="width-request">250</property>
+    <property name="height-request">100</property>
+    <property name="can-focus">False</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="hexpand">True</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="Wallet Adder Success Button">
+                <property name="label" translatable="yes">Ok</property>
+                <property name="name">Wallet Adder Success Button</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <property name="hexpand">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Wallet Adder Success Label">
+            <property name="name">Wallet Adder Success Label</property>
+            <property name="width-request">0</property>
+            <property name="height-request">0</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+            <property name="label" translatable="yes">Succesfully added Wallet</property>
           </object>
           <packing>
             <property name="expand">False</property>
