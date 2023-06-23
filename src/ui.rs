@@ -1,7 +1,9 @@
+use gio::builders;
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, ApplicationInhibitFlags, Builder, Box, Button, Dialog, Entry,Window, Adjustment, Label, ComboBoxText};
 use std::alloc::handle_alloc_error;
 use std::sync::mpsc::{Receiver, Sender};
+use std::collections::HashMap;
 use std::sync::mpsc;
 use std::thread;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
@@ -12,15 +14,20 @@ use crate::wallet_overview::update_pending_balance;
 use crate::wallet_send::update_balance;
 use crate::wallet_send::activate_use_available_balance;
 use crate::wallet_send::activate_clear_all_button;
+use crate::wallet_persistance::*;
 use node::run::*;
 use node::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
 
+
 const GLADE_SRC: &str = "ui.glade";
-const PRIV_KEY_LEN_BASE_58: usize = 32;
+const PRIV_KEY_LEN_BASE_58: usize = 52;
+
 
 pub enum UiError {
     FailedToBuildUi,
     FailedToFindObject,
+    ErrorReadingFile,
+    ErrorWritingFile,
 }
 
 fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
@@ -30,7 +37,7 @@ fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
     start_window(app, &builder);
     let (glib_sender, glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
     let (sender, receiver) = mpsc::channel::<UIRequest>(); //p por ahora String, despues le definimos bien el tipo de dato
-    thread::spawn(move || {run(args, glib_sender.clone(), receiver)});
+    //thread::spawn(move || {run(args, glib_sender.clone(), receiver)});
     glib_receiver.attach(None, |action| {
         match action {
             UIResponse::NodeRunningError(error) => {glib::Continue(true)},
@@ -81,6 +88,9 @@ fn add_examples(builder: &Builder){
     update_pending_balance(&builder, "5.01");
     add_tx(&builder, "lorem ipsum".to_string());
     update_balance(&builder, "69.420");
+    if let Err(_) = get_saved_wallets_from_disk(builder){
+        //Poner ventana de error
+    }
 }
 
 pub fn add_tx(builder: &Builder, transaction: String) {
@@ -94,21 +104,32 @@ fn handle_add_wallet(builder: &Builder){
     let name: Entry = builder.object("Wallet Adder Name Entry").unwrap();
     let priv_key: Entry = builder.object("Wallet Adder Private Key Entry").unwrap();
     let invalid_key_dialog: Dialog = builder.object("Invalid Private Key Dialog").unwrap();
-    let wallet_selector : ComboBoxText = builder.object("Wallet Switcher").unwrap();
+    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
+
     let priv_key_text = priv_key.text();
     let name_text = name.text();
+
     if priv_key_text.len() != PRIV_KEY_LEN_BASE_58 {
         invalid_key_dialog.show_all();
         invalid_key_dialog.run();
         return;
     }
+    
     let success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").unwrap();
     //let wallet = UIRequest::ChangeWallet(priv_key_text.try_into().unwrap());
-    wallet_selector.append(None,name_text.as_str());
+    wallet_selector.append(Some(&priv_key_text),&name_text);
+    
     name.set_text("");
     priv_key.set_text("");
+
     success_dialog.run();
     success_dialog.show_all();
+
+    if let Err(error) = save_wallet_in_disk(&priv_key_text, &name_text){
+        //Poner ventana de error,
+        println!("F");
+
+    };
     
     //send wallet to wallet
 }
@@ -136,8 +157,8 @@ fn wallet_adder_actions(builder: &Builder) {
     });
 
     success_button.connect_clicked(move |_| {
-        success_dialog.hide();
         wallet_adder_clone.hide();
+        success_dialog.hide();
     });
     
 }

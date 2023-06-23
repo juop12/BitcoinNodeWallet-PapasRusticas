@@ -12,7 +12,7 @@ use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use std::sync::mpsc;
 
 pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mpsc::Receiver<UIRequest>) {
-
+    
     if args.len() != 2 {
         return eprintln!("cantidad de argumentos inválida");
     }
@@ -24,6 +24,7 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
             return;// eprintln!("{:?}", error);
         },
     };
+    
 
     let mut node = match Node::new(config) {
         Ok(node) => node,

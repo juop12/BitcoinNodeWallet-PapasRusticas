@@ -4,6 +4,7 @@ pub mod wallet_sections;
 pub mod wallet_overview;
 pub mod wallet_send;
 pub mod wallet_transactions;
+pub mod wallet_persistance;
 
 pub use ui::*;
 pub use user_options::*;
@@ -11,3 +12,4 @@ pub use wallet_sections::*;
 pub use wallet_overview::*;
 pub use wallet_send::*;
 pub use wallet_transactions::*;
+pub use wallet_persistance::*;
