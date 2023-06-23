@@ -4,7 +4,7 @@ use gtk::{
 }; 
 use std::{
     fs::{File, OpenOptions},
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Write, ErrorKind},
 };
 
 use crate::UiError;
@@ -63,9 +63,9 @@ fn _open_read_only_handler(path: &str) -> Result<File, UiError> {
     match File::open(path) {
         Ok(file) => Ok(file),
         Err(error) =>{
-            //if let  = error {
-            println!("{:?}",error);
-            //}
+            if error.kind() == ErrorKind::NotFound {
+                return Err(UiError::WalletsCSVWasEmpty);
+            }
             Err(UiError::ErrorReadingFile)   
         },
     }

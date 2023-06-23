@@ -20,7 +20,8 @@ use node::utils::ui_communication::{UIToWalletCommunication as UIRequest, Wallet
 
 
 const GLADE_SRC: &str = "ui.glade";
-const PRIV_KEY_LEN_BASE_58: usize = 52;
+//const PRIV_KEY_LEN_BASE_58: usize = 52;
+const PRIV_KEY_LEN_BASE_58: usize = 1;
 
 
 pub enum UiError {
@@ -64,8 +65,27 @@ fn initialize_elements(builder: &Builder){
     activate_adjustments(builder);
     update_adjustments_max_value(builder);
     wallet_adder_actions(builder);
+    initialize_wallet_selector(builder);
+}
 
-    
+fn initialize_wallet_selector(builder: &Builder){
+    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
+
+    if let Err(error) = get_saved_wallets_from_disk(&wallet_selector){
+        if let UiError::WalletsCSVWasEmpty = error{
+            let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
+            wallet_adder.run();
+            // Si apretas cancel rompe to.
+            // Si apretas la cruz se inicializa sin wallet.
+            // Hacer que muera a menos que pongas ok con info valida.
+            wallet_adder.show_all();
+            wallet_adder.hide();
+        } else {
+            //Poner ventana de error
+        }
+    }
+
+    wallet_selector.set_active(Some(0));
 }
 
 fn update_adjustments_max_value(builder: &Builder){
@@ -87,24 +107,10 @@ fn update_adjustments_max_value(builder: &Builder){
 
 //Editar para hacer pruebas con diferentes valores
 fn add_examples(builder: &Builder){
-    update_available_balance(&builder, "15.00");
-    update_pending_balance(&builder, "5.01");
-    add_tx(&builder, "lorem ipsum".to_string());
-    update_balance(&builder, "69.420");
-
-    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
-
-    if let Err(error) = get_saved_wallets_from_disk(&wallet_selector){
-        if let UiError::WalletsCSVWasEmpty = error{
-            let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
-            wallet_adder.run();
-            wallet_adder.show_all();
-        } else {
-            //Poner ventana de error
-        }
-    }
-
-    wallet_selector.set_active(Some(0));
+    update_available_balance(builder, "15.00");
+    update_pending_balance(builder, "5.01");
+    add_tx(builder, "lorem ipsum".to_string());
+    update_balance(builder, "69.420");
 }
 
 pub fn add_tx(builder: &Builder, transaction: String) {
