@@ -1,11 +1,11 @@
 use crate::blocks::transaction::*;
 use crate::node::*;
+use crate::utils::UTxOInfo;
 use std::collections::HashMap;
-
 
 impl Node {
     ///-
-    fn _create_utxo_set(&self, block_headers: &Vec<BlockHeader>, utxo_set: &mut HashMap<Vec<u8>, TxOut>) -> Result<(), NodeError>{
+    fn _create_utxo_set(&self, block_headers: &Vec<BlockHeader>, utxo_set: &mut HashMap<Outpoint, TxOut>) -> Result<(), NodeError>{
 
         let blockchain = self.get_blockchain().map_err(|_|NodeError::ErrorSharingReference)?;
         let starting_position = block_headers.len() - blockchain.len();
@@ -47,7 +47,7 @@ impl Node {
         Ok(())
     }
 
-    fn get_utxos_from_unproccessed_blocks(&self, block_hash: &[u8;32], blockchain: &HashMap<[u8;32], Block>)->Vec<(Vec<u8>, TxOut)>{
+    fn get_utxos_from_unproccessed_blocks(&self, block_hash: &[u8;32], blockchain: &HashMap<[u8;32], Block>)->Vec<(Outpoint, TxOut)>{
         let mut new_utxos = Vec::new();
         
         if let Some(block) = blockchain.get(block_hash){
@@ -58,13 +58,13 @@ impl Node {
         new_utxos
     }
 
-    fn get_spent_utxos_from_unproccesed_blocks(&self, block_hash: &[u8;32], blockchain: &HashMap<[u8;32], Block>)-> Vec<Vec<u8>>{
+    fn get_spent_utxos_from_unproccesed_blocks(&self, block_hash: &[u8;32], blockchain: &HashMap<[u8;32], Block>) -> Vec<Outpoint>{
         let mut spent_utxos = Vec::new();
         
         if let Some(block) = blockchain.get(block_hash){
             for tx in &block.transactions{
                 for txin in &tx.tx_in{
-                    let utxo_key = txin.previous_output.to_bytes();
+                    let utxo_key = txin.previous_output;
                     if self.utxo_set.contains_key(&utxo_key){
                         spent_utxos.push(utxo_key);
                     }
@@ -76,7 +76,7 @@ impl Node {
     }
 
     // Proccesses all blocks received between the last time a block was proccessed and now
-    pub fn update_utxo(&mut self)->Result<(), NodeError>{
+    pub fn update_utxo(&mut self, wallet_utxos: &mut HashMap<Outpoint, i64>)->Result<(), NodeError>{
         println!("Updateando bloque {}", self.last_proccesed_block);
         let unproccesed_block_hash = match self.get_block_headers(){
             Ok(blockchain) => {
@@ -98,10 +98,10 @@ impl Node {
         };
 
         for spent_utxo in spent_utxos{
-            self.remove_utxo(spent_utxo);
+            self.remove_utxo(spent_utxo, wallet_utxos);
         }
         for (key ,utxo) in new_utxos{
-            self.insert_utxo(key, utxo)
+            self.insert_utxo(key, utxo, wallet_utxos);
         }
 
         //self.last_proccesed_block += block_hashes.len();
@@ -110,14 +110,15 @@ impl Node {
         Ok(())
     }
 
-    fn insert_utxo(&mut self, key: Vec<u8>, tx_out: TxOut){
+    fn insert_utxo(&mut self, key: Outpoint, tx_out: TxOut, wallet_utxos: &mut HashMap<Outpoint, i64>){
         if tx_out.belongs_to(self.wallet_pk_hash){   
             self.balance += tx_out.value;
+            wallet_utxos.insert(key, tx_out.value);
         }
         self.utxo_set.insert(key, tx_out);
     }
 
-    pub fn remove_utxo(&mut self, key: Vec<u8>) -> Option<TxOut>{
+    pub fn remove_utxo(&mut self, key: Outpoint, wallet_utxos: &mut HashMap<Outpoint, i64>) -> Option<TxOut>{
         let tx_out = self.utxo_set.remove(&key)?;
         if tx_out.belongs_to(self.wallet_pk_hash){
             self.balance -= tx_out.value;
@@ -127,16 +128,19 @@ impl Node {
     }
     
     ///-
-    pub fn get_utxo_balance(&self, pk_hash: [u8; 20]) -> i64 {
+    pub fn get_utxo_balance(&self, pk_hash: [u8; 20]) -> (HashMap<Outpoint, i64>,i64){
         let mut balance = 0;
+        let mut wallet_utxos = HashMap::new();
 
-        for (_, tx_out) in &self.utxo_set{
+        for (outpoint, tx_out) in &self.utxo_set{
             if tx_out.belongs_to(pk_hash){
                 balance += tx_out.value;
+                
+                wallet_utxos.insert(*outpoint, tx_out.value);
             }
         }
         
-        return balance;
+        return (wallet_utxos, balance);
     }
 
     ///-
@@ -145,7 +149,7 @@ impl Node {
         let mut unspent_balance = 0;
         let mut unspent_outpoint = Vec::new();
         
-        for (outpoint_bytes, utx_out) in &self.utxo_set{
+        for (outpoint, utx_out) in &self.utxo_set{
             if unspent_balance > amount{
                 break;
             }
@@ -153,8 +157,7 @@ impl Node {
             if utx_out.belongs_to(self.wallet_pk_hash){
                 unspent_balance += utx_out.value;
 
-                let outpoint = Outpoint::from_bytes(&outpoint_bytes).map_err(|_| NodeError::ErrorSendingTransaction)?;
-                unspent_outpoint.push(outpoint);
+                unspent_outpoint.push(*outpoint);
             }
         }
         
@@ -167,23 +170,22 @@ impl Node {
 }
 
 ///-
-fn insert_new_utxo(tx_hash: [u8; 32], tx_out: &TxOut, index: usize, utxo_set: &mut HashMap<Vec<u8>, TxOut>) -> Result<(), NodeError>{
+fn insert_new_utxo(tx_hash: [u8; 32], tx_out: &TxOut, index: usize, utxo_set: &mut HashMap<Outpoint, TxOut>) -> Result<(), NodeError>{
     let outpoint = Outpoint::new(tx_hash, index as u32);
     let tx_out_outpoint_bytes = outpoint.to_bytes();
     let tx_out: TxOut = TxOut::from_bytes(&tx_out.to_bytes()).map_err(|_|NodeError::ErrorGettingUtxo)?;
 
-    utxo_set.insert(tx_out_outpoint_bytes, tx_out);
+    utxo_set.insert(outpoint, tx_out);
 
     Ok(())
 }
 
 ///-
-fn update_utxo_set_with_transactions(block: &Block, utxo_set: &mut HashMap<Vec<u8>, TxOut>) -> Result<(), NodeError> {
+fn update_utxo_set_with_transactions(block: &Block, utxo_set: &mut HashMap<Outpoint, TxOut>) -> Result<(), NodeError> {
     for tx in block.get_transactions() {
         for tx_in in tx.tx_in.iter() {
-            let outpoint_bytes = tx_in.previous_output.to_bytes();
 
-            utxo_set.remove(&outpoint_bytes);
+            utxo_set.remove(&tx_in.previous_output);
         }
 
         for (index, tx_out) in tx.tx_out.iter().enumerate() {

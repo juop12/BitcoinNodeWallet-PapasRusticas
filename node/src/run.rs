@@ -4,10 +4,8 @@ use crate::wallet::*;
 use crate::utils::config::*;
 use crate::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
 //use user_interface::start_app;
-use std::thread;
 use std::time::Duration;
 use std::time::Instant;
-use bs58::*;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use std::sync::mpsc;
 
@@ -48,51 +46,59 @@ fn initialize_node(args: Vec<String>)->Option<Node>{
 
 pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mpsc::Receiver<UIRequest>) {
 
-    let node = initialize_node(args);
-    let mut node = match node{
+    let mut node = match initialize_node(args){
         Some(node) => node,
-        None => {
-            sender_to_ui.send(UIResponse::ErrorInitializingNode).unwrap_or_else(|e| eprintln!("Error saending message to UI: {:?}", e));
-            return;
-        }
+        None => return sender_to_ui.send(UIResponse::ErrorInitializingNode).expect("Error sending message to UI"),
     };
     
     let message_receiver = match node.run() {
         Ok(message_receiver) => message_receiver,
-        Err(error) => {
-            sender_to_ui.send(UIResponse::NodeRunningError(error)).unwrap_or_else(|e| eprintln!("Error saending message to UI: {:?}", e));
-            return;
-        },
+        Err(error) => return sender_to_ui.send(UIResponse::NodeRunningError(error)).expect("Error sending message to UI"),
     };
 
     node.logger.log(format!("node, running"));
 
-    /*
-    while true{
+    let mut wallet;
+    
+    loop{
         let ui_request = receiver.recv().expect("Error receiving message from UI");
         if let UIRequest::ChangeWallet(priv_key) = ui_request{
-            Wallet::from(priv_key);
+            //p asumo que las priv key son validas si tienen el tama;o valido
+            wallet = match Wallet::from(priv_key){
+                Ok(wallet) => wallet,
+                Err(error) => return sender_to_ui.send(UIResponse::WalletError(error)).expect("Error sending message to UI"),
+            };
+
+            node.set_wallet(&mut wallet);
+            break;
         }
-        
     }
-    */
+
+    let mut last_update_time = Instant::now(); 
+
+    let mut program_running = true;
+    while program_running{
+        if last_update_time.elapsed() > Duration::from_secs(5){
+            if let Ok(request) = receiver.try_recv(){
+                wallet = wallet.handle_ui_request(&mut node, request, &sender_to_ui, &mut program_running).expect("Error handeling ui request");
+            }
+            last_update_time = Instant::now();
+        }else{
+            node.update(&mut wallet).unwrap();
+            last_update_time = Instant::now();
+            println!("Balance: {}",node.balance);
+        }
+    }
+
     // Inicio de wallets.
     //=========================================================================
-    /*
-    let pub_key = [
-        0x03, 0x57, 0xDD, 0x61, 0x2F, 0x9E, 0x51, 0xD0, 0x1C, 0x5C, 0xAC, 0x84, 0x35, 0xCB, 0x6C, 0x40, 0x15, 0x71, 0x50, 0x7C, 0xAF, 0xE3, 0x09, 0xE4, 0xA9, 0xBB, 0x48, 0xA4, 0x0B, 0x11, 0x8B, 0xF8, 0xFF
-    ];
-    let priv_key = [
-        0x8A, 0x39, 0x27, 0x84, 0x29, 0x20, 0x92, 0xB1, 0x94, 0x1F, 0x8A, 0x72, 0xB0, 0x94, 0x37, 0x16 , 0x04, 0x51, 0x8F, 0x55, 0x30, 0xA5, 0x8D, 0x66, 0xCA, 0x9D, 0xE3, 0x7E, 0x35, 0x6F, 0x8B, 0xBB
-    ];
-        */
     
     //let pub_key = get_bytes_from_hex("0357DD612F9E51D01C5CAC8435CB6C401571507CAFE309E4A9BB48A40B118BF8FF");
     //let priv_key = get_bytes_from_hex("8A392784292092B1941F8A72B094371604518F5530A58D66CA9DE37E356F8BBB");
-    
+    /* 
     let receiver_address = "miHXVsyAd3dG78Ri78NUmAfCyoHXaYkibp";
     let priv_key = "cSDPYr9FfseHx8jbjrnz9ryERswMkv6vKSccomu1ShfrJXj2d65Z";
-        
+    
     // Address de prueba para enviar.
     println!("por crear la walle");
     let mut wallet = Wallet::from(priv_key.to_string()).unwrap();
@@ -133,7 +139,7 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
         
     }
 
-    /*
+    
     while(){
         wallet.ciclo_wallet(&node) => {
             //recibis de la ui
@@ -149,12 +155,13 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
             //tengo un nuevo pending
             //me llego una transaccion a actualizar
         }
-    }*/
+    }
+    */
 
     if let Err(error) = message_receiver.finish_receiving(){
         return eprintln!("{:?}", error)
         
     };
-  
+    
     node.logger.log(String::from("program finished gracefully"));
 }

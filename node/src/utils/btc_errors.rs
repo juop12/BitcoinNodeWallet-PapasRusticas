@@ -153,6 +153,11 @@ impl BtcError for MessageReceiverError {}
 #[derive(Debug)]
 pub enum WalletError {
     ErrorHandlingPrivKey,
+    ErrorHandlingAddress,
+    ErrorSendingTx,
+    ErrorCreatingTx,
+    ErrorNotEnoughSatoshis,
+    ErrorSendingToUI
 }
 
 impl BtcError for WalletError {}

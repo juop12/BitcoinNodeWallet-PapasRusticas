@@ -194,7 +194,7 @@ impl Block {
         self.get_header().hash()
     }
 
-    pub fn get_utxos(&self)->Vec<(Vec<u8>, TxOut)>{
+    pub fn get_utxos(&self)->Vec<(Outpoint, TxOut)>{
         let mut utxos = Vec::new();
         
         for tx in &self.transactions{
@@ -202,10 +202,9 @@ impl Block {
                 //p ver si queremos nomas las p2pkh
                 if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
                     let outpoint = Outpoint::new(tx.hash(), index as u32);
-                    let tx_out_outpoint_bytes = outpoint.to_bytes();
                     let tx_out: TxOut = tx_out.clone();
 
-                    utxos.push((tx_out_outpoint_bytes, tx_out));
+                    utxos.push((outpoint, tx_out));
                 }
             }
         };

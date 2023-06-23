@@ -9,6 +9,7 @@ use std::{
 };
 use workers::*;
 
+/* 
 fn insert_time_orderly(header: BlockHeader, vec_headers: &mut Vec<BlockHeader>){
     let mut i = vec_headers.len();
     while (i > 0) && (header.time < vec_headers[i-1].time){
@@ -47,7 +48,8 @@ fn add_block_or_headers(mut received_block_headers: Vec<BlockHeader>, received_b
     }
     Ok(())
 
-}
+} 
+*/
 
 pub fn message_receiver_thread_loop(stream: &mut TcpStream, 
     safe_block_headers: &SafeVecHeader, 

@@ -15,11 +15,11 @@ use crate::{
     blocks::{
         transaction::TxOut,
         blockchain::*,
-        proof::*, Transaction,
+        proof::*, Transaction, Outpoint,
     },
     messages::*,
     utils::btc_errors::NodeError,
-    utils::{config::*, log::*},
+    utils::{config::*, log::*}, wallet::Wallet,
 };
 use std::{
     collections::HashMap,
@@ -44,7 +44,7 @@ pub struct Node {
     block_headers: SafeVecHeader,
     starting_block_time: u32,
     blockchain: SafeBlockChain,
-    utxo_set: HashMap<Vec<u8>, TxOut>,
+    utxo_set: HashMap<Outpoint, TxOut>,
     pub balance: i64,
     pub pending_tx: SafePendingTx,
     last_proccesed_block: usize,
@@ -167,24 +167,25 @@ impl Node {
         Ok(MessageReceiver::new(&self.tcp_streams, &self.blockchain, &self.block_headers, &self.pending_tx ,&self.logger))
     }
 
-    fn receive_message(&mut self, stream_index: usize, ibd: bool)-> Result<String, NodeError>{
+    fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
         let stream = &mut self.tcp_streams[stream_index];
         receive_message(stream, &self.block_headers, &self.blockchain, &self.pending_tx, &self.logger, ibd)
     }
 
-    pub fn set_wallet(&mut self, pk_hash: [u8;20]){
-        self.wallet_pk_hash = pk_hash;
-        self.balance = self.get_utxo_balance(pk_hash);
-        println!("balance {}",self.balance);
+    pub fn set_wallet(&mut self, wallet: &mut Wallet){
+        self.wallet_pk_hash = wallet.get_pk_hash();
+        (wallet.utxos, wallet.balance) = self.get_utxo_balance(self.wallet_pk_hash);
+        self.balance = wallet.balance;
+
+        //p setea pending
+        println!("balance {}",self.balance); //p
     }
 
-    fn print_transaction(tx_bytes: Vec<u8>){
-        let hex_string = tx_bytes
-            .iter()
-            .map(|byte| format!("{:02X}", byte))
-            .collect::<String>();
-
-        println!("String hexadecimal: {}", hex_string);
+    pub fn update(&mut self, wallet: &mut Wallet)-> Result<(), NodeError>{
+        self.update_utxo(&mut wallet.utxos)?;
+        wallet.balance = self.balance;
+        //self.update_pending_tx(wallet);
+        Ok(())
     }
 
     pub fn send_transaction(&mut self, transaction: Transaction) -> Result<(), NodeError>{
@@ -193,6 +194,7 @@ impl Node {
         let mut sent = false;
         
         for (i, stream) in self.tcp_streams.iter_mut().enumerate() {
+            self.logger.log(format!("mandando al peer{i}"));
             println!("mandando al peer{i}");
             if message.send_to(stream).is_ok(){
                 sent = true;
@@ -206,50 +208,32 @@ impl Node {
         let transaction = message.tx;
         
         for txin in &transaction.tx_in{
-            self.remove_utxo(txin.previous_output.to_bytes());
+            self.utxo_set.remove(&txin.previous_output);
         }
-
-        let tx_hex = get_hex_from_bytes(transaction.to_bytes());//p
-
-        println!("Transaction {tx_hex}");
 
         self.get_pending_tx()?.insert(transaction.hash(), transaction);
         
+        self.logger.log(format!("Se envio una transaccion"));
         println!("Se envio una transaccion"); //p
         
         Ok(())
     }
 }
 
-
 impl Drop for Node {
     fn drop(&mut self) {
-        self.logger.log(String::from("Saving received data"));
+        self.logger.log(format!("Saving received data"));
+
         if self.store_headers_in_disk().is_err(){
-            self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
-            return;
+            return self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
         };
+
         if self.store_blocks_in_disk().is_err(){
-            self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
-            return;
+            return self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
         };
-        self.logger.log(String::from("Finished storing data"));
+
+        self.logger.log(format!("Finished storing data"));
     }
-}
-
-pub fn get_bytes_from_hex(hex_string: &str) -> Vec<u8>{
-    hex_string
-        .as_bytes()
-        .chunks(2)
-        .map(|chunk| u8::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16).unwrap())
-        .collect::<Vec<u8>>()
-}
-
-pub fn get_hex_from_bytes(bytes_vec: Vec<u8>) -> String{
-    bytes_vec
-        .iter()
-        .map(|byte| format!("{:02X}", byte))
-        .collect::<String>()
 }
 
 /// Reads from the stream MESAGE_HEADER_SIZE bytes and returns a HeaderMessage interpreting those bytes acording to bitcoin protocol.
