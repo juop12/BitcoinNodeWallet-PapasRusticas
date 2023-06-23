@@ -149,3 +149,10 @@ pub enum MessageReceiverError {
 }
 
 impl BtcError for MessageReceiverError {}
+
+#[derive(Debug)]
+pub enum WalletError {
+    ErrorHandlingPrivKey,
+}
+
+impl BtcError for WalletError {}
