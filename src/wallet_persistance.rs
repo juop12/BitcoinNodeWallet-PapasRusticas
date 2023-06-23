@@ -64,7 +64,7 @@ fn _open_read_only_handler(path: &str) -> Result<File, UiError> {
         Ok(file) => Ok(file),
         Err(error) =>{
             //if let  = error {
-
+            println!("{:?}",error);
             //}
             Err(UiError::ErrorReadingFile)   
         },
