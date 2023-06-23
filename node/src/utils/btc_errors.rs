@@ -149,3 +149,7 @@ pub enum MessageReceiverError {
 }
 
 impl BtcError for MessageReceiverError {}
+
+pub enum WalletError{
+    
+}

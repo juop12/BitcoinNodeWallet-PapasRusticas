@@ -1,4 +1,4 @@
-use crate::utils::btc_errors::{NodeError, WalletError};
+use crate::utils::btc_errors::{NodeError, WalletError,ConfigError};
 use crate::blocks::BlockHeader;
 use crate::blocks::Outpoint;
 
@@ -21,6 +21,7 @@ pub enum WalletToUICommunication {
     TxSent,
     ErrorInitializingNode,
     NodeRunningError(NodeError),
+    ConfigError(ConfigError),
     WalletError(WalletError),
 }
 

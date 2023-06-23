@@ -1,5 +1,5 @@
 use gtk::prelude::*;
-use gtk::{Builder,Label, SpinButton, Button, Entry};
+use gtk::{Builder,Label, SpinButton, Button, Entry, Adjustment};
 
 use crate::UiError;
 
@@ -86,4 +86,28 @@ pub fn activate_clear_all_button(builder: &Builder){
         fee_button.set_value(0.0);
         pay_to_entry.set_text("");
     });
+}
+
+fn handle_transaction_sending(address: &str, amount: f64, fee: f64, balance: f64){
+    // fijarse que address sea valida
+    if amount + fee > balance {
+        //Poner ventana de error
+        return;
+    }
+}
+
+fn activate_send_button(builder: &Builder) {
+    let address_entry: Entry = builder.object("Pay To Entry").unwrap();
+    let amount: Adjustment = builder.object("Send Amount").unwrap();
+    let fee: Adjustment = builder.object("Fee Amount").unwrap();
+    let send_button: Button = builder.object("Send Button").unwrap();
+    let balance_label: Label = builder.object("Balance Amount").unwrap();
+    send_button.connect_clicked(move |_| {
+        let address = address_entry.text();
+        let amount = amount.value();
+        let fee = fee.value();
+        let balance_amount = balance_label.label().parse::<f64>().unwrap();
+        handle_transaction_sending(address.as_str(), amount, fee, balance_amount);
+    });
+
 }

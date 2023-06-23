@@ -113,11 +113,9 @@ fn add_examples(builder: &Builder){
     update_balance(builder, "69.420");
 }
 
-pub fn add_tx(builder: &Builder, transaction: String) {
+pub fn add_tx(builder: &Builder, transactionHeader: String) {
     let tx_tree_store = builder.object("TxTreeStore").unwrap();
-    let date = "0".to_string();
-    let amount = "0".to_string();
-    add_row(tx_tree_store, date, transaction, amount)
+    add_row(tx_tree_store,transactionHeader)
 }
 
 fn handle_add_wallet(builder: &Builder){

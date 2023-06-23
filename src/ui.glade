@@ -69,16 +69,10 @@
   </object>
   <object class="GtkTreeStore" id="TxTreeStore">
     <columns>
-      <!-- column-name progress_column -->
+      <!-- column-name BlockHeader_column -->
+      <column type="gchararray"/>
+      <!-- column-name TxIndexColumn -->
       <column type="gint"/>
-      <!-- column-name date_column -->
-      <column type="gchararray"/>
-      <!-- column-name type_column -->
-      <column type="gchararray"/>
-      <!-- column-name blockHeader_column -->
-      <column type="gchararray"/>
-      <!-- column-name amount_column -->
-      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkWindow" id="Ventana">
@@ -789,8 +783,7 @@
                 <property name="can-focus">False</property>
                 <child>
                   <object class="GtkViewport" id="TransactionsGridViewport">
-                    <property name="width-request">600</property>
-                    <property name="height-request">400</property>
+                    <property name="height-request">350</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="shadow-type">none</property>
@@ -804,7 +797,7 @@
                         <property name="kinetic-scrolling">False</property>
                         <child>
                           <object class="GtkTreeView" id="TxTree">
-                            <property name="width-request">800</property>
+                            <property name="width-request">900</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="model">TxTreeStore</property>
@@ -814,67 +807,28 @@
                               <object class="GtkTreeSelection" id="TxTreeSelection"/>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="Progress">
+                              <object class="GtkTreeViewColumn" id="Tx Index">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">70</property>
+                                <property name="title" translatable="yes">Index</property>
                                 <child>
                                   <object class="GtkCellRendererProgress"/>
                                   <attributes>
-                                    <attribute name="value">0</attribute>
+                                    <attribute name="value">1</attribute>
                                   </attributes>
                                 </child>
                               </object>
                             </child>
                             <child>
-                              <object class="GtkTreeViewColumn" id="Date">
+                              <object class="GtkTreeViewColumn" id="Transaction Hash">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">70</property>
-                                <property name="title" translatable="yes">Date</property>
+                                <property name="title" translatable="yes">Transaction Hash</property>
                                 <child>
-                                  <object class="GtkCellRendererText" id="DateR">
-                                    <property name="editable">True</property>
-                                  </object>
+                                  <object class="GtkCellRendererText"/>
                                   <attributes>
-                                    <attribute name="text">1</attribute>
-                                  </attributes>
-                                </child>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkTreeViewColumn" id="Type">
-                                <property name="sizing">fixed</property>
-                                <property name="fixed-width">70</property>
-                                <property name="title" translatable="yes">Type</property>
-                                <child>
-                                  <object class="GtkCellRendererText" id="TypeR"/>
-                                  <attributes>
-                                    <attribute name="text">2</attribute>
-                                  </attributes>
-                                </child>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkTreeViewColumn" id="BlockHeader">
-                                <property name="sizing">fixed</property>
-                                <property name="fixed-width">400</property>
-                                <property name="title" translatable="yes">BlockHeader</property>
-                                <child>
-                                  <object class="GtkCellRendererText" id="BlockHeaderR"/>
-                                  <attributes>
-                                    <attribute name="text">3</attribute>
-                                  </attributes>
-                                </child>
-                              </object>
-                            </child>
-                            <child>
-                              <object class="GtkTreeViewColumn" id="Amount">
-                                <property name="sizing">fixed</property>
-                                <property name="fixed-width">220</property>
-                                <property name="title" translatable="yes">Amount</property>
-                                <child>
-                                  <object class="GtkCellRendererText" id="AmountR"/>
-                                  <attributes>
-                                    <attribute name="text">4</attribute>
+                                    <attribute name="foreground">3</attribute>
+                                    <attribute name="text">0</attribute>
                                   </attributes>
                                 </child>
                               </object>
@@ -886,83 +840,195 @@
                   </object>
                   <packing>
                     <property name="x">30</property>
-                    <property name="y">55</property>
+                    <property name="y">150</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="exportButton">
-                    <property name="label" translatable="yes">export</property>
+                  <object class="GtkButtonBox" id="Tx Window Switcher">
                     <property name="width-request">100</property>
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="receives-default">True</property>
-                  </object>
-                  <packing>
-                    <property name="x">830</property>
-                    <property name="y">464</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkComboBoxText" id="TypeFilterBox">
-                    <property name="width-request">100</property>
-                    <property name="height-request">40</property>
+                    <property name="height-request">80</property>
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
-                    <property name="active-id">All</property>
-                    <items>
-                      <item id="All" translatable="yes">All</item>
-                    </items>
+                    <property name="layout-style">start</property>
+                    <child>
+                      <object class="GtkButton" id="Previous Block">
+                        <property name="label" translatable="yes">Previous</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">True</property>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="Next Block Button">
+                        <property name="label" translatable="yes">Next</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">True</property>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
                   </object>
                   <packing>
-                    <property name="x">160</property>
-                    <property name="y">10</property>
+                    <property name="x">30</property>
+                    <property name="y">490</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkComboBoxText" id="DateFilterBox">
-                    <property name="width-request">100</property>
-                    <property name="height-request">40</property>
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <property name="active-id">All</property>
-                    <items>
-                      <item id="All" translatable="yes">All</item>
-                    </items>
-                  </object>
-                  <packing>
-                    <property name="x">50</property>
-                    <property name="y">10</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSearchEntry" id="TxIDEntry">
-                    <property name="width-request">450</property>
-                    <property name="height-request">40</property>
-                    <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="primary-icon-activatable">False</property>
-                    <property name="primary-icon-sensitive">False</property>
-                    <property name="placeholder-text" translatable="yes">Enter adress, transaction ID or label to search</property>
-                  </object>
-                  <packing>
-                    <property name="x">270</property>
-                    <property name="y">10</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkEntry" id="MinAmountEntry">
+                  <object class="GtkFrame" id="Block Header Frame">
                     <property name="width-request">200</property>
-                    <property name="height-request">40</property>
+                    <property name="height-request">80</property>
                     <property name="visible">True</property>
-                    <property name="can-focus">True</property>
-                    <property name="invisible-char"> </property>
-                    <property name="caps-lock-warning">False</property>
-                    <property name="placeholder-text" translatable="yes">Min amount</property>
-                    <property name="input-purpose">number</property>
+                    <property name="can-focus">False</property>
+                    <property name="label-xalign">0</property>
+                    <property name="shadow-type">none</property>
+                    <child>
+                      <!-- n-columns=2 n-rows=5 -->
+                      <object class="GtkGrid" id="Block Information">
+                        <property name="width-request">100</property>
+                        <property name="height-request">80</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <child>
+                          <object class="GtkLabel" id="Header hash Label">
+                            <property name="height-request">20</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">end</property>
+                            <property name="label" translatable="yes">Header Hash:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="N_bits Label">
+                            <property name="height-request">20</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">end</property>
+                            <property name="label" translatable="yes">N_Bits:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="Transaction Count Label">
+                            <property name="height-request">20</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">end</property>
+                            <property name="label" translatable="yes">Transaction Count:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">4</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="Previous Header Hash Label">
+                            <property name="height-request">20</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">end</property>
+                            <property name="label" translatable="yes">Previous Header Hash:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="Date Label">
+                            <property name="height-request">20</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="halign">end</property>
+                            <property name="label" translatable="yes">Date:</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">3</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="Header Hash">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="Previous Header Hash">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="N_bits">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="Date">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">3</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="Transaction Count">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">4</property>
+                          </packing>
+                        </child>
+                      </object>
+                    </child>
+                    <child type="label">
+                      <object class="GtkLabel" id="Block Header Frame Label">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">CURRENT BLOCK HEADER</property>
+                        <attributes>
+                          <attribute name="weight" value="ultrabold"/>
+                          <attribute name="foreground" value="#f5f5c2c21111"/>
+                        </attributes>
+                      </object>
+                    </child>
                   </object>
                   <packing>
-                    <property name="x">730</property>
-                    <property name="y">10</property>
+                    <property name="x">30</property>
+                    <property name="y">25</property>
                   </packing>
                 </child>
               </object>
