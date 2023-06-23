@@ -28,6 +28,7 @@ pub enum UiError {
     FailedToFindObject,
     ErrorReadingFile,
     ErrorWritingFile,
+    WalletsCSVWasEmpty,
 }
 
 fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
@@ -63,6 +64,8 @@ fn initialize_elements(builder: &Builder){
     activate_adjustments(builder);
     update_adjustments_max_value(builder);
     wallet_adder_actions(builder);
+
+    
 }
 
 fn update_adjustments_max_value(builder: &Builder){
@@ -88,9 +91,20 @@ fn add_examples(builder: &Builder){
     update_pending_balance(&builder, "5.01");
     add_tx(&builder, "lorem ipsum".to_string());
     update_balance(&builder, "69.420");
-    if let Err(_) = get_saved_wallets_from_disk(builder){
-        //Poner ventana de error
+
+    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
+
+    if let Err(error) = get_saved_wallets_from_disk(&wallet_selector){
+        if let UiError::WalletsCSVWasEmpty = error{
+            let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
+            wallet_adder.run();
+            wallet_adder.show_all();
+        } else {
+            //Poner ventana de error
+        }
     }
+
+    wallet_selector.set_active(Some(0));
 }
 
 pub fn add_tx(builder: &Builder, transaction: String) {

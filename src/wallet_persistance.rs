@@ -1,7 +1,6 @@
 use gtk::{
     prelude::*, 
-    ComboBoxText,
-    Builder
+    ComboBoxText
 }; 
 use std::{
     fs::{File, OpenOptions},
@@ -28,20 +27,26 @@ pub fn save_wallet_in_disk(priv_key: &str, name_text: &str) -> Result<(), UiErro
     Ok(())
 }
 
-pub fn get_saved_wallets_from_disk(builder: &Builder) -> Result<(), UiError>{
+pub fn get_saved_wallets_from_disk(wallet_selector: &ComboBoxText) -> Result<(), UiError>{
 
     let file = _open_read_only_handler(PATH_NAME)?;
     let reader: BufReader<File> = BufReader::new(file);
 
-    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
+    let mut count = 0;
 
     for line in reader.lines() {
         let field = line.map_err(|_| UiError::ErrorReadingFile)?;
 
         let splitted_line: Vec<&str> = field.split(',').collect();
         wallet_selector.append(Some(&splitted_line[0]),splitted_line[1]);
+
+        count += 1;
     }
 
+    if count == 0{
+        return Err(UiError::WalletsCSVWasEmpty);
+    }
+        
     Ok(())
 }
 
@@ -57,6 +62,11 @@ fn _open_write_handler(path: &str) -> Result<File, UiError>{
 fn _open_read_only_handler(path: &str) -> Result<File, UiError> {
     match File::open(path) {
         Ok(file) => Ok(file),
-        Err(_) => Err(UiError::ErrorReadingFile),
+        Err(error) =>{
+            //if let  = error {
+
+            //}
+            Err(UiError::ErrorReadingFile)   
+        },
     }
 }
