@@ -138,6 +138,7 @@ fn handle_add_wallet(builder: &Builder){
 
     success_dialog.run();
     success_dialog.show_all();
+    success_dialog.hide();
 
     if let Err(error) = save_wallet_in_disk(&priv_key_text, &name_text){
         //Poner ventana de error,
