@@ -33,11 +33,11 @@ pub enum UiError {
 
 fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
     // Create Window
-    let builder = Builder::from_string(glade_src);
-    initialize_elements(&builder);
+    let builder = Builder::from_string(GLADE_SRC);
     start_window(app, &builder);
     let (glib_sender, glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
     let (sender, receiver) = mpsc::channel::<UIRequest>(); //p por ahora String, despues le definimos bien el tipo de dato
+    initialize_elements(&builder, sender);
     thread::spawn(move || {run(args, glib_sender.clone(), receiver)});
     glib_receiver.attach(None, move|action| {
         match action {
@@ -58,7 +58,7 @@ fn start_window(app: &Application, builder: &Builder) {
     window.show_all();
 }
 
-fn initialize_elements(builder: &Builder){
+fn initialize_elements(builder: &Builder, sender: Sender<UIRequest>){
     add_examples(builder);
     activate_wallet_adder(builder);
     activate_use_available_balance(builder);
@@ -67,9 +67,21 @@ fn initialize_elements(builder: &Builder){
     update_adjustments_max_value(builder);
     initialize_wallet_adder_actions(builder);
     initialize_wallet_selector(builder);
+    connect_block_switcher_buttons(builder, sender);
 }
 
+fn connect_block_switcher_buttons(builder: &Builder, sender: Sender<UIRequest>){
+    let next_button: Button = builder.object("Next Block Button").unwrap();
+    let previous_button: Button = builder.object("Previous Block Button").unwrap();
+    let sender_clone = sender.clone();
+    next_button.connect_clicked(move |_| {
+        sender.send(UIRequest::NextBlockInfo).unwrap();
+    });
 
+    previous_button.connect_clicked(move |_| {
+        sender_clone.send(UIRequest::PrevBlockInfo).unwrap();
+    });
+}
 
 //Editar para hacer pruebas con diferentes valores
 fn add_examples(builder: &Builder){
@@ -77,8 +89,6 @@ fn add_examples(builder: &Builder){
     update_pending_balance(builder, "5.01");
     update_balance(builder, "69.420");
 }
-
-
 
 fn activate_wallet_adder(builder: &Builder){
     let button: Button = match builder.object("Wallet Adder"){
