@@ -1,6 +1,6 @@
 use crate::utils::{btc_errors::TransactionError, variable_length_integer::VarLenInt};
 use bitcoin_hashes::{sha256d, hash160, Hash};
-use secp256k1::{SecretKey, Message};
+use secp256k1::{SecretKey, Message, PublicKey, constants::PUBLIC_KEY_SIZE};
 
 
 const MIN_BYTES_TX_IN: usize = 41;
@@ -23,7 +23,7 @@ const OP_CHECKSIG_POSITION: usize = 24;
 const SIGHASH_ALL :[u8;4] = [0x01, 0x00, 0x00, 0x00]; // Already in BigEndian
 
 /// Struct that represents the Outpoint, that is used in the TxIn struct.
-#[derive(Debug, PartialEq)]
+#[derive(Eq, Hash, Debug, PartialEq, Clone, Copy)]
 pub struct Outpoint {
     pub hash: [u8; 32],
     index: u32,
@@ -245,6 +245,34 @@ impl TxIn {
     fn amount_of_bytes(&self) -> usize {
         self.to_bytes().len()
     }
+
+    /// Returns true if the pk_script of the tx_out follows the p2pkh protocol
+    pub fn belongs_to(&self, pub_key: &PublicKey) -> bool{
+        let sig_len = VarLenInt::from_bytes(&self.signature_script);
+        
+        if sig_len.to_usize() >= self.script_length.to_usize(){
+            return false;
+        }
+
+        let (_sig, bytes_left) = self.signature_script.split_at(sig_len.to_usize() + sig_len.amount_of_bytes());
+        
+        let pub_key_len = VarLenInt::from_bytes(&bytes_left);
+
+        if pub_key_len.to_usize() != PUBLIC_KEY_SIZE{
+            return false
+        }
+
+        let total_len = sig_len.amount_of_bytes() + sig_len.to_usize() + pub_key_len.amount_of_bytes() + pub_key_len.to_usize();
+
+        if total_len != self.script_length.to_usize(){
+            return false
+        }
+        
+        match PublicKey::from_slice(&bytes_left[sig_len.amount_of_bytes()..]){
+            Ok(script_pub_key) => script_pub_key == *pub_key,
+            Err(_) => false,
+        }
+    }
 }
 
 impl Transaction {
@@ -276,7 +304,7 @@ impl Transaction {
     }
 
     ///-
-    pub fn create(amount: i64, fee: i64, unspent_outpoints: Vec<Outpoint>, unspent_balance: i64, pub_key: [u8; 33], priv_key: [u8;32], address: [u8;25]) -> Result<Transaction, TransactionError>{
+    pub fn create(amount: i64, fee: i64, unspent_outpoints: Vec<Outpoint>, unspent_balance: i64, pub_key: PublicKey, priv_key: SecretKey, address: [u8;25]) -> Result<Transaction, TransactionError>{
         
         let change: i64 = unspent_balance - amount - fee;
         let tx_out_vector = create_tx_out_vector(change, amount, pub_key, address);
@@ -314,7 +342,7 @@ impl Transaction {
     //  6- sec = private_key.point.sec() // ES LA PUBKEY COMPRESSED DE 33 BYTES!!!
     //  7- sig_script = [varlenInt(sig), sig, Varlenint(sec), sec]
     ///-
-    fn get_signature_script(&self, pub_key: [u8; 33], priv_key: [u8;32])-> Result<Vec<u8>, TransactionError>{
+    fn get_signature_script(&self, pub_key: PublicKey, priv_key: SecretKey)-> Result<Vec<u8>, TransactionError>{
         
         // 1
         let mut tx_bytes = self.to_bytes();
@@ -326,8 +354,8 @@ impl Transaction {
         let message = Message::from_hashed_data::<sha256d::Hash>(&tx_bytes);
 
         // 4
-        let secret_key = SecretKey::from_slice(&priv_key).map_err(|_| TransactionError::ErrorCreatingSignature)?;
-        let signature = secret_key.sign_ecdsa(message);
+        //let secret_key = SecretKey::from_slice(&priv_key).map_err(|_| TransactionError::ErrorCreatingSignature)?;
+        let signature = priv_key.sign_ecdsa(message);
         
         // 5
         let mut signature = signature.serialize_der().to_vec();
@@ -415,6 +443,9 @@ impl Transaction {
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
 
+    pub fn get_ballance_regarding(&self, ){
+
+    }
 }
 
 ///-
@@ -430,20 +461,20 @@ fn create_unsigned_tx_in_vector(unspent_outpoints: Vec<Outpoint>) -> Vec<TxIn>{
 }
 
 ///-
-fn assemble_signature_script(signature: Vec<u8> ,pub_key: [u8; 33]) -> Vec<u8>{
+fn assemble_signature_script(signature: Vec<u8> ,pub_key: PublicKey) -> Vec<u8>{
     let len_sig = VarLenInt::new(signature.len());
-    let len_sec = VarLenInt::new(pub_key.len());
+    let len_sec = VarLenInt::new(pub_key.serialize().len());
 
     let mut signature_script = Vec::from(len_sig.to_bytes());        
     signature_script.extend(signature);
     signature_script.extend(len_sec.to_bytes());
-    signature_script.extend(pub_key);
+    signature_script.extend(pub_key.serialize());
 
     signature_script
 }
 
 ///-
-fn create_tx_out_vector(change: i64, amount: i64, pub_key: [u8; 33], address: [u8;25]) -> Vec<TxOut>{
+fn create_tx_out_vector(change: i64, amount: i64, pub_key: PublicKey, address: [u8;25]) -> Vec<TxOut>{
     let mut receiver_pk_hash: [u8;20] = [0; 20];
     receiver_pk_hash.copy_from_slice(&address[1..21]);
     let pk_script_receiver = get_pk_script(receiver_pk_hash);
@@ -456,8 +487,8 @@ fn create_tx_out_vector(change: i64, amount: i64, pub_key: [u8; 33], address: [u
 } 
 
 ///-
-pub fn get_pk_script_from_pubkey(pub_key: [u8; 33]) -> [u8; P2PKH_SCRIPT_LENGTH]{
-    let pk_hash = hash160::Hash::hash(&pub_key.as_slice());
+pub fn get_pk_script_from_pubkey(pub_key: PublicKey) -> [u8; P2PKH_SCRIPT_LENGTH]{
+    let pk_hash = hash160::Hash::hash(&pub_key.serialize());
     
     get_pk_script(pk_hash.to_byte_array())
 }
