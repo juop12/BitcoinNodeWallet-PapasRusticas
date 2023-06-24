@@ -16,7 +16,7 @@ use crate::wallet_send::{update_balance, update_adjustments_max_value, activate_
 use crate::wallet_actions::*;
 
 use node::run::*;
-use node::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
+use node::utils::ui_communication_protocol::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
 
 //const PRIV_KEY_LEN_BASE_58: usize = 52;
 pub enum UiError {
@@ -59,17 +59,18 @@ fn initialize_elements(builder: &Builder, sender: Sender<UIRequest>){
     activate_clear_all_button(builder);
     activate_adjustments(builder);
     update_adjustments_max_value(builder);
-    initialize_wallet_adder_actions(builder);
+    initialize_wallet_adder_actions(builder, &sender);
     initialize_wallet_selector(builder);
-    connect_block_switcher_buttons(builder, sender);
+    connect_block_switcher_buttons(builder, &sender);
 }
 
-fn connect_block_switcher_buttons(builder: &Builder, sender: Sender<UIRequest>){
+fn connect_block_switcher_buttons(builder: &Builder, sender: &Sender<UIRequest>){
     let next_button: Button = builder.object("Next Block Button").unwrap();
     let previous_button: Button = builder.object("Previous Block Button").unwrap();
     let sender_clone = sender.clone();
+    let sender_clone_2 = sender.clone();
     next_button.connect_clicked(move |_| {
-        sender.send(UIRequest::NextBlockInfo).unwrap();
+        sender_clone_2.send(UIRequest::NextBlockInfo).unwrap();
     });
 
     previous_button.connect_clicked(move |_| {

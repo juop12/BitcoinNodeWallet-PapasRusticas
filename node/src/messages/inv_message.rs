@@ -37,7 +37,10 @@ impl Message for InvMessage {
     /// Creates the coresponding message, using a slice of bytes,
     /// which must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError> {
-        let count = VarLenInt::from_bytes(slice);
+        let count = match VarLenInt::from_bytes(slice){
+            Some(var_len_int) => var_len_int,
+            None => return Err(MessageError::ErrorCreatingInvMessage),
+        };
 
         if (count.to_usize() * INVENTORY_ENTRY_SIZE + count.amount_of_bytes()) != slice.len() {
             return Err(MessageError::ErrorCreatingInvMessage);

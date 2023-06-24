@@ -1,4 +1,4 @@
-use node::utils::ui_communication::{BlockInfo,WalletInfo};
+use node::utils::ui_communication_protocol::{BlockInfo,WalletInfo};
 use crate::wallet_transactions::add_row;
 use gtk::prelude::*;
 use gtk::{Builder, Label,TreeStore,ListBox};
@@ -16,7 +16,7 @@ pub fn handle_block_info(block_info: &BlockInfo, builder: &Builder){
     tx_tree_store.clear();
     
     let block_number = block_info.block_number;
-    let block_transaction_hashes = &block_info.block_tx_hash;
+    let block_transaction_hashes = &block_info.block_tx_hashes;
     let header = &block_info.block_header;
     
     let header_hash_label: Label = builder.object("Header Hash").unwrap();
@@ -64,7 +64,8 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
     clean_list_box(&utxo_list);
     clean_list_box(&pending_tx_list);
     let available_balance: f64 = wallet_info.available_balance as f64 / SATOSHI_TO_BTC;
-    let pending_balance:  f64 = wallet_info.pending_balance as f64 / SATOSHI_TO_BTC;
+    //let pending_balance:  f64 = wallet_info.pending_balance as f64 / SATOSHI_TO_BTC;
+    let pending_balance: f64 = (wallet_info.sending_pending_balance + wallet_info.receiving_pending_balance) as f64 / SATOSHI_TO_BTC;  //p ver de poner ambos pendings
     update_balance(builder, available_balance.to_string().as_str());
     update_available_balance(builder, pending_balance.to_string().as_str());
     update_pending_balance(builder,available_balance.to_string().as_str());

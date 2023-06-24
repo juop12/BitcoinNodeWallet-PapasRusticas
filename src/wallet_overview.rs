@@ -1,6 +1,6 @@
 use gtk::prelude::*;
 use crate::UiError;
-use gtk::{Builder,Label,Button};
+use gtk::{Builder,Label};
 
 pub fn update_available_balance(builder :&Builder, amount :&str) {
     let available_label: Label = match builder.object("availableQuantity"){

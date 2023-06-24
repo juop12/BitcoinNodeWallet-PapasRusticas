@@ -122,7 +122,7 @@ impl VersionMessage {
         if slice[80..].is_empty() {
             return None;
         }
-        let user_agent_length = VarLenInt::from_bytes(&slice[80..]);
+        let user_agent_length = VarLenInt::from_bytes(&slice[80..])?;
         let amount_of_bytes = user_agent_length.amount_of_bytes();
 
         let version_msg = VersionMessage {
@@ -275,7 +275,7 @@ mod tests {
         let (receiver_socket, sender_socket) = create_socket();
 
         let mut expected_version_msg = VersionMessage::new(70015, receiver_socket, sender_socket)?;
-        expected_version_msg.user_agent_length = VarLenInt::from_bytes(&[253, 4, 0]);
+        expected_version_msg.user_agent_length = VarLenInt::from_bytes(&[253, 4, 0]).unwrap();
         expected_version_msg.user_agent = Vec::from("test");
 
         let version_msg =

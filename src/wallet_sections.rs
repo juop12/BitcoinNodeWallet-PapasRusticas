@@ -2,11 +2,12 @@ use gtk::prelude::*;
 use gtk::{Box,ComboBoxText,Builder,Entry,Dialog,Button};
 use crate::UiError;
 use crate::wallet_persistance::*;
+use std::sync::mpsc::Sender;
+use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
 
+const PRIV_KEY_LEN_BASE_58: usize = 52;
 
-const PRIV_KEY_LEN_BASE_58: usize = 1;
-
-fn handle_add_wallet(builder: &Builder){
+fn handle_add_wallet(builder: &Builder, sender: &Sender<UIRequest>){
     let name: Entry = builder.object("Wallet Adder Name Entry").unwrap();
     let priv_key: Entry = builder.object("Wallet Adder Private Key Entry").unwrap();
     let invalid_key_dialog: Dialog = builder.object("Invalid Private Key Dialog").unwrap();
@@ -22,7 +23,11 @@ fn handle_add_wallet(builder: &Builder){
     }
     
     let success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").unwrap();
-    //let wallet = UIRequest::ChangeWallet(priv_key_text.try_into().unwrap());
+    let priv_key_string = priv_key_text.to_string();
+    let wallet = UIRequest::ChangeWallet(priv_key_string);
+    sender.send(wallet).unwrap();
+    sender.send(UIRequest::Update).unwrap();
+    sender.send(UIRequest::LastBlockInfo).unwrap();
     wallet_selector.append(Some(&priv_key_text),&name_text);
     
     name.set_text("");
@@ -60,7 +65,7 @@ pub fn initialize_wallet_selector(builder: &Builder){
     wallet_selector.set_active(Some(0));
 }
 
-pub fn initialize_wallet_adder_actions(builder: &Builder) {
+pub fn initialize_wallet_adder_actions(builder: &Builder, sender: &Sender<UIRequest>){
     let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
     let cancel_button: Button = builder.object("Wallet Adder Cancel Button").unwrap();
     let add_button: Button = builder.object("Wallet Adder Add Button").unwrap();
@@ -69,13 +74,14 @@ pub fn initialize_wallet_adder_actions(builder: &Builder) {
     let success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").unwrap();
     let success_button: Button = builder.object("Wallet Adder Success Button").unwrap();
 
+    let sender_clone = sender.clone();
     let wallet_adder_clone = wallet_adder.clone();
     cancel_button.connect_clicked(move |_| {
         wallet_adder.hide();
     });
     let builder_clone = builder.clone();
     add_button.connect_clicked(move |_| {
-        handle_add_wallet(&builder_clone);
+        handle_add_wallet(&builder_clone, &sender_clone);
     });
 
     invalid_key_button.connect_clicked(move |_| {

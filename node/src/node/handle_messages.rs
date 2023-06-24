@@ -130,7 +130,7 @@ pub fn handle_tx_message(msg_bytes: Vec<u8>, safe_pending_tx: &SafePendingTx) ->
         Ok(tx_msg) => tx_msg.tx,
         Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
     };
-
+    
     let mut pending_tx = safe_pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)?;
     pending_tx.insert(tx.hash(), tx);
     println!("Pending tiene {}", pending_tx.len());

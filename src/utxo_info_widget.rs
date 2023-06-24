@@ -1,4 +1,4 @@
-use node::utils::ui_communication::{UTxOInfo, TxInfo};
+use node::utils::ui_communication_protocol::{UTxOInfo, TxInfo};
 use gtk::prelude::*;
 use gtk::{Label , Box, Orientation, Align};
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
