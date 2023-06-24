@@ -8,7 +8,6 @@ use std::time::Instant;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use std::sync::mpsc;
 
-
 pub fn initialize_node(args: Vec<String>)->Option<Node>{
     if args.len() != 2 {
         eprintln!("cantidad de argumentos inválida");
@@ -78,7 +77,7 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
 
     let mut program_running = true;
     while program_running{
-        if last_update_time.elapsed() > Duration::from_secs(5){
+        if last_update_time.elapsed() < Duration::from_secs(5){
             if let Ok(request) = receiver.try_recv(){
                 wallet = wallet.handle_ui_request(&mut node, request, &sender_to_ui, &mut program_running).expect("Error handeling ui request");
             }

@@ -777,6 +777,7 @@ dependencies = [
 name = "proyecto"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "gio",
  "glib 0.17.10",
  "gtk",

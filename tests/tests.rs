@@ -67,7 +67,7 @@ mod test {
         let wallet = Wallet::from("cSDPYr9FfseHx8jbjrnz9ryERswMkv6vKSccomu1ShfrJXj2d65Z".to_string()).unwrap();
         let (glib_sender, _glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
 
-        let wallet = wallet.handle_change_wallet(&mut node, "cPvHucStvVrMmvkPY7pixfnJC6m3hhRRjAWaRDjeghqBae8DG3BB".to_string(), &glib_sender).unwrap();
+        let wallet = wallet.handle_change_wallet(&mut node, "cPvHucStvVrMmvkPY7pixfnJC6m3hhRRjAWaRDjeghqBae8DG3BB".to_string()).unwrap();
         assert_eq!(wallet.balance, 70000);
         assert_eq!(wallet.utxos.len(), 1);
         //assert_eq!( Vec::from(wallet.utxos.keys().collect::<Vec<&Outpoint>>()[0].hash) , get_bytes_from_hex("4657cacadae490c74a393dd288b94849622e79c819129d89323bac92370b5578".to_string()));
@@ -80,7 +80,7 @@ mod test {
         let wallet = Wallet::from("cSDPYr9FfseHx8jbjrnz9ryERswMkv6vKSccomu1ShfrJXj2d65Z".to_string()).unwrap();
         let (glib_sender, _glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
 
-        let wallet = wallet.handle_change_wallet(&mut node, "cPvHucStvVrMmvkPY7pixfnJC6m3hhRRjAWaRDjeghqBae8DG3BB".to_string(), &glib_sender).unwrap();
+        let wallet = wallet.handle_change_wallet(&mut node, "cPvHucStvVrMmvkPY7pixfnJC6m3hhRRjAWaRDjeghqBae8DG3BB".to_string()).unwrap();
         if let UIResponse::WalletInfo(wallet_info) = wallet.handle_update(){
             assert_eq!(wallet_info.available_balance, 70000);
             assert_eq!(wallet_info.sending_pending_balance, 0);

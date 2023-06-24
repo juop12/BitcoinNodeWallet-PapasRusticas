@@ -88,7 +88,12 @@ impl Node {
 
     pub fn get_block_info_from(&self, block_number: usize) -> Result<BlockInfo, NodeError>{
         let hash = match self.get_block_headers(){
-            Ok(block_headers) => block_headers[block_number - 1].hash(),
+            Ok(block_headers) => {
+                if block_number - 1 >= block_headers.len(){
+                    return Err(NodeError::ErrorFindingBlock);
+                }
+                block_headers[block_number - 1].hash()
+            }
             Err(error) => return Err(error),
         };
 

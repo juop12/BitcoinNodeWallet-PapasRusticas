@@ -55,7 +55,7 @@ pub enum MessageError {
     ErrorCreatingNotFoundMessage,
     ErrorSendingNotFoundMessage,
     ErrorSendingBlockHeadersMessage,
-    ErrorSendingTxMessage
+    ErrorSendingTxMessage,
 }
 
 impl BtcError for MessageError {}
@@ -135,7 +135,7 @@ pub enum NodeError {
     ErrorGettingTx,
     ErrorSendingTransaction,
     ErrorNotEnoughSatoshis,
-    ErrorFindingBlock
+    ErrorFindingBlock,
 }
 
 impl BtcError for NodeError {}
@@ -161,7 +161,7 @@ pub enum WalletError {
     ErrorSendingToUI,
     ErrorSetingWallet,
     ErrorFindingBlock,
-    ErrorGettingBlockInfo
+    ErrorGettingBlockInfo,
 }
 
 impl BtcError for WalletError {}

@@ -49,7 +49,7 @@ impl BlockHeadersMessage {
 
     /// Creates a new BlockHeadersMessage from a slice of bytes.
     fn _from_bytes(slice: &[u8]) -> Option<BlockHeadersMessage> {
-        let count = VarLenInt::from_bytes(slice);
+        let count = VarLenInt::from_bytes(slice)?;
 
         if (count.to_usize() * 81 + count.amount_of_bytes()) != slice.len() {
             return None;
@@ -113,7 +113,7 @@ mod tests {
         block_headers.push(b_h1);
         block_headers.push(b_h2);
 
-        let count = VarLenInt::from_bytes(&expected_bytes);
+        let count = VarLenInt::from_bytes(&expected_bytes).unwrap();
         let block_headers_message = BlockHeadersMessage::new(block_headers, count);
 
         assert_eq!(block_headers_message.to_bytes(), expected_bytes);
@@ -127,7 +127,7 @@ mod tests {
         block_headers.push(b_h1);
         block_headers.push(b_h2);
 
-        let count = VarLenInt::from_bytes(&expected_bytes);
+        let count = VarLenInt::from_bytes(&expected_bytes).unwrap();
         let expected_block_headers_message = BlockHeadersMessage::new(block_headers, count);
 
         let block_headers_message = BlockHeadersMessage::from_bytes(&mut expected_bytes)?;

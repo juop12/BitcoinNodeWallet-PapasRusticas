@@ -23,10 +23,11 @@ const OP_CHECKSIG_POSITION: usize = 24;
 const SIGHASH_ALL :[u8;4] = [0x01, 0x00, 0x00, 0x00]; // Already in BigEndian
 
 /// Struct that represents the Outpoint, that is used in the TxIn struct.
+
 #[derive(Eq, Hash, Debug, PartialEq, Clone, Copy)]
 pub struct Outpoint {
     pub hash: [u8; 32],
-    index: u32,
+    pub index: u32,
 }
 
 /// Struct that represents the TxIn used in the struct Transaction.
@@ -121,15 +122,20 @@ impl TxOut {
             Some(value) => i64::from_le_bytes(value),
             None => return Err(TransactionError::ErrorCreatingTxOutFromBytes),
         };
-        let pk_script_length = VarLenInt::from_bytes(&slice[8..]);
-        let (_left_bytes, slice) = slice.split_at(8 + pk_script_length.amount_of_bytes());
-        let pk_script = slice[0..pk_script_length.to_usize()].to_vec();
+        match VarLenInt::from_bytes(&slice[8..]){
+            Some(pk_script_length) => {
+                let (_left_bytes, slice) = slice.split_at(8 + pk_script_length.amount_of_bytes());
+                let pk_script = slice[0..pk_script_length.to_usize()].to_vec();
 
-        Ok(TxOut {
-            value,
-            pk_script_length,
-            pk_script,
-        })
+                Ok(TxOut {
+                    value,
+                    pk_script_length,
+                    pk_script,
+                })
+            },
+            None => Err(TransactionError::ErrorCreatingTxOutFromBytes),
+        }
+        
     }
 
     /// Returns the amount of bytes that the TxOut need to represent the TxOut.
@@ -220,7 +226,10 @@ impl TxIn {
         }
         let (prev_out_bytes, slice) = slice.split_at(OUTPOINT_BYTES);
         let previous_output = Outpoint::from_bytes(prev_out_bytes)?;
-        let script_length = VarLenInt::from_bytes(slice);
+        let script_length = match VarLenInt::from_bytes(slice){
+            Some(script_length) => script_length,
+            None => return Err(TransactionError::ErrorCreatingTxInFromBytes),
+        };
         let (_script_length_bytes, slice) = slice.split_at(script_length.amount_of_bytes());
         if slice.len() < script_length.to_usize() + 4 {
             return Err(TransactionError::ErrorCreatingTxInFromBytes);
@@ -248,7 +257,10 @@ impl TxIn {
 
     /// Returns true if the pk_script of the tx_out follows the p2pkh protocol
     pub fn belongs_to(&self, pub_key: &PublicKey) -> bool{
-        let sig_len = VarLenInt::from_bytes(&self.signature_script);
+        let sig_len = match VarLenInt::from_bytes(&self.signature_script){
+            Some(sig_len) => sig_len,
+            None => return false,
+        };
         
         if sig_len.to_usize() >= self.script_length.to_usize(){
             return false;
@@ -256,7 +268,10 @@ impl TxIn {
 
         let (_sig, bytes_left) = self.signature_script.split_at(sig_len.to_usize() + sig_len.amount_of_bytes());
         
-        let pub_key_len = VarLenInt::from_bytes(&bytes_left);
+        let pub_key_len = match VarLenInt::from_bytes(&bytes_left){
+            Some(pub_key_len) => pub_key_len,
+            None => return false,
+        };
 
         if pub_key_len.to_usize() != PUBLIC_KEY_SIZE{
             return false
@@ -400,7 +415,10 @@ impl Transaction {
     /// the corresponding fields. If it can, it returns the Transaction, if not, it returns None
     fn _from_bytes(slice: &[u8]) -> Option<Transaction> {
         let version = i32::from_le_bytes(slice[0..4].try_into().ok()?);
-        let tx_in_count = VarLenInt::from_bytes(&slice[4..]);
+        let tx_in_count = match VarLenInt::from_bytes(&slice[4..]){
+            Some(var_len_int) => var_len_int,
+            None => return None,
+        };
         let (mut _used_bytes, mut slice) = slice.split_at(4 + tx_in_count.amount_of_bytes());
 
         let mut tx_in: Vec<TxIn> = Vec::new();
@@ -410,7 +428,11 @@ impl Transaction {
             tx_in.push(tx);
         }
 
-        let tx_out_count = VarLenInt::from_bytes(slice);
+        let tx_out_count = match VarLenInt::from_bytes(slice){
+            Some(var_len_int) => var_len_int,
+            None => return None
+        };
+        
         (_used_bytes, slice) = slice.split_at(tx_out_count.amount_of_bytes());
 
         let mut tx_out: Vec<TxOut> = Vec::new();

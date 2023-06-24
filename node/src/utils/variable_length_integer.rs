@@ -30,7 +30,10 @@ impl VarLenInt {
     }
 
     /// Creates a new VarLenInt from a slice of bytes.
-    pub fn from_bytes(slice: &[u8]) -> VarLenInt {
+    pub fn from_bytes(slice: &[u8]) -> Option<VarLenInt> {
+        if slice.is_empty(){
+            return None;
+        }
         let mut bytes = Vec::new();
         let mut amount_of_bytes = 1;
         if slice[0] == 0xfd {
@@ -42,10 +45,13 @@ impl VarLenInt {
         if slice[0] == 0xff {
             amount_of_bytes = 9;
         }
+        if slice.len() < amount_of_bytes{
+            return None;
+        }
         for byte in slice.iter().take(amount_of_bytes) {
             bytes.push(*byte);
         }
-        VarLenInt { bytes }
+        Some(VarLenInt { bytes })
     }
 
     /// Returns the value of the VarLenInt as a usize.

@@ -7,7 +7,6 @@ use crate::wallet::Wallet;
 pub const TX_PAGE_LENGTH: usize = 30;
 pub const BLOCK_PAGE_LENGTH: usize = 10;
 
-
 pub enum UIToWalletCommunication {
     ChangeWallet(/* private key*/String),    //ui se tiene que fijar que las longitudes esten bien, ya sea en hexa o en base 58. La wallet dependiendo de la cantidad lo pasa a array, y cambia la wallet. 
     CreateTx(/* amount*/i64, /* fee*/i64, /*addres */String),         //ui manda en distintas bases el adrress, se fijan las longitudes
@@ -15,7 +14,7 @@ pub enum UIToWalletCommunication {
     //ObtainTxProof,
     EndOfProgram,
     LastBlockInfo,
-    NextBlockInfo, //p temporalmente como string, despues creamos el tipo de dato correspondiente
+    NextBlockInfo,
     PrevBlockInfo,
 }
 
@@ -52,6 +51,7 @@ impl WalletInfo{
     }
 }
 
+#[derive(Clone)]
 pub struct UTxOInfo{
     pub outpoint: Outpoint,
     pub amount: i64,
