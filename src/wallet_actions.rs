@@ -67,8 +67,8 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
     //let pending_balance:  f64 = wallet_info.pending_balance as f64 / SATOSHI_TO_BTC;
     let pending_balance: f64 = (wallet_info.sending_pending_balance + wallet_info.receiving_pending_balance) as f64 / SATOSHI_TO_BTC;  //p ver de poner ambos pendings
     update_balance(builder, available_balance.to_string().as_str());
-    update_available_balance(builder, pending_balance.to_string().as_str());
-    update_pending_balance(builder,available_balance.to_string().as_str());
+    update_available_balance(builder, available_balance.to_string().as_str());
+    update_pending_balance(builder,pending_balance.to_string().as_str());
     
     for utxo in wallet_info.utxos.clone(){
         utxo_list.insert(&build_utxo_info(&utxo),-1);

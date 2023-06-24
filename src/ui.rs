@@ -146,3 +146,7 @@ pub fn start_app(args: Vec<String>){
     let vector: Vec<String> = Vec::new();
     application.run_with_args(&vector);
 }
+
+fn handle_window_end(){
+    todo!()
+}
