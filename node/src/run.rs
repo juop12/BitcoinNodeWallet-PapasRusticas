@@ -164,3 +164,15 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
     
     node.logger.log(String::from("program finished gracefully"));
 }
+
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test1(){
+        let node = initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
+
+        
+    }
+}

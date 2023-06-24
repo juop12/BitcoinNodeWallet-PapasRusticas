@@ -1,7 +1,13 @@
 mod test {
+    use std::sync::mpsc;
+    use std::thread;
+
     use node::node::*;
+    use node::run::run;
     use node::utils::btc_errors::NodeError;
     use node::utils::config::*;
+    use node::utils::ui_communication_protocol::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
+    use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 
 
     const BEGIN_TIME_EPOCH: u32 = 1681084800; // 2023-04-10
