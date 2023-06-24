@@ -13,12 +13,12 @@ const MINIMAL_BLOCK_SIZE: usize = 81;
 /// Struct that represents the header of a block
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockHeader {
-    version: i32,
-    prev_hash: [u8; 32],
-    merkle_root_hash: [u8; 32],
+    pub version: i32,
+    pub prev_hash: [u8; 32],
+    pub merkle_root_hash: [u8; 32],
     pub time: u32,
-    n_bits: u32,
-    nonce: u32,
+    pub n_bits: u32,
+    pub nonce: u32,
 }
 
 /// Struct that represents a block
@@ -94,6 +94,10 @@ impl BlockHeader {
     /// It returns the hash of the BlockHeader.
     pub fn hash(&self) -> [u8; 32] {
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
+    }
+
+    pub fn hash_as_string(&self) -> String {
+        sha256d::Hash::hash(&self.to_bytes()).to_string()
     }
 
     /// It returns the n_bits of the BlockHeader. The n_bits are used to calculate the target threshold.

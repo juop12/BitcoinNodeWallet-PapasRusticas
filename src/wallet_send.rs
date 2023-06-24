@@ -111,3 +111,20 @@ fn activate_send_button(builder: &Builder) {
     });
 
 }
+
+pub fn update_adjustments_max_value(builder: &Builder){
+    let balance_amount: Label = match builder.object("BalanceAmount"){
+        Some(balance_label) => balance_label,
+        None => return,
+    };
+    let send_amount_adjustment: Adjustment = match builder.object("Amount Adjustment"){
+        Some(adjustment) => adjustment,
+        None => return,
+    };
+    let fee_amount_adjustment: Adjustment = match builder.object("Fee Adjustment"){
+        Some(adjustment) => adjustment,
+        None => return,
+    };
+    send_amount_adjustment.set_upper(balance_amount.label().parse::<f64>().unwrap_or(0.0));
+    fee_amount_adjustment.set_upper(balance_amount.label().parse::<f64>().unwrap_or(0.0));
+}

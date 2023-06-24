@@ -7,7 +7,7 @@ pub const BLOCK_PAGE_LENGTH: usize = 10;
 
 pub enum UIToWalletCommunication {
     ChangeWallet(/* private key*/String),    //ui se tiene que fijar que las longitudes esten bien, ya sea en hexa o en base 58. La wallet dependiendo de la cantidad lo pasa a array, y cambia la wallet. 
-    CreateTx(/* amount*/i64, /* fee*/i64, /*addres */),         //ui manda en distintas bases el adrress, se fijan las longitudes
+    CreateTx(/* amount*/i64, /* fee*/i64, /*addres */String),         //ui manda en distintas bases el adrress, se fijan las longitudes
     Update,  //la wallet devuelve, un struct, con el balance, unspent balance, pagina actual de tx, ultimos 5 o 10headers
     //ObtainTxProof,
     LastBlockInfo,
@@ -38,9 +38,9 @@ pub struct UTxOInfo{
 }
 
 pub struct BlockInfo{
-    block_number: usize,
-    block_tx_hash: Vec<[u8;32]>,
-    block_header: BlockHeader,
+    pub block_number: usize,
+    pub block_tx_hash: Vec<[u8; 32]>,
+    pub block_header: BlockHeader,
 }
 
 pub struct TxInfo{

@@ -1,15 +1,17 @@
 use crate::node::*;
-use crate::utils::ui_communication;
+use crate::utils::ui_communication::{BlockInfo};
 use crate::wallet::*;
+use crate::blocks::blockchain::{BlockHeader};
 use crate::utils::config::*;
 use crate::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
-//use user_interface::start_app;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 use bs58::*;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use std::sync::mpsc;
+use bitcoin_hashes::{sha256d, Hash};
+use std::str;
 
 pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mpsc::Receiver<UIRequest>) {
     

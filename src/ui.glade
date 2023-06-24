@@ -69,10 +69,10 @@
   </object>
   <object class="GtkTreeStore" id="TxTreeStore">
     <columns>
-      <!-- column-name BlockHeader_column -->
+      <!-- column-name Block Header Column -->
       <column type="gchararray"/>
-      <!-- column-name TxIndexColumn -->
-      <column type="gint"/>
+      <!-- column-name Tx Index Column -->
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkWindow" id="Ventana">
@@ -87,74 +87,6 @@
         <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkMenuBar" id="UserOptions">
-            <property name="name">Opciones de usuario</property>
-            <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <child>
-              <object class="GtkMenuItem">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">_File</property>
-                <property name="use-underline">True</property>
-                <child type="submenu">
-                  <object class="GtkMenu">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                    <child>
-                      <object class="GtkSeparatorMenuItem">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkMenuItem">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">_Edit</property>
-                <property name="use-underline">True</property>
-                <child type="submenu">
-                  <object class="GtkMenu">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-            <child>
-              <object class="GtkMenuItem">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">_View</property>
-                <property name="use-underline">True</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkMenuItem">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">_Help</property>
-                <property name="use-underline">True</property>
-                <child type="submenu">
-                  <object class="GtkMenu">
-                    <property name="visible">True</property>
-                    <property name="can-focus">False</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
         <child>
           <object class="GtkBox" id="Selector y Wallet">
             <property name="name">Selector y WIdget</property>
@@ -626,21 +558,6 @@
                         <property name="position">1</property>
                       </packing>
                     </child>
-                    <child>
-                      <object class="GtkButton" id="Add Recipient Button">
-                        <property name="label" translatable="yes">Add Recipient</property>
-                        <property name="name">Add Recipient Button</property>
-                        <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="receives-default">True</property>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">2</property>
-                        <property name="non-homogeneous">True</property>
-                      </packing>
-                    </child>
                   </object>
                   <packing>
                     <property name="x">50</property>
@@ -697,16 +614,21 @@
                     <child>
                       <object class="GtkLabel" id="Fee Amount Label">
                         <property name="name">Fee Amount Label</property>
-                        <property name="width-request">70</property>
+                        <property name="width-request">69</property>
                         <property name="height-request">40</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="halign">start</property>
-                        <property name="label" translatable="yes">Fee:</property>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">False</property>
+                        <property name="label" translatable="yes">    Fee:</property>
+                        <attributes>
+                          <attribute name="font-desc" value="Khmer OS System 12"/>
+                        </attributes>
                       </object>
                       <packing>
                         <property name="expand">False</property>
-                        <property name="fill">True</property>
+                        <property name="fill">False</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
@@ -728,7 +650,7 @@
                   </object>
                   <packing>
                     <property name="x">40</property>
-                    <property name="y">190</property>
+                    <property name="y">160</property>
                   </packing>
                 </child>
                 <child>
@@ -743,7 +665,11 @@
                         <property name="height-request">39</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">Total Amount to be sent:</property>
+                        <property name="label" translatable="yes">Total Amount to be sent:   </property>
+                        <attributes>
+                          <attribute name="font-desc" value="Khmer OS System 12"/>
+                          <attribute name="foreground" value="#f5f5c2c21111"/>
+                        </attributes>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -756,6 +682,10 @@
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">0.000</property>
+                        <attributes>
+                          <attribute name="font-desc" value="Khmer OS System 12"/>
+                          <attribute name="foreground" value="#f5f5c2c21111"/>
+                        </attributes>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -766,7 +696,7 @@
                   </object>
                   <packing>
                     <property name="x">40</property>
-                    <property name="y">250</property>
+                    <property name="y">220</property>
                   </packing>
                 </child>
               </object>
@@ -812,9 +742,9 @@
                                 <property name="fixed-width">70</property>
                                 <property name="title" translatable="yes">Index</property>
                                 <child>
-                                  <object class="GtkCellRendererProgress"/>
+                                  <object class="GtkCellRendererText"/>
                                   <attributes>
-                                    <attribute name="value">1</attribute>
+                                    <attribute name="text">1</attribute>
                                   </attributes>
                                 </child>
                               </object>
@@ -903,7 +833,7 @@
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="halign">end</property>
-                            <property name="label" translatable="yes">Header Hash:</property>
+                            <property name="label" translatable="yes">Header Hash:  </property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
@@ -911,12 +841,13 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel" id="N_bits Label">
+                          <object class="GtkLabel" id="Merkle Root Label">
+                            <property name="name">Merkle Root Label</property>
                             <property name="height-request">20</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="halign">end</property>
-                            <property name="label" translatable="yes">N_Bits:</property>
+                            <property name="label" translatable="yes">Merkle Root:  </property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
@@ -929,7 +860,7 @@
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="halign">end</property>
-                            <property name="label" translatable="yes">Transaction Count:</property>
+                            <property name="label" translatable="yes">Transaction Count:  </property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
@@ -942,7 +873,7 @@
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="halign">end</property>
-                            <property name="label" translatable="yes">Previous Header Hash:</property>
+                            <property name="label" translatable="yes">Previous Header Hash:  </property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
@@ -955,7 +886,7 @@
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="halign">end</property>
-                            <property name="label" translatable="yes">Date:</property>
+                            <property name="label" translatable="yes">Date:  </property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
@@ -966,6 +897,8 @@
                           <object class="GtkLabel" id="Header Hash">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="hexpand">False</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
@@ -976,6 +909,8 @@
                           <object class="GtkLabel" id="Previous Header Hash">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="hexpand">False</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
@@ -983,9 +918,12 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel" id="N_bits">
+                          <object class="GtkLabel" id="Merkle Root">
+                            <property name="name">Merkle Root</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="hexpand">False</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
@@ -996,6 +934,8 @@
                           <object class="GtkLabel" id="Date">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="hexpand">False</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
@@ -1006,6 +946,8 @@
                           <object class="GtkLabel" id="Transaction Count">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
+                            <property name="halign">start</property>
+                            <property name="hexpand">False</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
@@ -1016,9 +958,10 @@
                     </child>
                     <child type="label">
                       <object class="GtkLabel" id="Block Header Frame Label">
+                        <property name="name">Block Header Frame Label</property>
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="label" translatable="yes">CURRENT BLOCK HEADER</property>
+                        <property name="label" translatable="yes">CURRENT BLOCK HEADER: BLOCK </property>
                         <attributes>
                           <attribute name="weight" value="ultrabold"/>
                           <attribute name="foreground" value="#f5f5c2c21111"/>
