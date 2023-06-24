@@ -89,94 +89,10 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
         }
     }
 
-    // Inicio de wallets.
-    //=========================================================================
-    
-    //let pub_key = get_bytes_from_hex("0357DD612F9E51D01C5CAC8435CB6C401571507CAFE309E4A9BB48A40B118BF8FF");
-    //let priv_key = get_bytes_from_hex("8A392784292092B1941F8A72B094371604518F5530A58D66CA9DE37E356F8BBB");
-    /* 
-    let receiver_address = "miHXVsyAd3dG78Ri78NUmAfCyoHXaYkibp";
-    let priv_key = "cSDPYr9FfseHx8jbjrnz9ryERswMkv6vKSccomu1ShfrJXj2d65Z";
-    
-    // Address de prueba para enviar.
-    println!("por crear la walle");
-    let mut wallet = Wallet::from(priv_key.to_string()).unwrap();
-    
-    println!("por setee la wallet");
-    node.set_wallet(wallet.get_pk_hash());
-    
-    let address_bytes = bs58::decode(receiver_address).into_vec().unwrap();
-    let mut address: [u8;25] = [0;25];
-    address.copy_from_slice(&address_bytes);
-    
-    println!("por mandar la transaccion");
-    
-    //thread::sleep(Duration::from_secs(60));
-    wallet.create_transaction(&mut node, 70000, 30000, address).expect("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-    
-    let mut inicio = Instant::now(); 
-    
-    while(true){
-        //wallet le habla al nodo
-        node.update_utxo().unwrap();
-        wallet.update(node.balance);
-        
-        thread::sleep(Duration::from_secs(5));
-        //p esta version esta mejor porque despues podemos poner la respuesta a la ui ahi, para que sea en tiempo real con un time receive, pero que la wallet se ac
-        //if inicio.elapsed() > Duration::from_secs(5){
-        //    inicio = Instant::now();
-        //}
-        println!("Balance: {}",node.balance);
-        
-        //for (_,tx) in node.get_pending_tx().unwrap().iter(){
-        //    for tx_out in &tx.tx_out{
-        //        if tx_out.belongs_to(wallet.get_pk_hash()){
-        //            println!("hay en pending");
-        //        }
-        //    }
-        //}
-        
-    }
-
-    
-    while(){
-        wallet.ciclo_wallet(&node) => {
-            //recibis de la ui
-            //if ui quiere cambiar wallet
-            //      wallet llama a nodo.change_wallet(), se dropea y se instancia una nueva
-
-            //le pedis cosas al nodo
-        }
-        node.actualizar_wallet(&wallet) => {
-            //se actualiza el nodo a si mismo, tiene guardado cual es el ultimo bloque "procesado", y procesa los que le faltan
-            //wallet.actualizar(transaction);
-            
-            //tengo un nuevo pending
-            //me llego una transaccion a actualizar
-        }
-    }
-    */
-
     if let Err(error) = message_receiver.finish_receiving(){
         return eprintln!("{:?}", error)
         
     };
     
     node.logger.log(String::from("program finished gracefully"));
-}
-
-
-mod tests {
-    use crate::blocks::Outpoint;
-
-    use super::*;
-    use glib::{Sender as GlibSender, Receiver as GlibReceiver};
-
-    pub fn get_bytes_from_hex(hex_string: String) -> Vec<u8>{
-        hex_string
-            .as_bytes()
-            .chunks(2)
-            .map(|chunk| u8::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16).unwrap())
-            .collect::<Vec<u8>>()
-    }
 }
