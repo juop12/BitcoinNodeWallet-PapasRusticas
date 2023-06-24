@@ -29,11 +29,11 @@ pub enum WalletToUICommunication {
 }
 
 pub struct WalletInfo{
-    available_balance: i64,
-    receiving_pending_balance: i64,
-    sending_pending_balance: i64,
-    utxos: Vec<UTxOInfo>,
-    pending_tx: Vec<TxInfo>
+    pub available_balance: i64,
+    pub receiving_pending_balance: i64,
+    pub sending_pending_balance: i64,
+    pub utxos: Vec<UTxOInfo>,
+    pub pending_tx: Vec<TxInfo>
 }
 
 impl WalletInfo{
@@ -53,8 +53,8 @@ impl WalletInfo{
 }
 
 pub struct UTxOInfo{
-    outpoint: Outpoint,
-    amount: i64,
+    pub outpoint: Outpoint,
+    pub amount: i64,
 }
 
 impl UTxOInfo{
@@ -65,8 +65,8 @@ impl UTxOInfo{
 
 pub struct BlockInfo{
     pub block_number: usize,
-    block_header: BlockHeader,
-    block_tx_hashes: Vec<[u8;32]>,
+    pub block_header: BlockHeader,
+    pub block_tx_hashes: Vec<[u8;32]>,
 }
 
 impl BlockInfo{
@@ -81,7 +81,7 @@ impl BlockInfo{
 
 #[derive(Clone)]
 pub struct TxInfo{
-    hash: [u8;32],
+    pub hash: [u8;32],
     pub amount: i64, //positivo o negativo si sale
 }
 

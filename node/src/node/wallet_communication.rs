@@ -99,8 +99,8 @@ impl Node {
         let last_block_number;
         let last_hash = match self.get_block_headers(){
             Ok(block_headers) => {
-                last_block_number = block_headers.len() - 1;
-                block_headers[last_block_number].hash()
+                last_block_number = block_headers.len();
+                block_headers[last_block_number - 1].hash()
             }
             Err(error) => return Err(error),
         };

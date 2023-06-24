@@ -9,7 +9,7 @@ use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use std::sync::mpsc;
 
 
-fn initialize_node(args: Vec<String>)->Option<Node>{
+pub fn initialize_node(args: Vec<String>)->Option<Node>{
     if args.len() != 2 {
         eprintln!("cantidad de argumentos inválida");
         return None;
@@ -167,12 +167,16 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
 
 
 mod tests {
+    use crate::blocks::Outpoint;
+
     use super::*;
+    use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 
-    #[test]
-    fn test1(){
-        let node = initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
-
-        
+    pub fn get_bytes_from_hex(hex_string: String) -> Vec<u8>{
+        hex_string
+            .as_bytes()
+            .chunks(2)
+            .map(|chunk| u8::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16).unwrap())
+            .collect::<Vec<u8>>()
     }
 }
