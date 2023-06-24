@@ -135,6 +135,7 @@ pub enum NodeError {
     ErrorGettingTx,
     ErrorSendingTransaction,
     ErrorNotEnoughSatoshis,
+    ErrorFindingBlock
 }
 
 impl BtcError for NodeError {}
@@ -158,7 +159,9 @@ pub enum WalletError {
     ErrorCreatingTx,
     ErrorNotEnoughSatoshis,
     ErrorSendingToUI,
-    ErrorSetingWallet
+    ErrorSetingWallet,
+    ErrorFindingBlock,
+    ErrorGettingBlockInfo
 }
 
 impl BtcError for WalletError {}

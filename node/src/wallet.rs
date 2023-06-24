@@ -21,6 +21,7 @@ pub struct Wallet{
     pub sending_pending_balance: i64,
     pub pending_tx: Vec<TxInfo>,
     pub utxos: HashMap<Outpoint, i64>,
+    current_block: usize,
 }
 
 impl Wallet{
@@ -34,6 +35,7 @@ impl Wallet{
             sending_pending_balance: 0,
             pending_tx: Vec::new(),
             utxos: HashMap::new(),
+            current_block: 0,
         }
     }
 

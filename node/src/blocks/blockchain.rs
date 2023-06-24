@@ -190,6 +190,10 @@ impl Block {
         &self.transactions
     }
 
+    pub fn get_tx_hashes(&self) -> Vec<[u8;32]>{
+        self.transactions.iter().map(|tx| tx.hash()).collect()
+    }
+
     pub fn header_hash(&self) -> [u8;32]{
         self.get_header().hash()
     }

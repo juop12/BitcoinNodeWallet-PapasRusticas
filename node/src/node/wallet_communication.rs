@@ -1,6 +1,6 @@
 use crate::{node::Node,
     wallet::Wallet,
-    utils::{btc_errors::NodeError, ui_communication_protocol::TxInfo},
+    utils::{btc_errors::NodeError, ui_communication_protocol::TxInfo, BlockInfo},
     blocks::Transaction,
     messages::{message_trait::*, TxMessage}
 };
@@ -71,6 +71,41 @@ impl Node {
         self.update_pending_tx(wallet)?;
         
         Ok(())
+    }
+
+    fn get_block_info(&self, hash: [u8; 32], block_number: usize) -> Result<BlockInfo, NodeError>{
+
+        let blockchain = self.get_blockchain()?;
+        let block = match blockchain.get(&hash){
+            Some(block) => block,
+            None =>  return Err(NodeError::ErrorFindingBlock),
+        };
+        
+        let block_info = BlockInfo::new(block_number, block.get_header(), block.get_tx_hashes());
+
+        Ok(block_info)
+    }
+
+    pub fn get_block_info_from(&self, block_number: usize) -> Result<BlockInfo, NodeError>{
+        let hash = match self.get_block_headers(){
+            Ok(block_headers) => block_headers[block_number - 1].hash(),
+            Err(error) => return Err(error),
+        };
+
+        self.get_block_info(hash, block_number)
+    }
+
+    pub fn get_last_block_info(&self) -> Result<BlockInfo, NodeError>{
+        let last_block_number;
+        let last_hash = match self.get_block_headers(){
+            Ok(block_headers) => {
+                last_block_number = block_headers.len() - 1;
+                block_headers[last_block_number].hash()
+            }
+            Err(error) => return Err(error),
+        };
+
+        self.get_block_info(last_hash, last_block_number)
     }
 
     ///-

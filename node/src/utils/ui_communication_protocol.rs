@@ -64,9 +64,19 @@ impl UTxOInfo{
 }
 
 pub struct BlockInfo{
-    block_number: usize,
-    block_tx_hash: Vec<[u8;32]>,
+    pub block_number: usize,
     block_header: BlockHeader,
+    block_tx_hashes: Vec<[u8;32]>,
+}
+
+impl BlockInfo{
+    pub fn new(block_number: usize, block_header: BlockHeader, block_tx_hashes: Vec<[u8;32]>) -> BlockInfo{
+        BlockInfo {
+            block_number,
+            block_header,
+            block_tx_hashes
+        }
+    }
 }
 
 #[derive(Clone)]
