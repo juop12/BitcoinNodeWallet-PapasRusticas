@@ -7,6 +7,9 @@
 # Ignora todos los archivos con data.
 node/data/*.bin
 
+# Ignora la data de las wallets
+src/wallets.csv
+
 # Ignora todos los archivos de prueba.
 tests_txt/*.bin
 tests_txt/*.txt

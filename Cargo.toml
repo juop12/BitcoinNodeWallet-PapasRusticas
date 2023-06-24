@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+chrono = "0.4.19"
 gtk = {git = "https://github.com/gtk-rs/gtk3-rs.git" }
 gio = { git = "https://github.com/gtk-rs/gtk-rs-core.git", package = "gio" }
 glib = "0.17.10"

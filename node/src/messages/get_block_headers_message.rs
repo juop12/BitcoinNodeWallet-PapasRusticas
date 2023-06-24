@@ -69,7 +69,7 @@ impl GetBlockHeadersMessage {
     /// Receives a slice of bytes and returns a GetBlockHeadersMessage.
     /// If anything fails, None is returned.
     fn _from_bytes(slice: &[u8]) -> Option<GetBlockHeadersMessage> {
-        let hash_count = VarLenInt::from_bytes(&slice[4..]);
+        let hash_count = VarLenInt::from_bytes(&slice[4..])?;
 
         if (hash_count.amount_of_bytes() + 32 + 4 + 32 * hash_count.to_usize()) != slice.len() {
             return None;

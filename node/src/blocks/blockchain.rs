@@ -13,12 +13,12 @@ const MINIMAL_BLOCK_SIZE: usize = 81;
 /// Struct that represents the header of a block
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockHeader {
-    version: i32,
-    prev_hash: [u8; 32],
-    merkle_root_hash: [u8; 32],
+    pub version: i32,
+    pub prev_hash: [u8; 32],
+    pub merkle_root_hash: [u8; 32],
     pub time: u32,
-    n_bits: u32,
-    nonce: u32,
+    pub n_bits: u32,
+    pub nonce: u32,
 }
 
 /// Struct that represents a block
@@ -96,6 +96,10 @@ impl BlockHeader {
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
 
+    pub fn hash_as_string(&self) -> String {
+        sha256d::Hash::hash(&self.to_bytes()).to_string()
+    }
+
     /// It returns the n_bits of the BlockHeader. The n_bits are used to calculate the target threshold.
     pub fn get_n_bits(&self) -> u32 {
         self.n_bits
@@ -144,7 +148,7 @@ impl Block {
     fn _from_bytes(slice: &[u8]) -> Option<Block> {
         let (header_bytes, mut slice) = slice.split_at(BLOCKHEADER_SIZE);
         let header = BlockHeader::from_bytes(header_bytes).ok()?;
-        let transaction_count = VarLenInt::from_bytes(slice);
+        let transaction_count = VarLenInt::from_bytes(slice)?;
         (_, slice) =
             slice.split_at(transaction_count.amount_of_bytes());
 
@@ -190,11 +194,15 @@ impl Block {
         &self.transactions
     }
 
+    pub fn get_tx_hashes(&self) -> Vec<[u8;32]>{
+        self.transactions.iter().map(|tx| tx.hash()).collect()
+    }
+
     pub fn header_hash(&self) -> [u8;32]{
         self.get_header().hash()
     }
 
-    pub fn get_utxos(&self)->Vec<(Vec<u8>, TxOut)>{
+    pub fn get_utxos(&self)->Vec<(Outpoint, TxOut)>{
         let mut utxos = Vec::new();
         
         for tx in &self.transactions{
@@ -202,10 +210,9 @@ impl Block {
                 //p ver si queremos nomas las p2pkh
                 if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
                     let outpoint = Outpoint::new(tx.hash(), index as u32);
-                    let tx_out_outpoint_bytes = outpoint.to_bytes();
                     let tx_out: TxOut = tx_out.clone();
 
-                    utxos.push((tx_out_outpoint_bytes, tx_out));
+                    utxos.push((outpoint, tx_out));
                 }
             }
         };

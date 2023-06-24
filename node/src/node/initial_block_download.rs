@@ -322,7 +322,7 @@ mod tests {
         
         let mut node = Node::new(config)?;
         let mut block_downloader = BlockDownloader::new(
-            node.get_tcp_streams(),
+            &node.tcp_streams,
             0,
             &node.block_headers,
             &node.blockchain,
