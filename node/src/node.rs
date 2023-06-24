@@ -4,22 +4,26 @@ pub mod handle_messages;
 pub mod handshake;
 pub mod initial_block_download;
 pub mod utxo_set;
+pub mod wallet_communication;
 
 
 use self::{
     peer_comunication::*,
     data_handler::NodeDataHandler,
-    handle_messages::*, message_receiver::{MessageReceiver},
+    handle_messages::*, 
+    message_receiver::MessageReceiver,
 };
 use crate::{
     blocks::{
         transaction::TxOut,
         blockchain::*,
-        proof::*, Transaction, Outpoint,
+        proof::*, 
+        Transaction, 
+        Outpoint,
     },
     messages::*,
     utils::btc_errors::NodeError,
-    utils::{config::*, log::*}, wallet::Wallet,
+    utils::{config::*, log::*},
 };
 use std::{
     collections::HashMap,
@@ -39,7 +43,7 @@ pub type SafePendingTx = Arc<Mutex<HashMap<[u8;32],Transaction>>>;
 pub struct Node {
     version: i32,
     sender_address: SocketAddr,
-    tcp_streams: Vec<TcpStream>,
+    pub tcp_streams: Vec<TcpStream>,
     data_handler: NodeDataHandler,
     block_headers: SafeVecHeader,
     starting_block_time: u32,
@@ -141,11 +145,6 @@ impl Node {
         socket_address_vector
     }
 
-    /// Returns a reference to the tcp_streams vector
-    pub fn get_tcp_streams(&self) -> &Vec<TcpStream> {
-        &self.tcp_streams
-    }
-
     /// Returns a MutexGuard to the blockchain HashMap. 
     pub fn get_blockchain(&self) -> Result<MutexGuard<HashMap<[u8; 32], Block>>, NodeError>{
         self.blockchain.lock().map_err(|_| NodeError::ErrorSharingReference)
@@ -161,8 +160,8 @@ impl Node {
         self.pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)
     }
 
-    /// Central function that contains the node's information flow.
-    pub fn run(&self) -> Result<MessageReceiver, NodeError> {
+    /// Creates a threadpool responsable for receiving threads.
+    pub fn start_receiving_messages(&self) -> Result<MessageReceiver, NodeError> {
 
         Ok(MessageReceiver::new(&self.tcp_streams, &self.blockchain, &self.block_headers, &self.pending_tx ,&self.logger))
     }
@@ -170,53 +169,6 @@ impl Node {
     fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
         let stream = &mut self.tcp_streams[stream_index];
         receive_message(stream, &self.block_headers, &self.blockchain, &self.pending_tx, &self.logger, ibd)
-    }
-
-    pub fn set_wallet(&mut self, wallet: &mut Wallet){
-        self.wallet_pk_hash = wallet.get_pk_hash();
-        (wallet.utxos, wallet.balance) = self.get_utxo_balance(self.wallet_pk_hash);
-        self.balance = wallet.balance;
-
-        //p setea pending
-        println!("balance {}",self.balance); //p
-    }
-
-    pub fn update(&mut self, wallet: &mut Wallet)-> Result<(), NodeError>{
-        self.update_utxo(&mut wallet.utxos)?;
-        wallet.balance = self.balance;
-        //self.update_pending_tx(wallet);
-        Ok(())
-    }
-
-    pub fn send_transaction(&mut self, transaction: Transaction) -> Result<(), NodeError>{
-        
-        let message = TxMessage::new(transaction);
-        let mut sent = false;
-        
-        for (i, stream) in self.tcp_streams.iter_mut().enumerate() {
-            self.logger.log(format!("mandando al peer{i}"));
-            println!("mandando al peer{i}");
-            if message.send_to(stream).is_ok(){
-                sent = true;
-            }
-        }
-        
-        if !sent {
-            return Err(NodeError::ErrorSendingTransaction);
-        }
-        
-        let transaction = message.tx;
-        
-        for txin in &transaction.tx_in{
-            self.utxo_set.remove(&txin.previous_output);
-        }
-
-        self.get_pending_tx()?.insert(transaction.hash(), transaction);
-        
-        self.logger.log(format!("Se envio una transaccion"));
-        println!("Se envio una transaccion"); //p
-        
-        Ok(())
     }
 }
 

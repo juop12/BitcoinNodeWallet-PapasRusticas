@@ -1,13 +1,13 @@
 use crate::node::*;
-use crate::utils::{ui_communication, BtcError};
+use crate::utils::BtcError;
 use crate::wallet::*;
 use crate::utils::config::*;
-use crate::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
-//use user_interface::start_app;
+use crate::utils::ui_communication_protocol::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
 use std::time::Duration;
 use std::time::Instant;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use std::sync::mpsc;
+
 
 fn initialize_node(args: Vec<String>)->Option<Node>{
     if args.len() != 2 {
@@ -51,7 +51,7 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
         None => return sender_to_ui.send(UIResponse::ErrorInitializingNode).expect("Error sending message to UI"),
     };
     
-    let message_receiver = match node.run() {
+    let message_receiver = match node.start_receiving_messages() {
         Ok(message_receiver) => message_receiver,
         Err(error) => return sender_to_ui.send(UIResponse::NodeRunningError(error)).expect("Error sending message to UI"),
     };
@@ -82,7 +82,6 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
             if let Ok(request) = receiver.try_recv(){
                 wallet = wallet.handle_ui_request(&mut node, request, &sender_to_ui, &mut program_running).expect("Error handeling ui request");
             }
-            last_update_time = Instant::now();
         }else{
             node.update(&mut wallet).unwrap();
             last_update_time = Instant::now();

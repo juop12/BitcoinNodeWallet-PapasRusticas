@@ -11,7 +11,7 @@ use crate::wallet_send::update_balance;
 use crate::wallet_send::activate_use_available_balance;
 use crate::wallet_send::activate_clear_all_button;
 use node::run::*;
-use node::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
+use node::utils::ui_communication_protocol::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
 
 pub enum UiError {
     FailedToBuildUi,

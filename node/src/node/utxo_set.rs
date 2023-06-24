@@ -77,7 +77,9 @@ impl Node {
 
     // Proccesses all blocks received between the last time a block was proccessed and now
     pub fn update_utxo(&mut self, wallet_utxos: &mut HashMap<Outpoint, i64>)->Result<(), NodeError>{
+
         println!("Updateando bloque {}", self.last_proccesed_block);
+
         let unproccesed_block_hash = match self.get_block_headers(){
             Ok(blockchain) => {
                 if self.last_proccesed_block >= blockchain.len(){
@@ -128,7 +130,7 @@ impl Node {
     }
     
     ///-
-    pub fn get_utxo_balance(&self, pk_hash: [u8; 20]) -> (HashMap<Outpoint, i64>,i64){
+    pub fn get_utxo_balance(&self, pk_hash: [u8; 20]) -> (HashMap<Outpoint, i64>, i64){
         let mut balance = 0;
         let mut wallet_utxos = HashMap::new();
 

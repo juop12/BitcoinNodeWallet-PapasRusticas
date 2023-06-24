@@ -3,8 +3,10 @@ use crate::blocks::BlockHeader;
 use crate::blocks::Outpoint;
 use crate::wallet::Wallet;
 
+
 pub const TX_PAGE_LENGTH: usize = 30;
 pub const BLOCK_PAGE_LENGTH: usize = 10;
+
 
 pub enum UIToWalletCommunication {
     ChangeWallet(/* private key*/String),    //ui se tiene que fijar que las longitudes esten bien, ya sea en hexa o en base 58. La wallet dependiendo de la cantidad lo pasa a array, y cambia la wallet. 
@@ -31,7 +33,7 @@ pub struct WalletInfo{
     receiving_pending_balance: i64,
     sending_pending_balance: i64,
     utxos: Vec<UTxOInfo>,
-    //pending_tx: Vec<TxInfo>
+    pending_tx: Vec<TxInfo>
 }
 
 impl WalletInfo{
@@ -45,6 +47,7 @@ impl WalletInfo{
             receiving_pending_balance: wallet.receiving_pending_balance,
             sending_pending_balance: wallet.sending_pending_balance,
             utxos,
+            pending_tx: wallet.pending_tx.clone(),
         }
     }
 }
@@ -66,7 +69,17 @@ pub struct BlockInfo{
     block_header: BlockHeader,
 }
 
+#[derive(Clone)]
 pub struct TxInfo{
     hash: [u8;32],
-    amount: i64, //positivo o negativo si sale
+    pub amount: i64, //positivo o negativo si sale
+}
+
+impl TxInfo{
+    pub fn new(hash: [u8;32], amount: i64) -> TxInfo{
+        TxInfo { 
+            hash, 
+            amount
+        }
+    }
 }

@@ -1,6 +1,7 @@
 pub mod handle_ui_requests;
 
 
+use crate::utils::ui_communication_protocol::TxInfo;
 use crate::{blocks::transaction::*, utils::WalletError};
 use secp256k1::{SecretKey, PublicKey, Secp256k1};
 use bitcoin_hashes::{hash160, Hash};
@@ -13,12 +14,13 @@ const HEX_CHAR_PRIV_KEY_LENGTH: usize = 64;
 
 
 pub struct Wallet{
-    pub_key: PublicKey,
+    pub pub_key: PublicKey,
     priv_key: SecretKey,
     pub balance: i64,
     pub receiving_pending_balance: i64,
     pub sending_pending_balance: i64,
-    pub utxos: HashMap<Outpoint, i64>
+    pub pending_tx: Vec<TxInfo>,
+    pub utxos: HashMap<Outpoint, i64>,
 }
 
 impl Wallet{
@@ -30,6 +32,7 @@ impl Wallet{
             balance: 0,
             receiving_pending_balance: 0,
             sending_pending_balance: 0,
+            pending_tx: Vec::new(),
             utxos: HashMap::new(),
         }
     }
@@ -75,6 +78,20 @@ impl Wallet{
         node.send_transaction(transaction).map_err(|_| WalletError::ErrorSendingTx)?;
         
         Ok(())
+    }
+
+    pub fn update_pending_tx(&mut self, pending_tx_info: Vec<TxInfo>){
+        self.pending_tx = pending_tx_info;
+        self.receiving_pending_balance = 0;
+        self.sending_pending_balance = 0;
+
+        for pending in &self.pending_tx{
+            if pending.amount < 0 {
+                self.sending_pending_balance += pending.amount;
+            } else {
+                self.receiving_pending_balance += pending.amount;
+            }
+        }
     }
 }
 

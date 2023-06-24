@@ -1,4 +1,4 @@
-use crate::utils::ui_communication::{
+use crate::utils::ui_communication_protocol::{
     UIToWalletCommunication as UIRequest,
     WalletToUICommunication as UIResponse,
     WalletInfo,
@@ -12,12 +12,13 @@ use super::Wallet;
 impl Wallet{
     pub fn handle_ui_request(self, node: &mut Node, request: UIRequest, sender_to_ui: &GlibSender<UIResponse>, program_running: &mut bool)-> Result<Wallet, WalletError>{
         match request{
-            UIRequest::ChangeWallet(priv_key_string) => return self.handle_change_wallet(node, priv_key_string),
+            UIRequest::ChangeWallet(priv_key_string) => return self.handle_change_wallet(node, priv_key_string, sender_to_ui),
             UIRequest::CreateTx(amount, fee, address) => self.handle_create_tx(node, amount, fee, address)?,
             UIRequest::Update => self.handle_update(sender_to_ui)?,
             UIRequest::LastBlockInfo => todo!(),
             UIRequest::NextBlockInfo => todo!(),
             UIRequest::PrevBlockInfo => todo!(),
+            //UIRequest::MerkleProof(tx) => todo!(),
             UIRequest::EndOfProgram => *program_running = false,
         };
     
@@ -32,10 +33,10 @@ impl Wallet{
         Ok(())
     }
 
-    fn handle_change_wallet(&self, node: &mut Node, priv_key_string: String) -> Result<Wallet, WalletError>{
+    fn handle_change_wallet(&self, node: &mut Node, priv_key_string: String, sender_to_ui: &GlibSender<UIResponse>) -> Result<Wallet, WalletError>{
         let mut new_wallet = Wallet::from(priv_key_string)?;
-        node.set_wallet(&mut new_wallet);
-
+        node.set_wallet(&mut new_wallet).map_err(|_| WalletError::ErrorSetingWallet)?;
+        new_wallet.handle_update(sender_to_ui)?;
         Ok(new_wallet)
     }
 

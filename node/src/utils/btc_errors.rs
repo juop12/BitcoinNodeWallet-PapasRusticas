@@ -157,7 +157,8 @@ pub enum WalletError {
     ErrorSendingTx,
     ErrorCreatingTx,
     ErrorNotEnoughSatoshis,
-    ErrorSendingToUI
+    ErrorSendingToUI,
+    ErrorSetingWallet
 }
 
 impl BtcError for WalletError {}

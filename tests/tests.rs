@@ -23,7 +23,7 @@ mod test {
         };
 
         let node = Node::new(config)?;
-        assert!(node.get_tcp_streams().len() > 1);
+        assert!(node.tcp_streams.len() > 1);
         Ok(())
     }
 

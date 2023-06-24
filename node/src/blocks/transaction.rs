@@ -1,6 +1,6 @@
 use crate::utils::{btc_errors::TransactionError, variable_length_integer::VarLenInt};
 use bitcoin_hashes::{sha256d, hash160, Hash};
-use secp256k1::{SecretKey, Message, PublicKey};
+use secp256k1::{SecretKey, Message, PublicKey, constants::PUBLIC_KEY_SIZE};
 
 
 const MIN_BYTES_TX_IN: usize = 41;
@@ -245,6 +245,34 @@ impl TxIn {
     fn amount_of_bytes(&self) -> usize {
         self.to_bytes().len()
     }
+
+    /// Returns true if the pk_script of the tx_out follows the p2pkh protocol
+    pub fn belongs_to(&self, pub_key: &PublicKey) -> bool{
+        let sig_len = VarLenInt::from_bytes(&self.signature_script);
+        
+        if sig_len.to_usize() >= self.script_length.to_usize(){
+            return false;
+        }
+
+        let (_sig, bytes_left) = self.signature_script.split_at(sig_len.to_usize() + sig_len.amount_of_bytes());
+        
+        let pub_key_len = VarLenInt::from_bytes(&bytes_left);
+
+        if pub_key_len.to_usize() != PUBLIC_KEY_SIZE{
+            return false
+        }
+
+        let total_len = sig_len.amount_of_bytes() + sig_len.to_usize() + pub_key_len.amount_of_bytes() + pub_key_len.to_usize();
+
+        if total_len != self.script_length.to_usize(){
+            return false
+        }
+        
+        match PublicKey::from_slice(&bytes_left[sig_len.amount_of_bytes()..]){
+            Ok(script_pub_key) => script_pub_key == *pub_key,
+            Err(_) => false,
+        }
+    }
 }
 
 impl Transaction {
@@ -415,6 +443,9 @@ impl Transaction {
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
 
+    pub fn get_ballance_regarding(&self, ){
+
+    }
 }
 
 ///-
