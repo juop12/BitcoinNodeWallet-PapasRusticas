@@ -1,10 +1,9 @@
 use crate::node::*;
-use crate::utils::ui_communication::{BlockInfo};
 use crate::wallet::*;
 use crate::blocks::blockchain::{BlockHeader};
 use crate::blocks::transaction::{Outpoint};
 use crate::utils::config::*;
-use crate::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse, WalletInfo, UTxOInfo};
+use crate::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse, WalletInfo, UTxOInfo, BlockInfo, TxInfo};
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
@@ -15,7 +14,7 @@ use bitcoin_hashes::{sha256d, Hash};
 use std::str;
 
 pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mpsc::Receiver<UIRequest>) {
-
+    
     if args.len() != 2 {
         return eprintln!("cantidad de argumentos inválida");
     }

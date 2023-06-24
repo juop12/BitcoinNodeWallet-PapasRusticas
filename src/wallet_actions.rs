@@ -9,14 +9,11 @@ use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 use crate::utxo_info_widget::*;
 const SATOSHI_TO_BTC: f64 = 100000000.0;
 
-fn clean_tree_store(tree_store: &TreeStore){
-    tree_store.clear();
-}
 
 pub fn handle_block_info(block_info: &BlockInfo, builder: &Builder){
 
-    let tx_tree_store: TreeStore = builder.object("Tx Tree").unwrap();
-    clean_tree_store(&tx_tree_store);
+    let tx_tree_store: TreeStore = builder.object("Tx Tree Store").unwrap();
+    tx_tree_store.clear();
     
     let block_number = block_info.block_number;
     let block_transaction_hashes = &block_info.block_tx_hash;
@@ -46,7 +43,7 @@ pub fn handle_block_info(block_info: &BlockInfo, builder: &Builder){
 }
 
 fn add_transaction_hashes(builder: &Builder, transaction_hashes: &Vec<String>){
-    let tx_tree_store: TreeStore = builder.object("TxTreeStore").unwrap();
+    let tx_tree_store: TreeStore = builder.object("Tx Tree Store").unwrap();
     let mut i :i32 = 1;
     for transaction_hash in transaction_hashes{
         add_row(&tx_tree_store, &transaction_hash,i);
@@ -63,7 +60,9 @@ fn clean_list_box(list_box: &ListBox){
 
 pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
     let utxo_list : ListBox = builder.object("Wallet UTxO List").unwrap();
+    let pending_tx_list : ListBox = builder.object("Pending Transactions List").unwrap();
     clean_list_box(&utxo_list);
+    clean_list_box(&pending_tx_list);
     let available_balance: f64 = wallet_info.available_balance as f64 / SATOSHI_TO_BTC;
     let pending_balance:  f64 = wallet_info.pending_balance as f64 / SATOSHI_TO_BTC;
     update_balance(builder, available_balance.to_string().as_str());
@@ -72,6 +71,10 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
     
     for utxo in wallet_info.utxos.clone(){
         utxo_list.insert(&build_utxo_info(&utxo),-1);
+    }
+
+    for pending_tx in wallet_info.pending_tx.clone(){
+        pending_tx_list.insert(&build_pending_tx_info(&pending_tx),-1);
     }
     //meter pending
 }

@@ -1,6 +1,6 @@
 use gio::builders;
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, ApplicationInhibitFlags, Builder, Box, Button, Dialog, Entry,Window, Adjustment, Label, };
+use gtk::{Application, ApplicationWindow, ApplicationInhibitFlags, Builder, Box, Button, Dialog, Entry,Window, Adjustment, Label, SpinButton };
 use std::alloc::handle_alloc_error;
 use std::sync::mpsc::{Receiver, Sender};
 use std::collections::HashMap;
@@ -37,15 +37,13 @@ fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
     thread::spawn(move || {run(args, glib_sender.clone(), receiver)});
     glib_receiver.attach(None, move|action| {
         match action {
-            UIResponse::NodeRunningError(error) => {},
+            UIResponse::NodeRunningError(_error) => {},
             UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
             UIResponse::WalletInfo(wallet_info) => handle_wallet_info(&wallet_info, &builder),
             _ => {},
         }
         glib::Continue(true)
     });
-    // Show the window and call the main() loop of gtk
-    //window.show_all();
 }
 
 fn start_window(app: &Application, builder: &Builder) {
@@ -113,6 +111,32 @@ fn activate_wallet_adder(builder: &Builder){
     
 // }
 
+fn activate_tx_send(builder: &Builder){
+    let button: Button = builder.object("Send Button").unwrap();
+    let amount_button: SpinButton = builder.object("Send Amount").unwrap();
+    let fee_amount_button: SpinButton = builder.object("Fee Amount").unwrap();
+    let balance: Label = builder.object("Send Balance Text").unwrap();
+
+    let address_entry: Entry = builder.object("Pay To Entry").unwrap();
+
+    let send_amount : f64 = amount_button.value();
+    let fee_amount : f64 = fee_amount_button.value();
+
+    
+
+    let address: String = address_entry.text().to_string();
+
+    button.connect_clicked(move |_| {
+        if (send_amount + fee_amount) > balance.text().parse::<f64>().unwrap() {
+            //error
+        }
+        if address.len() != 34 {
+            //error
+        }
+        
+
+    });
+}
 
 pub fn start_app(args: Vec<String>){
     let glade_src = include_str!("ui.glade");

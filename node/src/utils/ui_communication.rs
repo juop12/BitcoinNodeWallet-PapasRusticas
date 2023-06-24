@@ -44,6 +44,7 @@ pub struct BlockInfo{
     pub block_header: BlockHeader,
 }
 
+#[derive(Clone)]
 pub struct TxInfo{
     pub hash: [u8;32],
     pub amount: i64, //positivo o negativo si sale

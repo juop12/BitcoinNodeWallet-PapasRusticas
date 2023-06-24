@@ -1,15 +1,11 @@
-use node::utils::ui_communication::{UTxOInfo};
+use node::utils::ui_communication::{UTxOInfo, TxInfo};
 use gtk::prelude::*;
-use gtk::{Builder, Label, TreeStore , Box, Orientation, Align,Separator};
+use gtk::{Label , Box, Orientation, Align};
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
 const SATOSHI_TO_BTC: f64 = 100000000.0;
 const SEPARATOR: &str = "-----------------------------------------------------------------------------------------";
 
-// pub struct UTxOInfo{
-//     outpoint: Outpoint,
-//     amount: i64,
-// }
 
 pub fn build_utxo_info(utxo_info: &UTxOInfo) -> Box {
     let utxo_box = Box::new(Orientation::Vertical, 0);
@@ -31,4 +27,23 @@ pub fn build_utxo_info(utxo_info: &UTxOInfo) -> Box {
     utxo_box.set_child(Some(&separator));
     utxo_box.show_all();
     utxo_box
+}
+
+pub fn build_pending_tx_info(pending_tx_info: &TxInfo) -> Box{
+    let pending_tx_box = Box::new(Orientation::Vertical, 0);
+    let amount_btc: f64 = pending_tx_info.amount as f64 / SATOSHI_TO_BTC;
+    let hash_as_string = get_string_representation_from_bytes(&mut pending_tx_info.hash.to_vec());
+
+    let tx_id_label = Label::new(Some(format!("Hash: {}", hash_as_string).as_str()));
+    tx_id_label.set_halign(Align::Start);
+    let amount_label = Label::new(Some(format!("Amount: {}", amount_btc.to_string()).as_str()));
+    amount_label.set_halign(Align::Start);
+    let separator = Label::new(Some(SEPARATOR));
+    separator.set_halign(Align::Start);
+
+    pending_tx_box.set_child(Some(&tx_id_label));
+    pending_tx_box.set_child(Some(&amount_label));
+    pending_tx_box.set_child(Some(&separator));
+    pending_tx_box.show_all();
+    pending_tx_box
 }
