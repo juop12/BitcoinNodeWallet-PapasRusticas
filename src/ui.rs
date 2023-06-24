@@ -18,11 +18,7 @@ use crate::wallet_actions::*;
 use node::run::*;
 use node::utils::ui_communication::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
 
-
-const GLADE_SRC: &str = "ui.glade";
 //const PRIV_KEY_LEN_BASE_58: usize = 52;
-
-
 pub enum UiError {
     FailedToBuildUi,
     FailedToFindObject,
@@ -33,7 +29,7 @@ pub enum UiError {
 
 fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
     // Create Window
-    let builder = Builder::from_string(GLADE_SRC);
+    let builder = Builder::from_string(glade_src);
     start_window(app, &builder);
     let (glib_sender, glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
     let (sender, receiver) = mpsc::channel::<UIRequest>(); //p por ahora String, despues le definimos bien el tipo de dato
@@ -43,7 +39,7 @@ fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
         match action {
             UIResponse::NodeRunningError(error) => {},
             UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
-            //UIResponse::WalletInfo(wallet_info) => handle_wallet_info(),
+            UIResponse::WalletInfo(wallet_info) => handle_wallet_info(&wallet_info, &builder),
             _ => {},
         }
         glib::Continue(true)
@@ -59,7 +55,7 @@ fn start_window(app: &Application, builder: &Builder) {
 }
 
 fn initialize_elements(builder: &Builder, sender: Sender<UIRequest>){
-    add_examples(builder);
+    //add_examples(builder);
     activate_wallet_adder(builder);
     activate_use_available_balance(builder);
     activate_clear_all_button(builder);

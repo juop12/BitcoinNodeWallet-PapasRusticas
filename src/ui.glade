@@ -202,7 +202,11 @@
                     <property name="label-yalign">1</property>
                     <property name="shadow-type">in</property>
                     <child>
-                      <placeholder/>
+                      <object class="GtkListBox" id="Pending Transactions List">
+                        <property name="name">Pending Transactions List</property>
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                      </object>
                     </child>
                     <child type="label">
                       <object class="GtkLabel" id="Pending Transactions Label">
@@ -381,7 +385,24 @@
                     <property name="label-yalign">1</property>
                     <property name="shadow-type">in</property>
                     <child>
-                      <placeholder/>
+                      <object class="GtkScrolledWindow" id="Wallet UTxO Viewport">
+                        <property name="visible">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="shadow-type">in</property>
+                        <child>
+                          <object class="GtkViewport">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <child>
+                              <object class="GtkListBox" id="Wallet UTxO List">
+                                <property name="name">Wallet UTxO List</property>
+                                <property name="visible">True</property>
+                                <property name="can-focus">False</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
                     </child>
                     <child type="label">
                       <object class="GtkLabel" id="Wallet UTXOs Label">
@@ -726,7 +747,8 @@
                         <property name="window-placement">top-right</property>
                         <property name="kinetic-scrolling">False</property>
                         <child>
-                          <object class="GtkTreeView" id="TxTree">
+                          <object class="GtkTreeView" id="Tx Tree">
+                            <property name="name">Tx Tree</property>
                             <property name="width-request">900</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
@@ -781,8 +803,9 @@
                     <property name="can-focus">False</property>
                     <property name="layout-style">start</property>
                     <child>
-                      <object class="GtkButton" id="Previous Block">
+                      <object class="GtkButton" id="Previous Block Button">
                         <property name="label" translatable="yes">Previous</property>
+                        <property name="name">Previous Block Button</property>
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="receives-default">True</property>

@@ -1,15 +1,23 @@
-use std::str;
-use node::utils::ui_communication::{BlockInfo};
+use node::utils::ui_communication::{BlockInfo,WalletInfo};
 use crate::wallet_transactions::add_row;
 use gtk::prelude::*;
-use gtk::{Builder, Label,TreeStore};
+use gtk::{Builder, Label,TreeStore,ListBox};
 use chrono::{NaiveDateTime, TimeZone, Utc};
 use crate::wallet_send::update_balance;
 use crate::wallet_overview::{update_pending_balance,update_available_balance};
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
+use crate::utxo_info_widget::*;
+const SATOSHI_TO_BTC: f64 = 100000000.0;
 
+fn clean_tree_store(tree_store: &TreeStore){
+    tree_store.clear();
+}
 
 pub fn handle_block_info(block_info: &BlockInfo, builder: &Builder){
+
+    let tx_tree_store: TreeStore = builder.object("Tx Tree").unwrap();
+    clean_tree_store(&tx_tree_store);
+    
     let block_number = block_info.block_number;
     let block_transaction_hashes = &block_info.block_tx_hash;
     let header = &block_info.block_header;
@@ -46,14 +54,24 @@ fn add_transaction_hashes(builder: &Builder, transaction_hashes: &Vec<String>){
     }
 }
 
-/*
-fn pub handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
-    
-    update_balance(builder, wallet_info.availa.as_string());
-    update_available_balance(builder, wallet_info.available_balance);
-    update_pending_balance(builder,wallet_info.pending_balance)
-    //meter utxos
-    //meter pending
+fn clean_list_box(list_box: &ListBox){
+    for widget in list_box.children(){
+        list_box.remove(&widget);
+    }
 }
 
-*/
+
+pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
+    let utxo_list : ListBox = builder.object("Wallet UTxO List").unwrap();
+    clean_list_box(&utxo_list);
+    let available_balance: f64 = wallet_info.available_balance as f64 / SATOSHI_TO_BTC;
+    let pending_balance:  f64 = wallet_info.pending_balance as f64 / SATOSHI_TO_BTC;
+    update_balance(builder, available_balance.to_string().as_str());
+    update_available_balance(builder, pending_balance.to_string().as_str());
+    update_pending_balance(builder,available_balance.to_string().as_str());
+    
+    for utxo in wallet_info.utxos.clone(){
+        utxo_list.insert(&build_utxo_info(&utxo),-1);
+    }
+    //meter pending
+}

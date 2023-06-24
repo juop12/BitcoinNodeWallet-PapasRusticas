@@ -23,10 +23,10 @@ const OP_CHECKSIG_POSITION: usize = 24;
 const SIGHASH_ALL :[u8;4] = [0x01, 0x00, 0x00, 0x00]; // Already in BigEndian
 
 /// Struct that represents the Outpoint, that is used in the TxIn struct.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Outpoint {
     pub hash: [u8; 32],
-    index: u32,
+    pub index: u32,
 }
 
 /// Struct that represents the TxIn used in the struct Transaction.
