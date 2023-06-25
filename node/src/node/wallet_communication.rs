@@ -1,11 +1,8 @@
 use crate::{
     node::Node,
     wallet::Wallet,
-    utils::{
-        btc_errors::NodeError, ui_communication_protocol::TxInfo, 
-        BlockInfo
-    },
-    blocks::Transaction,
+    utils::{btc_errors::NodeError, ui_communication_protocol::TxInfo, BlockInfo},
+    blocks::{Transaction, HashPair, proof_of_transaction_included_in},
     messages::{message_trait::*, TxMessage}
 };
 use secp256k1::PublicKey;
@@ -171,5 +168,27 @@ impl Node {
         println!("Se envio una transaccion"); //p
         
         Ok(())
+    }
+
+    pub fn get_merkle_tx_proof(&self, transaction_hash: [u8;32], block_number: usize)->Result<(Vec<HashPair>, [u8;32]), NodeError>{
+        let block_hash =match self.get_block_headers(){
+            Ok(block_headers) => {
+                if block_number - 1 < block_headers.len(){
+                    block_headers[block_number].hash()
+                }else{
+                    return Err(NodeError::ErrorFindingBlock);
+                }
+            },
+            Err(error) => return Err(error),
+        };
+        match self.get_blockchain(){
+            Ok(block_chain) => {
+                match block_chain.get(&block_hash){
+                    Some(block) => Ok(proof_of_transaction_included_in(transaction_hash, block)),
+                    None => return Err(NodeError::ErrorFindingBlock),
+                }
+            },
+            Err(error) => Err(error),
+        }
     }
 }

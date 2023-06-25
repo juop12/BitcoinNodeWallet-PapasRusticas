@@ -40,7 +40,7 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
         logger.log(String::from("Proof of work failed for a block"));
         return Err(NodeError::ErrorValidatingBlock);
     };
-    if !validate_proof_of_inclusion(&block) {
+    if !validate_block_proof_of_inclusion(&block) {
         logger.log(String::from("Proof of inclusion failed for a block"));
         return Err(NodeError::ErrorValidatingBlock)
     };

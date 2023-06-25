@@ -22,7 +22,7 @@ impl Wallet{
             UIRequest::LastBlockInfo => self.handle_last_block_info(node),
             UIRequest::NextBlockInfo => self.handle_get_block_info(node, self.current_block - 1),
             UIRequest::PrevBlockInfo => self.handle_get_block_info(node, self.current_block + 1),
-            //UIRequest::MerkleProof(tx) => todo!(),
+            UIRequest::ObtainTxProof(hash, block_index) => self.handle_obtain_tx_proof(node, hash, block_index),
             UIRequest::EndOfProgram => {
                 *program_running = false;
                 return Ok(self);
@@ -79,7 +79,7 @@ impl Wallet{
 
     pub fn handle_change_wallet(&self, node: &mut Node, priv_key_string: String) -> Result<Wallet, WalletError>{
         let mut new_wallet = Wallet::from(priv_key_string)?;
-        node.set_wallet(&mut new_wallet).map_err(|_| WalletError::ErrorSetingWallet)?;
+        node.set_wallet(&mut new_wallet).map_err(|_| WalletError::ErrorSettingWallet)?;
         //new_wallet = new_wallet.handle_ui_request(node, UIRequest::Update, sender_to_ui, &mut true)?;
         Ok(new_wallet)
     }
@@ -91,5 +91,25 @@ impl Wallet{
         self.create_transaction(node, amount, fee, address)?;
         
         Ok(UIResponse::TxSent)
+    }
+
+    fn handle_obtain_tx_proof(&self, node: &Node, tx_hash: [u8;32], block_index: usize)-> Result<UIResponse, WalletError>{
+        let (merkle_proof, merkle_root) = node.get_merkle_tx_proof(tx_hash, block_index).map_err(|_| WalletError::ErrorObtainingTxProof)?;
+        
+        let mut prev_hash = tx_hash;
+        
+        for hash_pair in merkle_proof{
+            if hash_pair.contains(prev_hash){
+                prev_hash = hash_pair.hash();
+            }else{
+                return Ok(UIResponse::ResultOFTXProof(false));
+            }
+        }
+        
+        if prev_hash != merkle_root{
+            return Ok(UIResponse::ResultOFTXProof(false));
+        }
+        
+        Ok(UIResponse::ResultOFTXProof(true))
     }
 }

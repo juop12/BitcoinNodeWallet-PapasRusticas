@@ -51,29 +51,7 @@ fn add_block_or_headers(mut received_block_headers: Vec<BlockHeader>, received_b
 } 
 */
 
-pub fn message_receiver_thread_loop(stream: &mut TcpStream, 
-    safe_block_headers: &SafeVecHeader, 
-    safe_block_chain: &SafeBlockChain, 
-    safe_pending_tx: &SafePendingTx,
-    logger: &Logger, 
-    finished: &FinishedIndicator
-)-> Stops{
 
-    match finished.lock(){
-        Ok(finish) => {
-            if *finish{
-                return Stops::GracefullStop;
-            }
-        },
-        Err(_) => return Stops::UngracefullStop,
-        
-    }
-
-    if receive_message(stream, safe_block_headers, safe_block_chain, safe_pending_tx, &logger, false).is_err(){
-        return Stops::UngracefullStop;
-    }
-    Stops::Continue
-}
 
 #[derive(Debug)]
 pub struct MessageReceiver {
@@ -83,6 +61,7 @@ pub struct MessageReceiver {
 }
 
 impl MessageReceiver{
+    ///-
     pub fn new(outbound_connections: &Vec<TcpStream>, safe_blockchain: &SafeBlockChain, safe_headers: &SafeVecHeader, safe_pending_tx: &SafePendingTx, logger: &Logger)->MessageReceiver{
         let amount_of_peers = outbound_connections.len();
         let mut workers = Vec::new();
@@ -108,17 +87,17 @@ impl MessageReceiver{
 
     }
 
+    /// Joins all worker threads, trying to result in a gracefull finish
     pub fn finish_receiving(self)-> Result<(), MessageReceiverError>{
         self.logger.log(String::from("Requested_end_of_comunications"));
+
         for indicator in self.finished_working_indicators{
             match indicator.lock(){
                 Ok(mut indicator) => *indicator = true,
-                Err(_) => {
-                    self.logger.log_error(&MessageReceiverError::ErrorFinishingReceivingMessages);
-                    return Err(MessageReceiverError::ErrorFinishingReceivingMessages);
-                },
+                Err(_) =>return Err(MessageReceiverError::ErrorFinishingReceivingMessages),
             }
         }
+
         for worker in self.workers{
             if let Err(error) = worker.join_thread(){
                 self.logger.log_error(&error);
@@ -129,3 +108,28 @@ impl MessageReceiver{
         Ok(())
     }
 }
+
+pub fn message_receiver_thread_loop(stream: &mut TcpStream, 
+    safe_block_headers: &SafeVecHeader, 
+    safe_block_chain: &SafeBlockChain, 
+    safe_pending_tx: &SafePendingTx,
+    logger: &Logger, 
+    finished: &FinishedIndicator
+)-> Stops{
+
+    match finished.lock(){
+        Ok(finish) => {
+            if *finish{
+                return Stops::GracefullStop;
+            }
+        },
+        Err(_) => return Stops::UngracefullStop,
+        
+    }
+
+    if receive_message(stream, safe_block_headers, safe_block_chain, safe_pending_tx, &logger, false).is_err(){
+        return Stops::UngracefullStop;
+    }
+    Stops::Continue
+}
+
