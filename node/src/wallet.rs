@@ -86,16 +86,12 @@ impl Wallet{
         let mut new_pending_tx_info = Vec::new();
         self.receiving_pending_balance = 0;
         self.sending_pending_balance = 0;
-        let mut i = 0;
 
         for mut node_pending in pending_tx_info{
             for wallet_pending in &self.pending_tx{
                 if wallet_pending.hash == node_pending.hash{
                     node_pending.amount = wallet_pending.amount;
                 }
-
-                println!("iterando {i}");
-                i+=1;
             }
             if node_pending.amount < 0 {
                 self.sending_pending_balance += node_pending.amount;
@@ -103,8 +99,6 @@ impl Wallet{
                 self.receiving_pending_balance += node_pending.amount;
             }
             new_pending_tx_info.push(node_pending);
-            println!("iterando {i}");
-            i+=1;
         }
         self.pending_tx = new_pending_tx_info;
         println!("receiving balance {:?}", self.receiving_pending_balance);
