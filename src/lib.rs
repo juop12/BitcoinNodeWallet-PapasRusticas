@@ -7,6 +7,7 @@ pub mod wallet_persistance;
 pub mod wallet_actions;
 pub mod hex_bytes_to_string;
 pub mod utxo_info_widget;
+pub mod loading_screen;
 
 pub use ui::*;
 pub use wallet_adder::*;
@@ -17,3 +18,4 @@ pub use wallet_persistance::*;
 pub use wallet_actions::*;
 pub use hex_bytes_to_string::*;
 pub use utxo_info_widget::*;
+pub use loading_screen::*;

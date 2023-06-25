@@ -61,7 +61,7 @@ impl Node {
             Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
         };
 
-        self.logger.log(hm.get_command_name());
+        self.logger.log(format!("Received message: {}", hm.get_command_name()));
         let cmd_name = hm.get_command_name();
 
         match cmd_name.as_str() {

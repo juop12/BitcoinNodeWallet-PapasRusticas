@@ -128,6 +128,76 @@ than the current Balance</property>
       </object>
     </child>
   </object>
+  <object class="GtkWindow" id="Loading Screen Window">
+    <property name="width-request">600</property>
+    <property name="can-focus">False</property>
+    <property name="resizable">False</property>
+    <child>
+      <object class="GtkBox">
+        <property name="width-request">500</property>
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">BITCOIN WALLET</property>
+            <attributes>
+              <attribute name="font-desc" value="Khmer OS System 20"/>
+              <attribute name="foreground" value="#f5f5c2c21111"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Initializing Node">
+            <property name="name">Initializing Node</property>
+            <property name="width-request">400</property>
+            <property name="height-request">60</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Initializing Node, this may take a moment...</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Log Label">
+            <property name="height-request">100</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSpinner" id="Loading Screen Spinner">
+            <property name="height-request">60</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="active">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkTextBuffer" id="Log Buffer"/>
   <object class="GtkDialog" id="Succesful Send Dialog">
     <property name="width-request">300</property>
     <property name="height-request">100</property>
@@ -1230,6 +1300,7 @@ than the current Balance</property>
         <child>
           <!-- n-columns=2 n-rows=2 -->
           <object class="GtkGrid" id="Wallet Adder Grid">
+            <property name="name">Wallet Adder</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="vexpand">True</property>

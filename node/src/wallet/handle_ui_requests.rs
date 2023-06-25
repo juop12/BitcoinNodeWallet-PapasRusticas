@@ -4,13 +4,14 @@ use crate::utils::ui_communication_protocol::{
     WalletToUICommunication as UIResponse,
     WalletInfo,
 };
-use glib::{Sender as GlibSender};
-use crate::{blocks::transaction::*, utils::WalletError};
+use glib::Sender as GlibSender;
+use crate::utils::WalletError;
 use crate::node::Node;
 use super::Wallet;
 
 
 impl Wallet{
+
     pub fn handle_ui_request(mut self, node: &mut Node, request: UIRequest, sender_to_ui: &GlibSender<UIResponse>, program_running: &mut bool)-> Result<Wallet, WalletError>{
         let ui_response = match request{
             UIRequest::ChangeWallet(priv_key_string) => match self.handle_change_wallet(node, priv_key_string){
@@ -26,6 +27,7 @@ impl Wallet{
                 *program_running = false;
                 return Ok(self);
             },
+            UIRequest::ObtainTxProof(_, _) => todo!(),
         };
 
         match ui_response{

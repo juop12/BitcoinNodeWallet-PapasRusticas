@@ -1,12 +1,18 @@
-use crate::node::*;
-use crate::utils::BtcError;
-use crate::wallet::*;
-use crate::utils::config::*;
-use crate::utils::ui_communication_protocol::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
-use std::time::Duration;
-use std::time::Instant;
-use glib::{Sender as GlibSender, Receiver as GlibReceiver};
-use std::sync::mpsc;
+use crate::utils::ui_communication_protocol::{
+    UIToWalletCommunication as UIRequest, 
+    WalletToUICommunication as UIResponse
+};
+use crate::{
+    node::*,
+    wallet::*,
+    utils::config::*,
+};
+use std::{
+    sync::mpsc,
+    time::{Duration, Instant},
+};
+use glib::Sender as GlibSender;
+
 
 pub fn initialize_node(args: Vec<String>)->Option<Node>{
     if args.len() != 2 {

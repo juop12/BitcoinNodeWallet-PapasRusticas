@@ -6,7 +6,8 @@ use crate::{
 
 use std::{
     net::TcpStream,
-    sync::{mpsc, Arc, Mutex}, time::{Instant, Duration},
+    sync::{mpsc, Arc, Mutex}, 
+    time::Instant,
 };
 use workers::*;
 

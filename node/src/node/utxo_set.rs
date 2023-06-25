@@ -1,6 +1,5 @@
 use crate::blocks::transaction::*;
 use crate::node::*;
-use crate::utils::UTxOInfo;
 use std::collections::HashMap;
 
 impl Node {
@@ -100,7 +99,7 @@ impl Node {
         };
 
         for spent_utxo in spent_utxos{
-            self.remove_utxo(spent_utxo, wallet_utxos);
+            self.remove_utxo(spent_utxo);
         }
         for (key ,utxo) in new_utxos{
             self.insert_utxo(key, utxo, wallet_utxos);
@@ -120,7 +119,7 @@ impl Node {
         self.utxo_set.insert(key, tx_out);
     }
 
-    pub fn remove_utxo(&mut self, key: Outpoint, wallet_utxos: &mut HashMap<Outpoint, i64>) -> Option<TxOut>{
+    pub fn remove_utxo(&mut self, key: Outpoint) -> Option<TxOut>{
         let tx_out = self.utxo_set.remove(&key)?;
         if tx_out.belongs_to(self.wallet_pk_hash){
             self.balance -= tx_out.value;
@@ -174,7 +173,6 @@ impl Node {
 ///-
 fn insert_new_utxo(tx_hash: [u8; 32], tx_out: &TxOut, index: usize, utxo_set: &mut HashMap<Outpoint, TxOut>) -> Result<(), NodeError>{
     let outpoint = Outpoint::new(tx_hash, index as u32);
-    let tx_out_outpoint_bytes = outpoint.to_bytes();
     let tx_out: TxOut = TxOut::from_bytes(&tx_out.to_bytes()).map_err(|_|NodeError::ErrorGettingUtxo)?;
 
     utxo_set.insert(outpoint, tx_out);
