@@ -5,7 +5,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use crate::activate_adjustments;
-use crate::wallet_sections::{initialize_wallet_adder_actions,initialize_wallet_selector};
+use crate::wallet_adder::{initialize_wallet_adder_actions,initialize_wallet_selector,initialize_change_wallet};
 use crate::wallet_send::{update_balance, update_adjustments_max_value, activate_use_available_balance, activate_clear_all_button,activate_send_button};
 use crate::wallet_actions::*;
 use node::run::*;
@@ -26,7 +26,7 @@ fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
     start_window(app, &builder);
     let (glib_sender, glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
     let (sender, receiver) = mpsc::channel::<UIRequest>();
-    initialize_elements(&builder, &sender);
+    initialize_elements(&builder, &sender, app);
     let join_handle = Arc::new(Mutex::from(thread::spawn(move || {run(args, glib_sender.clone(), receiver)})));
     let sender_clone = sender.clone();
     let program_running = Arc::new(Mutex::from(true));
@@ -59,16 +59,17 @@ fn start_window(app: &Application, builder: &Builder) {
     window.show_all();
 }
 
-fn initialize_elements(builder: &Builder, sender: &Sender<UIRequest>){
+fn initialize_elements(builder: &Builder, sender: &Sender<UIRequest>, app: &Application){
     activate_wallet_adder(builder);
     activate_use_available_balance(builder);
     activate_clear_all_button(builder);
     activate_adjustments(builder);
     update_adjustments_max_value(builder);
     initialize_wallet_adder_actions(builder, sender);
-    initialize_wallet_selector(builder);
     connect_block_switcher_buttons(builder, sender);
     activate_send_button(builder, sender);
+    initialize_wallet_selector(builder, sender, app);
+    initialize_change_wallet(builder, sender);
 }
 
 fn connect_block_switcher_buttons(builder: &Builder, sender: &Sender<UIRequest>){

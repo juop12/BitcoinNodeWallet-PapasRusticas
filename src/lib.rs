@@ -1,5 +1,5 @@
 pub mod ui;
-pub mod wallet_sections;
+pub mod wallet_adder;
 pub mod wallet_overview;
 pub mod wallet_send;
 pub mod wallet_transactions;
@@ -9,7 +9,7 @@ pub mod hex_bytes_to_string;
 pub mod utxo_info_widget;
 
 pub use ui::*;
-pub use wallet_sections::*;
+pub use wallet_adder::*;
 pub use wallet_overview::*;
 pub use wallet_send::*;
 pub use wallet_transactions::*;
