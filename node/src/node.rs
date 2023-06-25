@@ -49,6 +49,7 @@ pub struct Node {
     starting_block_time: u32,
     blockchain: SafeBlockChain,
     utxo_set: HashMap<Outpoint, TxOut>,
+    pub message_receiver: Option<MessageReceiver>,
     pub balance: i64,
     pub pending_tx: SafePendingTx,
     last_proccesed_block: usize,
@@ -76,6 +77,7 @@ impl Node {
             starting_block_time,
             blockchain: Arc::new(Mutex::from(HashMap::new())),
             utxo_set: HashMap::new(),
+            message_receiver: None,
             data_handler,
             pending_tx: Arc::new(Mutex::from(HashMap::new())),
             balance: 0,
@@ -161,11 +163,11 @@ impl Node {
     }
 
     /// Creates a threadpool responsable for receiving threads.
-    pub fn start_receiving_messages(&self) -> Result<MessageReceiver, NodeError> {
-
-        Ok(MessageReceiver::new(&self.tcp_streams, &self.blockchain, &self.block_headers, &self.pending_tx ,&self.logger))
+    pub fn start_receiving_messages(&mut self){
+        self.message_receiver = Some(MessageReceiver::new(&self.tcp_streams, &self.blockchain, &self.block_headers, &self.pending_tx ,&self.logger));
     }
 
+    ///-
     fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
         let stream = &mut self.tcp_streams[stream_index];
         receive_message(stream, &self.block_headers, &self.blockchain, &self.pending_tx, &self.logger, ibd)
@@ -174,6 +176,12 @@ impl Node {
 
 impl Drop for Node {
     fn drop(&mut self) {
+        if let Some(message_receiver) = self.message_receiver.take(){
+            if let Err(error) = message_receiver.finish_receiving(){
+                self.logger.log_error(&error);
+            }
+        }
+        
         self.logger.log(format!("Saving received data"));
 
         if self.store_headers_in_disk().is_err(){
