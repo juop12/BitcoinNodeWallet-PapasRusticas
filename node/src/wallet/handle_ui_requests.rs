@@ -82,7 +82,7 @@ impl Wallet{
         Ok(new_wallet)
     }
 
-    fn handle_create_tx(&self, node: &mut Node, amount: i64, fee: i64, receiver_address: String)-> Result<UIResponse, WalletError>{
+    fn handle_create_tx(&mut self, node: &mut Node, amount: i64, fee: i64, receiver_address: String)-> Result<UIResponse, WalletError>{
         let address_bytes = bs58::decode(receiver_address).into_vec().map_err(|_| WalletError::ErrorSendingTx)?;
         let mut address: [u8;25] = [0;25];
         address.copy_from_slice(&address_bytes);

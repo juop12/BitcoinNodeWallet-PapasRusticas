@@ -79,7 +79,7 @@ impl BlockInfo{
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct TxInfo{
     pub hash: [u8;32],
     pub amount: i64, //positivo o negativo si sale
