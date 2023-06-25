@@ -7,10 +7,15 @@ use crate::wallet_overview::{update_sending_pending_balance, update_receiving_pe
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 use crate::utxo_info_widget::*;
 use std::sync::mpsc::Sender;
+use node::utils::btc_errors::NodeError;
 
 
 const SATOSHI_TO_BTC: f64 = 100000000.0;
 
+
+pub fn handle_node_running_error(error: NodeError){
+
+}
 
 pub fn handle_block_info(block_info: &BlockInfo, builder: &Builder){
 

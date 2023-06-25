@@ -1,4 +1,5 @@
-use crate::{node::Node,
+use crate::{
+    node::Node,
     wallet::Wallet,
     utils::{btc_errors::NodeError, ui_communication_protocol::TxInfo, BlockInfo},
     blocks::{Transaction, HashPair, proof_of_transaction_included_in},
@@ -44,7 +45,7 @@ impl Node {
             println!("lo que devuelve la func in {}", tx_in_amount);
             println!("lo que devuelve la func out {}", tx_out_amount);
             println!("lo que devuelve la func {}", amount);
-            if(amount != 0){
+            if amount != 0 {
                 wallet_pending_tx.push(TxInfo::new(tx.hash(), amount));
             }
         }
@@ -52,6 +53,7 @@ impl Node {
         Ok(wallet_pending_tx)
     }
     
+    ///-
     fn update_pending_tx(&self, wallet: &mut Wallet) -> Result<(), NodeError>{
         
         let pending_tx_info = self.get_pending_tx_info_from(&wallet.pub_key)?;

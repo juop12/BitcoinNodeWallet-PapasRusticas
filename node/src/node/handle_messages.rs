@@ -65,7 +65,7 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
 
 ///Handles the inv message by asking for the blocks that are not in the blockchain.
 ///If the block is already in the blockchain, it is not saved.
-pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, safe_blockchain: &SafeBlockChain, safe_pending_tx: &SafePendingTx, logger: &Logger) -> Result<(), NodeError> {
+pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockchain: &SafeBlockChain, safe_pending_tx: &SafePendingTx) -> Result<(), NodeError> {
     let inv_msg = match InvMessage::from_bytes(&msg_bytes) {
         Ok(msg) => msg,
         Err(_) => return Err(NodeError::ErrorRecevingBroadcastedInventory),

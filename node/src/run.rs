@@ -1,13 +1,18 @@
-use crate::node::*;
-use crate::utils::WalletError;
-use crate::wallet::*;
-use crate::utils::config::*;
-use crate::utils::ui_communication_protocol::{UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse};
-use std::time::Duration;
-use std::time::Instant;
+use crate::utils::ui_communication_protocol::{
+    UIToWalletCommunication as UIRequest, 
+    WalletToUICommunication as UIResponse
+};
+use crate::{
+    node::*,
+    wallet::*,
+    utils::config::*,
+    utils::WalletError;
+};
+use std::{
+    sync::mpsc,
+    time::{Duration, Instant},
+};
 use glib::Sender as GlibSender;
-use std::sync::mpsc;
-
 
 const REFRESH_RATE: Duration = Duration::from_secs(5);
 

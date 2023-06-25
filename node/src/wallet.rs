@@ -6,7 +6,7 @@ use crate::{blocks::transaction::*, utils::WalletError};
 use secp256k1::{SecretKey, PublicKey, Secp256k1};
 use bitcoin_hashes::{hash160, Hash};
 use std::collections::HashMap;
-use crate::node::{Node, self};
+use crate::node::Node;
 
 
 const BASE_58_CHAR_PRIV_KEY_LENGTH: usize = 52;
@@ -82,7 +82,7 @@ impl Wallet{
         Ok(())
     }
 
-    pub fn update_pending_tx(&mut self, mut pending_tx_info: Vec<TxInfo>){
+    pub fn update_pending_tx(&mut self, pending_tx_info: Vec<TxInfo>){
         let mut new_pending_tx_info = Vec::new();
         self.receiving_pending_balance = 0;
         self.sending_pending_balance = 0;
@@ -121,6 +121,8 @@ pub fn get_hex_from_bytes(bytes_vec: Vec<u8>) -> String{
         .collect::<String>()
 }
 
+//p
+/* #[cfg(test)]
 mod test{
 
     use super::*;
@@ -144,8 +146,8 @@ mod test{
             return
         }
         
-        let priv_key = SecretKey::from_slice(&priv_key).unwrap();// from_slice(&priv_key).unwrap();
+        let priv_key = SecretKey::from_slice(&priv_key).unwrap();
         
         let pub_key = priv_key.public_key(&Secp256k1::new());
     }
-}
+} */

@@ -1,6 +1,5 @@
 use gtk::prelude::*;
-use gtk::{Application, Box, ComboBoxText, Builder, Entry, Dialog, Button, Label, Window};
-use node::wallet;
+use gtk::{Application, ComboBoxText, Builder, Entry, Dialog, Button, Label, Window};
 use crate::UiError;
 use crate::wallet_persistance::*;
 use std::sync::mpsc::Sender;

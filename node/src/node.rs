@@ -215,7 +215,7 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderM
 pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, blockchain: &SafeBlockChain, pending_tx: &SafePendingTx, logger: &Logger, ibd: bool) -> Result<String, NodeError> {
     let block_headers_msg_h = receive_message_header(stream)?;
 
-    logger.log(block_headers_msg_h.get_command_name());
+    logger.log(format!("Received message: {}", block_headers_msg_h.get_command_name()));
 
     let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
     
@@ -229,7 +229,7 @@ pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, bl
         }
         "inv\0\0\0\0\0\0\0\0\0" => {
             if !ibd {
-                handle_inv_message(stream, msg_bytes, block_headers, blockchain, pending_tx, logger)?;
+                handle_inv_message(stream, msg_bytes, blockchain, pending_tx)?;
             }
         }
         "block\0\0\0\0\0\0\0" => handle_block_message(msg_bytes, block_headers, blockchain, pending_tx, logger, ibd)?,
