@@ -210,6 +210,7 @@ pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, bl
     logger.log(block_headers_msg_h.get_command_name());
 
     let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
+    
     if stream.read_exact(&mut msg_bytes).is_err() {
         return Err(NodeError::ErrorReceivingMessage);
     }

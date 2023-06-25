@@ -6,7 +6,7 @@ use crate::{blocks::transaction::*, utils::WalletError};
 use secp256k1::{SecretKey, PublicKey, Secp256k1};
 use bitcoin_hashes::{hash160, Hash};
 use std::collections::HashMap;
-use crate::node::Node;
+use crate::node::{Node, self};
 
 
 const BASE_58_CHAR_PRIV_KEY_LENGTH: usize = 52;
@@ -66,7 +66,7 @@ impl Wallet{
         Ok(Wallet::new(pub_key, priv_key))
     }
 
-    pub fn create_transaction(&self, node: &mut Node, amount: i64, fee: i64, address: [u8; 25]) -> Result<(), WalletError>{
+    pub fn create_transaction(&mut self, node: &mut Node, amount: i64, fee: i64, address: [u8; 25]) -> Result<(), WalletError>{
         
         let (unspent_outpoints, unspent_balance) = node.get_utxos_sum_up_to(amount + fee).map_err(|_| WalletError::ErrorNotEnoughSatoshis)?;
         //if unspent_outpoints.len() < 2{
@@ -77,23 +77,36 @@ impl Wallet{
             .map_err(|_| WalletError::ErrorCreatingTx)?;
         
         node.logger.log(format!("se empezo a enviar la transaccion"));
-        node.send_transaction(transaction).map_err(|_| WalletError::ErrorSendingTx)?;
+        node.send_transaction(self, transaction).map_err(|_| WalletError::ErrorSendingTx)?;
         
         Ok(())
     }
 
-    pub fn update_pending_tx(&mut self, pending_tx_info: Vec<TxInfo>){
-        self.pending_tx = pending_tx_info;
+    pub fn update_pending_tx(&mut self, mut pending_tx_info: Vec<TxInfo>){
+        let mut new_pending_tx_info = Vec::new();
         self.receiving_pending_balance = 0;
         self.sending_pending_balance = 0;
+        let mut i = 0;
 
-        for pending in &self.pending_tx{
-            if pending.amount < 0 {
-                self.sending_pending_balance += pending.amount;
-            } else {
-                self.receiving_pending_balance += pending.amount;
+        for mut node_pending in pending_tx_info{
+            for wallet_pending in &self.pending_tx{
+                if wallet_pending.hash == node_pending.hash{
+                    node_pending.amount = wallet_pending.amount;
+                }
+
+                println!("iterando {i}");
+                i+=1;
             }
+            if node_pending.amount < 0 {
+                self.sending_pending_balance += node_pending.amount;
+            } else {
+                self.receiving_pending_balance += node_pending.amount;
+            }
+            new_pending_tx_info.push(node_pending);
+            println!("iterando {i}");
+            i+=1;
         }
+        self.pending_tx = new_pending_tx_info;
         println!("receiving balance {:?}", self.receiving_pending_balance);
         println!("sending balance{:?}", self.sending_pending_balance);
     }

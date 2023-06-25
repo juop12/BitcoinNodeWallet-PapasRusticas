@@ -47,7 +47,6 @@ impl Node {
             if(amount != 0){
                 wallet_pending_tx.push(TxInfo::new(tx.hash(), amount));
             }
-            
         }
 
         Ok(wallet_pending_tx)
@@ -56,6 +55,7 @@ impl Node {
     fn update_pending_tx(&self, wallet: &mut Wallet) -> Result<(), NodeError>{
         
         let pending_tx_info = self.get_pending_tx_info_from(&wallet.pub_key)?;
+        println!("consegimos las pending");
         wallet.update_pending_tx(pending_tx_info);
         
         Ok(())
@@ -122,14 +122,14 @@ impl Node {
     }
 
     ///-
-    pub fn send_transaction(&mut self, transaction: Transaction) -> Result<(), NodeError>{
+    pub fn send_transaction(&mut self, wallet: &mut Wallet, transaction: Transaction) -> Result<(), NodeError>{
         
         let message = TxMessage::new(transaction);
         let mut sent = false;
         
         for (i, stream) in self.tcp_streams.iter_mut().enumerate() {
             self.logger.log(format!("mandando al peer{i}"));
-            println!("mandando al peer{i}");
+            println!("mandando al peer{i} ");
             if message.send_to(stream).is_ok(){
                 sent = true;
             }
@@ -140,13 +140,28 @@ impl Node {
         }
         
         let transaction = message.tx;
-        
-        for txin in &transaction.tx_in{
-            self.utxo_set.remove(&txin.previous_output);
+        let transaction_hash = transaction.hash();
+        let mut used_outpoints = Vec::new();
+        match self.get_pending_tx(){
+            Ok(mut pending_tx) => {
+                println!("consegui el pending"); //p
+                pending_tx.insert(transaction_hash, transaction);
+                
+                if let Some(tx) = pending_tx.get(&transaction_hash){
+                    for txin in &tx.tx_in{
+                        used_outpoints.push(txin.previous_output);
+                    }
+                }
+            },
+            Err(error) => return Err(error),
         }
 
-        self.get_pending_tx()?.insert(transaction.hash(), transaction);
-        
+        self.update_pending_tx(wallet)?;
+
+        for outpoint in used_outpoints{
+            self.utxo_set.remove(&outpoint);
+        }
+
         self.logger.log(format!("Se envio una transaccion"));
         println!("Se envio una transaccion"); //p
         

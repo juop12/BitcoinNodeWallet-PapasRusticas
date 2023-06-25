@@ -1,12 +1,12 @@
 use crate::{
     messages::{get_data_message::*, message_trait::Message},
-    node::*,
+    node::{*, handshake::PEER_TIMEOUT},
     utils::btc_errors::BlockDownloaderError,
 };
 
 use std::{
     net::TcpStream,
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc, Arc, Mutex}, time::{Instant, Duration},
 };
 use workers::*;
 
@@ -219,23 +219,27 @@ fn receive_block(
 ) -> Result<(), BlockDownloaderError> {
     
     let dummy_pending_tx = Arc::new(Mutex::new(HashMap::new()));
-
-    match receive_message(stream, safe_headers, safe_blockchain, &dummy_pending_tx, logger, true){
-        Ok(message_cmd) => {
-            match message_cmd.as_str() {
-                "block\0\0\0\0\0\0\0" => return Ok(()),
-                "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
-                _ => return receive_block(stream, safe_headers, safe_blockchain, logger),
-            };
-        }
-        Err(error) => {
-            match error{
-                NodeError::ErrorDownloadingBlockBundle => return Err(BlockDownloaderError::BundleNotFound),
-                NodeError::ErrorValidatingBlock => return Err(BlockDownloaderError::ErrorValidatingBlock),
-                _ => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+    
+    let start_time = Instant::now(); 
+    while start_time.elapsed() < PEER_TIMEOUT{
+        match receive_message(stream, safe_headers, safe_blockchain, &dummy_pending_tx, logger, true){
+            Ok(message_cmd) => {
+                match message_cmd.as_str() {
+                    "block\0\0\0\0\0\0\0" => return Ok(()),
+                    "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
+                    _ => {},
+                };
+            }
+            Err(error) => {
+                match error{
+                    NodeError::ErrorDownloadingBlockBundle => return Err(BlockDownloaderError::BundleNotFound),
+                    NodeError::ErrorValidatingBlock => return Err(BlockDownloaderError::ErrorValidatingBlock),
+                    _ => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+                }
             }
         }
     }
+    Err(BlockDownloaderError::ErrorReceivingBlockMessage)
 }
 
 
