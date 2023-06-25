@@ -94,6 +94,8 @@ impl Wallet{
                 self.receiving_pending_balance += pending.amount;
             }
         }
+        println!("receiving balance {:?}", self.receiving_pending_balance);
+        println!("sending balance{:?}", self.sending_pending_balance);
     }
 }
 

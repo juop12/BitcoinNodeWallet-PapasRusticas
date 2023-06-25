@@ -26,7 +26,6 @@ fn handle_add_wallet(builder: &Builder, sender: &Sender<UIRequest>){
     let priv_key_string = priv_key_text.to_string();
     let wallet = UIRequest::ChangeWallet(priv_key_string);
     sender.send(wallet).unwrap();
-    sender.send(UIRequest::Update).unwrap();
     sender.send(UIRequest::LastBlockInfo).unwrap();
     wallet_selector.append(Some(&priv_key_text),&name_text);
     

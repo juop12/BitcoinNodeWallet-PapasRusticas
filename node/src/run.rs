@@ -69,6 +69,7 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
             };
 
             node.set_wallet(&mut wallet);
+            wallet.send_wallet_info(&sender_to_ui);
             break;
         }
     }
@@ -83,6 +84,7 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
             }
         }else{
             node.update(&mut wallet).unwrap();
+            wallet.send_wallet_info(&sender_to_ui);
             last_update_time = Instant::now();
             println!("Balance: {}",node.balance);
         }
@@ -92,6 +94,8 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
         return eprintln!("{:?}", error)
         
     };
-    
+
     node.logger.log(String::from("program finished gracefully"));
+    sender_to_ui.send(UIResponse::WalletFinished).expect("Error sending message to UI");
+    
 }

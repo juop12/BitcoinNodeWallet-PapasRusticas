@@ -1,8 +1,9 @@
 use gtk::prelude::*;
-use gtk::{Builder,Label, SpinButton, Button, Entry, Adjustment};
-
-use crate::UiError;
-
+use gtk::{Builder,Label, SpinButton, Button, Entry, Adjustment,Dialog};
+use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
+use std::sync::mpsc::Sender;
+const ADDRESS_LEN: usize = 34;
+const BITCOIN_TO_SATOSHIS: f64 = 100000000.0;
 
 pub fn update_balance(balance :&Builder, amount :&str) {
     let balance_label: Label = match balance.object("Balance Amount"){
@@ -88,28 +89,62 @@ pub fn activate_clear_all_button(builder: &Builder){
     });
 }
 
-fn handle_transaction_sending(address: &str, amount: f64, fee: f64, balance: f64){
-    // fijarse que address sea valida
-    if amount + fee > balance {
-        //Poner ventana de error
+fn handle_transaction_sending(builder: &Builder,address: &str, amount: f64, fee: f64, balance: f64, sender: &Sender<UIRequest>){
+    
+    if address.len() != ADDRESS_LEN {
+        let error_dialog: Dialog = builder.object("Invalid Address Dialog").unwrap();
+        error_dialog.run();
+        error_dialog.hide();
         return;
     }
+    if amount + fee > balance {
+        let error_dialog: Dialog = builder.object("Invalid Amount Dialog").unwrap();
+        error_dialog.run();
+        error_dialog.hide();
+        return;
+    }
+    let amount_in_sth = (amount * BITCOIN_TO_SATOSHIS) as i64;
+    let fee_in_sth = (fee * BITCOIN_TO_SATOSHIS) as i64;
+    sender.send(UIRequest::CreateTx(amount_in_sth, fee_in_sth, address.to_string())).unwrap();
+    
 }
 
-fn activate_send_button(builder: &Builder) {
+fn activate_dialogs(builder: &Builder){
+    let error_address_dialog: Dialog = builder.object("Invalid Address Dialog").unwrap();
+    let error_adress_button: Button = builder.object("Invalid Address Button").unwrap();
+    error_adress_button.connect_clicked(move |_| {
+        error_address_dialog.hide();
+    });
+
+    let error_amount_dialog: Dialog = builder.object("Invalid Amount Dialog").unwrap();
+    let error_amount_button: Button = builder.object("Invalid Amount Button").unwrap();
+    error_amount_button.connect_clicked(move |_| {
+        error_amount_dialog.hide();
+    });
+    
+    let succesful_send_dialog: Dialog = builder.object("Succesful Send Dialog").unwrap();
+    let succesful_send_button: Button = builder.object("Succesful Send Button").unwrap();
+    succesful_send_button.connect_clicked(move |_| {
+        succesful_send_dialog.hide();
+    });
+}
+
+pub fn activate_send_button(builder: &Builder, sender: &Sender<UIRequest>) {
     let address_entry: Entry = builder.object("Pay To Entry").unwrap();
-    let amount: Adjustment = builder.object("Send Amount").unwrap();
-    let fee: Adjustment = builder.object("Fee Amount").unwrap();
+    let amount: SpinButton = builder.object("Send Amount").unwrap();
+    let fee: SpinButton = builder.object("Fee Amount").unwrap();
     let send_button: Button = builder.object("Send Button").unwrap();
     let balance_label: Label = builder.object("Balance Amount").unwrap();
+    let builder_clone = builder.clone();
+    let sender_clone = sender.clone();
     send_button.connect_clicked(move |_| {
         let address = address_entry.text();
         let amount = amount.value();
         let fee = fee.value();
         let balance_amount = balance_label.label().parse::<f64>().unwrap();
-        handle_transaction_sending(address.as_str(), amount, fee, balance_amount);
+        handle_transaction_sending(&builder_clone,address.as_str(), amount, fee, balance_amount, &sender_clone);
     });
-
+    activate_dialogs(builder);
 }
 
 pub fn update_adjustments_max_value(builder: &Builder){

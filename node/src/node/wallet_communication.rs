@@ -18,8 +18,10 @@ impl Node {
             let amount;
             
             for tx_in in &tx.tx_in{
+                println!("Esta pertenece");
                 if tx_in.belongs_to(&pub_key){
                     if let Some(prev_tx_out) = self.utxo_set.get(&tx_in.previous_output){
+                        println!("Tengo el previous output en utxo");
                         tx_in_amount += prev_tx_out.value;            
                     }
                 }
@@ -39,7 +41,13 @@ impl Node {
                 amount =  tx_out_amount - tx_in_amount;
             }
 
-            wallet_pending_tx.push(TxInfo::new(tx.hash(), amount));
+            println!("lo que devuelve la func in {}", tx_in_amount);
+            println!("lo que devuelve la func out {}", tx_out_amount);
+            println!("lo que devuelve la func {}", amount);
+            if(amount != 0){
+                wallet_pending_tx.push(TxInfo::new(tx.hash(), amount));
+            }
+            
         }
 
         Ok(wallet_pending_tx)

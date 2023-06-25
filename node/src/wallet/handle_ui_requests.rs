@@ -18,7 +18,6 @@ impl Wallet{
                 Err(wallet_error) => Err(wallet_error),
             },
             UIRequest::CreateTx(amount, fee, address) => self.handle_create_tx(node, amount, fee, address),
-            UIRequest::Update => Ok(self.handle_update()),
             UIRequest::LastBlockInfo => self.handle_last_block_info(node),
             UIRequest::NextBlockInfo => self.handle_get_block_info(node, self.current_block - 1),
             UIRequest::PrevBlockInfo => self.handle_get_block_info(node, self.current_block + 1),
@@ -70,10 +69,10 @@ impl Wallet{
         Ok(UIResponse::BlockInfo(block_info))
     }
 
-    pub fn handle_update(&self) -> UIResponse{
+    pub fn send_wallet_info(&self, sender_to_ui: &GlibSender<UIResponse>) -> Result<(), WalletError>{
         let wallet_info = WalletInfo::from(self);
-
-        UIResponse::WalletInfo(wallet_info)
+        sender_to_ui.send(UIResponse::WalletInfo(wallet_info)).map_err(|_| WalletError::ErrorSendingToUI)?;
+        Ok(())
     }
 
     pub fn handle_change_wallet(&self, node: &mut Node, priv_key_string: String) -> Result<Wallet, WalletError>{
