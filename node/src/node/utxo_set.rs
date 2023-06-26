@@ -99,7 +99,7 @@ impl Node {
         };
 
         for spent_utxo in spent_utxos{
-            self.remove_utxo(spent_utxo);
+            self.remove_utxo(spent_utxo, wallet_utxos);
         }
         for (key ,utxo) in new_utxos{
             self.insert_utxo(key, utxo, wallet_utxos);
@@ -119,10 +119,11 @@ impl Node {
         self.utxo_set.insert(key, tx_out);
     }
 
-    pub fn remove_utxo(&mut self, key: Outpoint) -> Option<TxOut>{
+    pub fn remove_utxo(&mut self, key: Outpoint, wallet_utxos: &mut HashMap<Outpoint, i64>) -> Option<TxOut>{
         let tx_out = self.utxo_set.remove(&key)?;
         if tx_out.belongs_to(self.wallet_pk_hash){
             self.balance -= tx_out.value;
+            wallet_utxos.remove(&key);
         }
         
         Some(tx_out)

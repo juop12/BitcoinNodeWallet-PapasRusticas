@@ -16,14 +16,13 @@ impl Node {
 
         for (_, tx) in pending_tx.iter(){
             let mut tx_in_amount = 0;
-            let amount;
             
             for tx_in in &tx.tx_in{
                 println!("Esta pertenece");
                 if tx_in.belongs_to(&pub_key){
                     if let Some(prev_tx_out) = self.utxo_set.get(&tx_in.previous_output){
                         println!("Tengo el previous output en utxo");
-                        tx_in_amount += prev_tx_out.value;            
+                        tx_in_amount -= prev_tx_out.value;            
                     }
                 }
             }
@@ -35,19 +34,13 @@ impl Node {
                     tx_out_amount += tx_out.value;
                 }
             }
-            
-            if tx_in_amount == 0 {
-                amount = tx_out_amount;
-            } else {
-                amount =  tx_out_amount - tx_in_amount;
-            }
 
             println!("lo que devuelve la func in {}", tx_in_amount);
             println!("lo que devuelve la func out {}", tx_out_amount);
-            println!("lo que devuelve la func {}", amount);
-            if amount != 0 {
-                wallet_pending_tx.push(TxInfo::new(tx.hash(), amount));
+            if (tx_out_amount + tx_in_amount != 0){
+                wallet_pending_tx.push(TxInfo::new(tx.hash(), tx_in_amount, tx_out_amount));
             }
+            
         }
 
         Ok(wallet_pending_tx)
@@ -161,7 +154,7 @@ impl Node {
         self.update_pending_tx(wallet)?;
 
         for outpoint in used_outpoints{
-            self.utxo_set.remove(&outpoint);
+            self.remove_utxo(outpoint, &mut wallet.utxos);
         }
 
         self.logger.log(format!("Se envio una transaccion"));

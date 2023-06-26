@@ -83,14 +83,16 @@ impl BlockInfo{
 #[derive(Clone, PartialEq)]
 pub struct TxInfo{
     pub hash: [u8;32],
-    pub amount: i64,
+    pub tx_in_total: i64,
+    pub tx_out_total: i64,
 }
 
 impl TxInfo{
-    pub fn new(hash: [u8;32], amount: i64) -> TxInfo{
+    pub fn new(hash: [u8;32], tx_in_total: i64, tx_out_total: i64) -> TxInfo{
         TxInfo { 
             hash, 
-            amount
+            tx_in_total,
+            tx_out_total,
         }
     }
 }

@@ -32,7 +32,7 @@ fn update_total_balance(builder :&Builder){
     let available_amount: f64 = available_label.label().parse::<f64>().unwrap();
     let sending_pending_amount: f64 = sending_pending_label.label().parse::<f64>().unwrap();
     let receiving_pending_amount: f64 = receiving_pending_label.label().parse::<f64>().unwrap();
-    let total_amount = available_amount + sending_pending_amount + receiving_pending_amount;
+    let total_amount = available_amount + receiving_pending_amount;
 
     total_label.set_label(total_amount.to_string().as_str())
 }
