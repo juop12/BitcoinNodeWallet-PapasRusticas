@@ -1,8 +1,10 @@
 use gtk::prelude::*;
 use gtk::{Application, Builder, Button, Dialog, Window};
+use std::rc::Rc;
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
+use std::thread::{self, JoinHandle};
+use glib::{Sender as GlibSender, Receiver as GlibReceiver};
 use crate::activate_adjustments;
 use crate::wallet_adder::{
     initialize_wallet_adder_actions,initialize_wallet_selector, 
@@ -38,11 +40,15 @@ pub enum UiError {
 /// creating a thread for the node and running the UI in the main thread, and
 /// creating glib channels for the node to communicate with the UI and mpsc
 /// channels for the UI to communicate with the node.
-fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
+fn run_app(app: &Application, glade_src: &str, sender: Sender<UIRequest>, a: Arc<Mutex<Option<GlibReceiver<UIResponse>>>>){
+    // Create Window
     let builder = Builder::from_string(glade_src);
-    let (glib_sender, glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
-    let (sender, receiver) = mpsc::channel::<UIRequest>();
-    thread::spawn(move || {run(args, glib_sender.clone(), receiver)});
+    
+    let glib_receiver = a.lock().unwrap().take();
+    let glib_receiver = match glib_receiver{
+        Some(receiver) => receiver,
+        None => return,
+    };
     show_loading_screen(&builder, &app);
     let sender_clone = sender.clone();
     let program_running = Arc::new(Mutex::from(true));
@@ -71,7 +77,6 @@ fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
             *program_running_cloned.lock().unwrap() = false;
         };
     });
-    
 }
 
 /// Closes the initial loading window when the node finishes initializing
@@ -138,8 +143,18 @@ fn activate_wallet_adder(builder: &Builder){
 pub fn start_app(args: Vec<String>){
     let glade_src = include_str!("ui.glade");
     let application = Application::builder().build();
-    application.connect_activate(move |app| run_app(app, glade_src, args.clone()));
+
+    let (glib_sender, glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
+    let a = Arc::new(Mutex::from(Some(glib_receiver)));
+    let (sender, receiver) = mpsc::channel::<UIRequest>();
+    let join_handle = thread::spawn(move || {run(args, glib_sender.clone(), receiver)});
+
+    application.connect_activate(move |app| 
+        run_app(app, glade_src, sender.clone(), a.clone())
+    );
+    
     let vector: Vec<String> = Vec::new();
     application.run_with_args(&vector);
-    
+
+    join_handle.join();
 }

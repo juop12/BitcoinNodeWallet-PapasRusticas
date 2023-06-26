@@ -96,11 +96,11 @@ impl Node {
         Ok(block_info)
     }
 
-    pub fn get_block_info_from(&self, block_number: usize) -> Result<BlockInfo, NodeError>{
+    pub fn get_block_info_from(&self, mut block_number: usize) -> Result<BlockInfo, NodeError>{
         let hash = match self.get_block_headers(){
             Ok(block_headers) => {
                 if block_number - 1 >= block_headers.len(){
-                    return Err(NodeError::ErrorFindingBlock);
+                    block_number = block_headers.len();
                 }
                 block_headers[block_number - 1].hash()
             }
@@ -174,7 +174,7 @@ impl Node {
         let block_hash =match self.get_block_headers(){
             Ok(block_headers) => {
                 if block_number - 1 < block_headers.len(){
-                    block_headers[block_number].hash()
+                    block_headers[block_number - 1].hash()
                 }else{
                     return Err(NodeError::ErrorFindingBlock);
                 }
