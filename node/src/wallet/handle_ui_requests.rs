@@ -14,7 +14,7 @@ impl Wallet{
 
     pub fn handle_ui_request(mut self, node: &mut Node, request: UIRequest, sender_to_ui: &GlibSender<UIResponse>, program_running: &mut bool)-> Result<Wallet, WalletError>{
         let ui_response = match request{
-            UIRequest::ChangeWallet(priv_key_string) => match self.handle_change_wallet(node, priv_key_string){
+            UIRequest::ChangeWallet(priv_key_string) => match self.handle_change_wallet(node, priv_key_string, sender_to_ui){
                 Ok(wallet) => return Ok(wallet),
                 Err(wallet_error) => Err(wallet_error),
             },
@@ -27,7 +27,6 @@ impl Wallet{
                 *program_running = false;
                 return Ok(self);
             },
-            UIRequest::ObtainTxProof(_, _) => todo!(),
         };
 
         match ui_response{
@@ -77,9 +76,10 @@ impl Wallet{
         Ok(())
     }
 
-    pub fn handle_change_wallet(&self, node: &mut Node, priv_key_string: String) -> Result<Wallet, WalletError>{
+    pub fn handle_change_wallet(&self, node: &mut Node, priv_key_string: String, sender_to_ui: &GlibSender<UIResponse>) -> Result<Wallet, WalletError>{
         let mut new_wallet = Wallet::from(priv_key_string)?;
         node.set_wallet(&mut new_wallet).map_err(|_| WalletError::ErrorSettingWallet)?;
+        self.send_wallet_info(sender_to_ui)?;
         //new_wallet = new_wallet.handle_ui_request(node, UIRequest::Update, sender_to_ui, &mut true)?;
         Ok(new_wallet)
     }

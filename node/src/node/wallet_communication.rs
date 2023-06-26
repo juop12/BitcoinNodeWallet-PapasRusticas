@@ -100,7 +100,7 @@ impl Node {
         let hash = match self.get_block_headers(){
             Ok(block_headers) => {
                 if block_number - 1 >= block_headers.len(){
-                    block_number = block_headers.len();
+                    return Err(NodeError::ErrorFindingBlock);
                 }
                 block_headers[block_number - 1].hash()
             }

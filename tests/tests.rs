@@ -67,7 +67,7 @@ mod test {
         let wallet = Wallet::from("cTcbayZmdiCxNywGxfLXGLqS2Y8uTNzGktbFXZnkNCR3zeN1XMQC".to_string()).unwrap();
         let (glib_sender, _glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
 
-        let wallet = wallet.handle_change_wallet(&mut node, "cPvHucStvVrMmvkPY7pixfnJC6m3hhRRjAWaRDjeghqBae8DG3BB".to_string()).unwrap();
+        let wallet = wallet.handle_change_wallet(&mut node, "cPvHucStvVrMmvkPY7pixfnJC6m3hhRRjAWaRDjeghqBae8DG3BB".to_string(), &glib_sender).unwrap();
         assert_eq!(wallet.balance, 70000);
         assert_eq!(wallet.utxos.len(), 1);
         //assert_eq!( Vec::from(wallet.utxos.keys().collect::<Vec<&Outpoint>>()[0].hash) , get_bytes_from_hex("4657cacadae490c74a393dd288b94849622e79c819129d89323bac92370b5578".to_string()));
@@ -98,7 +98,7 @@ mod test {
         let wallet = Wallet::from("cTcbayZmdiCxNywGxfLXGLqS2Y8uTNzGktbFXZnkNCR3zeN1XMQC".to_string()).unwrap();
         let block_hash = node.get_block_headers()?[2439100 - 1].hash();
         let tx_hash = node.get_blockchain()?.get(&block_hash).unwrap().get_tx_hashes()[0];
-
+        println!("{:?}", tx_hash);
         if let UIResponse::ResultOFTXProof(result) = wallet.handle_obtain_tx_proof(&mut node, tx_hash, 2439100).unwrap(){
             assert!(result);
             return Ok(());

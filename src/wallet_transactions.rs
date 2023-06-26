@@ -72,20 +72,20 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
         
         let hash = value.get::<String>().unwrap();
         let hash_bytes = get_bytes_from_hex(hash);
-        let array: [u8; 32] = match hash_bytes.try_into(){
-            Ok(array) => array,
+        let transaction_hash: [u8; 32] = match hash_bytes.try_into(){
+            Ok(transaction_hash) => transaction_hash,
             Err(_) => return,
         };
 
-        sender_clone.send(UIRequest::ObtainTxProof(array,  block_number-1)).expect(SENDER_ERROR);
+        sender_clone.send(UIRequest::ObtainTxProof(transaction_hash,  block_number)).expect(SENDER_ERROR);
     });
 
 }
 
 /// Handles the result of the merkle proof request, showing a dialog with the result.
 pub fn handle_result_of_tx_proof(builder: &Builder, result: bool){
-    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
     let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
+    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
     activate_buttons(builder);
 
     if result {

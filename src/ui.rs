@@ -51,8 +51,6 @@ fn run_app(app: &Application, glade_src: &str, sender: Sender<UIRequest>, a: Arc
     };
     show_loading_screen(&builder, &app);
     let sender_clone = sender.clone();
-    let program_running = Arc::new(Mutex::from(true));
-    let program_running_cloned = program_running.clone();
     let builder_clone = builder.clone();
     let app_cloned = app.clone();
 
@@ -74,7 +72,6 @@ fn run_app(app: &Application, glade_src: &str, sender: Sender<UIRequest>, a: Arc
         if let Ok(_) = sender_clone.send(UIRequest::EndOfProgram){
             let window = builder_clone.object::<Window>("Ventana").unwrap();
             window.close();
-            *program_running_cloned.lock().unwrap() = false;
         };
     });
 }
