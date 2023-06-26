@@ -2,6 +2,8 @@ use super::message_trait::*;
 use crate::blocks::blockchain::BlockHeader;
 use crate::utils::variable_length_integer::*;
 
+const BLOCKHEADER_SIZE: usize = 80;
+
 /// The BlockHeader struct represents a block header in the Bitcoin network.
 #[derive(Debug, PartialEq)]
 pub struct BlockHeadersMessage {
@@ -51,7 +53,7 @@ impl BlockHeadersMessage {
     fn _from_bytes(slice: &[u8]) -> Option<BlockHeadersMessage> {
         let count = VarLenInt::from_bytes(slice)?;
 
-        if (count.to_usize() * 81 + count.amount_of_bytes()) != slice.len() {
+        if (count.to_usize() * (BLOCKHEADER_SIZE + 1)  + count.amount_of_bytes()) != slice.len() {
             return None;
         }
 
@@ -59,7 +61,7 @@ impl BlockHeadersMessage {
 
         let mut i = count.amount_of_bytes();
         while i < slice.len() {
-            let block_headers_bytes = Vec::from(&slice[(i)..(i + 80)]);
+            let block_headers_bytes = Vec::from(&slice[(i)..(i + BLOCKHEADER_SIZE)]);
             let bloc_header = BlockHeader::from_bytes(&block_headers_bytes).ok()?;
             headers.push(bloc_header);
             i += 81;

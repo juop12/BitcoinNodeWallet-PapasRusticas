@@ -12,8 +12,6 @@ use crate::node::Node;
 const BASE_58_CHAR_PRIV_KEY_LENGTH: usize = 52;
 const HEX_CHAR_PRIV_KEY_LENGTH: usize = 64;
 
-
-///-
 pub struct Wallet{
     pub pub_key: PublicKey,
     priv_key: SecretKey,
@@ -41,17 +39,11 @@ impl Wallet{
         }
     }
 
-    ///-
     pub fn get_pk_hash(&self) -> [u8; 20]{
         hash160::Hash::hash(&self.pub_key.serialize()).to_byte_array()
     }
-    
-    ///-
-    pub fn update_utxo(&mut self, balance: i64){
-        self.balance = balance;
-    }
 
-    ///-
+    /// Creates a wallet interpreting a string as a priv_key written in b58 or hex.
     pub fn from(priv_key_string: String)-> Result<Wallet, WalletError>{
         
         let priv_key = match priv_key_string.len(){
@@ -71,24 +63,20 @@ impl Wallet{
         Ok(Wallet::new(pub_key, priv_key))
     }
 
-    ///-
+    /// Creates a transaction and asks the node to send it
     pub fn create_transaction(&mut self, node: &mut Node, amount: i64, fee: i64, address: [u8; 25]) -> Result<(), WalletError>{
         
         let (unspent_outpoints, unspent_balance) = node.get_utxos_sum_up_to(amount + fee).map_err(|_| WalletError::ErrorNotEnoughSatoshis)?;
-        //if unspent_outpoints.len() < 2{
-        //    panic!("not happening");
-        //}
-        println!("Se agarraron {} outpoints", unspent_outpoints.len());
         let transaction = Transaction::create(amount, fee, unspent_outpoints, unspent_balance, self.pub_key, self.priv_key, address)
             .map_err(|_| WalletError::ErrorCreatingTx)?;
         
-        node.logger.log(format!("se empezo a enviar la transaccion"));
+        node.logger.log("se empezo a enviar la transaccion".to_string());
         node.send_transaction(self, transaction).map_err(|_| WalletError::ErrorSendingTx)?;
         
         Ok(())
     }
 
-    ///-
+    /// Updates the wallet information regarding unspent transactions
     pub fn update_pending_tx(&mut self, pending_tx_info: Vec<TxInfo>){
         let mut new_pending_tx_info = Vec::new();
         self.receiving_pending_balance = 0;
@@ -111,24 +99,14 @@ impl Wallet{
             new_pending_tx_info.push(node_pending);
         }
         self.pending_tx = new_pending_tx_info;
-        println!("receiving balance {:?}", self.receiving_pending_balance);
-        println!("sending balance{:?}", self.sending_pending_balance);
     }
 }
 
-///-
+/// Returns a vec of u8, interpreting the characters of the string as hex.
 pub fn get_bytes_from_hex(hex_string: String) -> Vec<u8>{
     hex_string
         .as_bytes()
         .chunks(2)
         .map(|chunk| u8::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16).unwrap())
         .collect::<Vec<u8>>()
-}
-
-///-
-pub fn get_hex_from_bytes(bytes_vec: Vec<u8>) -> String{
-    bytes_vec
-        .iter()
-        .map(|byte| format!("{:02X}", byte))
-        .collect::<String>()
 }

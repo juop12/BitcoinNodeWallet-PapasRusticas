@@ -69,9 +69,7 @@ impl Logger {
 /// A handler for opening the log file in write mode, on error returns ErrorOpeningFile
 fn _open_log_handler(path: &str) -> Result<File, LoggerError> {
 
-    if let Err(_) = fs::remove_file(path){
-        //return Err(LoggerError::ErrorOpeningFile); //p
-    }
+    _ = fs::remove_file(path);
 
     match OpenOptions::new().create(true).write(true).open(path) {
         Ok(file) => Ok(file),

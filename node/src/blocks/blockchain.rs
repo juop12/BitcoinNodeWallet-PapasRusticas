@@ -156,7 +156,7 @@ impl Block {
 
         let mut i = 0;
         while i < transaction_count.to_usize() {
-            let transaction = Transaction::from_bytes(&slice).ok()?;
+            let transaction = Transaction::from_bytes(slice).ok()?;
             (_, slice) = slice.split_at(transaction.amount_of_bytes());
             i += 1;
             transactions.push(transaction);
@@ -209,7 +209,6 @@ impl Block {
         
         for tx in &self.transactions{
             for (index, tx_out) in tx.tx_out.iter().enumerate() {
-                //p ver si queremos nomas las p2pkh
                 if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
                     let outpoint = Outpoint::new(tx.hash(), index as u32);
                     let tx_out: TxOut = tx_out.clone();
@@ -227,9 +226,7 @@ impl Block {
         let mut utxos = Vec::new();
         for tx in &self.transactions{
             for (index, tx_out) in tx.tx_out.iter().enumerate() {
-                //p ver si queremos nomas las p2pkh
                 if tx_out.belongs_to(wallet_pk_hash){
-                    println!("la utxo pertenece a nuestra wallet");
                     if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
                         let outpoint = Outpoint::new(tx.hash(), index as u32);
                         let tx_out_outpoint_bytes = outpoint.to_bytes();
