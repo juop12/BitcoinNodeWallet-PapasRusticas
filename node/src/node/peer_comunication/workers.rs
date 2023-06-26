@@ -50,7 +50,6 @@ impl Worker {
         mut stream: TcpStream,
         safe_headers: SafeVecHeader,
         safe_blockchain: SafeBlockChain,
-        safe_pending_tx: SafePendingTx,
         missed_bundles_sender: mpsc::Sender<Bundle>,
         logger: Logger,
     ) -> Worker {
@@ -62,7 +61,6 @@ impl Worker {
                 &mut stream,
                 &safe_headers,
                 &safe_blockchain,
-                &safe_pending_tx,
                 &missed_bundles_sender,
                 &logger,
             );

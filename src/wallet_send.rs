@@ -154,8 +154,8 @@ pub fn activate_send_button(builder: &Builder, sender: &Sender<UIRequest>) {
     let sender_clone = sender.clone();
     send_button.connect_clicked(move |_| {
         let address = address_entry.text();
-        let amount = amount.value();
-        let fee = fee.value();
+        let amount = amount.value().round();
+        let fee = fee.value().round();
         let balance_amount = balance_label.label().parse::<f64>().unwrap();
         handle_transaction_sending(&builder_clone,address.as_str(), amount, fee, balance_amount, &sender_clone);
     });

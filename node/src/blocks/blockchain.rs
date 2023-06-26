@@ -194,6 +194,7 @@ impl Block {
         &self.transactions
     }
 
+    /// Returns the hashes of all the transactions of a block.
     pub fn get_tx_hashes(&self) -> Vec<[u8;32]>{
         self.transactions.iter().map(|tx| tx.hash()).collect()
     }
@@ -202,6 +203,7 @@ impl Block {
         self.get_header().hash()
     }
 
+    /// Returns a vector all the block transactions interpreted as utxos.
     pub fn get_utxos(&self)->Vec<(Outpoint, TxOut)>{
         let mut utxos = Vec::new();
         
@@ -220,6 +222,7 @@ impl Block {
         utxos
     }
 
+    /// Returns a vector all the block transactions that belong to an account interpreted as utxos.
     pub fn get_utxos_from(&self, wallet_pk_hash: [u8;20])->Vec<(Vec<u8>,TxOut)>{
         let mut utxos = Vec::new();
         for tx in &self.transactions{

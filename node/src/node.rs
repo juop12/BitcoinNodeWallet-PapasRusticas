@@ -230,7 +230,9 @@ pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, bl
         "ping\0\0\0\0\0\0\0\0" => {
             handle_ping_message(stream, &block_headers_msg_h, msg_bytes)?;
         }
-        "inv\0\0\0\0\0\0\0\0\0" => handle_inv_message(stream, msg_bytes, blockchain, pending_tx, ibd)?,
+        "inv\0\0\0\0\0\0\0\0\0" => if !ibd{
+            handle_inv_message(stream, msg_bytes, blockchain, pending_tx)?;
+        },
         "block\0\0\0\0\0\0\0" => handle_block_message(msg_bytes, block_headers, blockchain, pending_tx, logger, ibd)?,
         "headers\0\0\0\0\0" => handle_block_headers_message(msg_bytes, block_headers)?,
         "tx\0\0\0\0\0\0\0\0\0\0" => handle_tx_message(msg_bytes, pending_tx)?,

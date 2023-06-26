@@ -73,14 +73,12 @@ pub fn validate_block_proof_of_inclusion(block: &Block) -> bool {
     merkle_tree[0][0] == header_merkle_root
 }
 
-///-
 pub struct HashPair{
     left: [u8;32],
     right: [u8;32],
 }
 
 impl HashPair{
-    ///-
     fn new(left: [u8;32], right: [u8;32])->HashPair{
         HashPair{
             left,
@@ -88,7 +86,7 @@ impl HashPair{
         }
     }
 
-    ///-
+    /// Returns true if either hash is equal to the received hash
     pub fn contains(&self, hash: [u8;32])-> bool{
         if (self.left == hash) || (self.right == hash){
             return true;
@@ -96,13 +94,13 @@ impl HashPair{
         false
     }
 
-    ///-
+    /// Hashes the result of concatenating, left and right 
     pub fn hash(&self)-> [u8;32]{
         hash_pairs_for_merkle_tree(self.left, self.right)
     }
 }
 
-///-
+/// Returns a vector of hashpairs that can be used to veify the merkle proof
 pub fn proof_of_transaction_included_in(transaction_hash: [u8;32], block: &Block)-> (Vec<HashPair>, [u8;32]){
     let hash_vector = block.get_tx_hashes();
     if hash_vector.is_empty() {
