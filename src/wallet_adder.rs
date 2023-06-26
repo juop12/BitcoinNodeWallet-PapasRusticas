@@ -54,6 +54,7 @@ fn show_wallet_adder_error(builder: &Builder, error: WalletAdderError) {
 /// involves adding the wallet to the combo box and changing the active wallet to the new one.
 fn handle_success_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     let wallet_adder_success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").unwrap();
+    wallet_adder_success_dialog.set_title("Success Adding Wallet");
     let wallet_adder_success_button: Button = builder.object("Wallet Adder Success Button").unwrap();
     let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
     let priv_key: Entry = builder.object("Wallet Adder Private Key Entry").unwrap();
@@ -73,7 +74,7 @@ fn handle_success_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     wallet_selector.append(Some(&priv_key_text_clone),&name_text);
     let num_wallets = wallet_selector.model().unwrap().iter_n_children(None);
     wallet_selector.set_active(Some((num_wallets - 1) as u32));
-    if let Err(_) = save_wallet_in_disk(&priv_key_text_clone, &name_text){
+    if save_wallet_in_disk(&priv_key_text_clone, &name_text).is_err(){
         println!("Error saving wallet in disk");
     };
 }
@@ -103,7 +104,7 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>)
     match get_saved_wallets_from_disk(&wallet_selector){
         Ok(wallets) => {
             wallet_selector.set_active(Some(0));
-            println!("Wallets: {:#?}", wallets);
+            //println!("Wallets: {:#?}", wallets);
             sender.send(UIRequest::ChangeWallet(wallets[0][0].to_string())).expect(SENDER_ERROR);
             sender.send(UIRequest::LastBlockInfo).expect(SENDER_ERROR);
         },
@@ -126,6 +127,10 @@ pub fn initialize_wallet_adder_actions(builder: &Builder, sender: &Sender<UIRequ
     let invalid_wallet_dialog: Dialog = builder.object("Wallet Adder Error Dialog").unwrap();
     let success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").unwrap();
     let success_button: Button = builder.object("Wallet Adder Success Button").unwrap();
+
+    success_dialog.set_title("Success Adding Wallet");
+    invalid_wallet_dialog.set_title("Error Adding Wallet");
+
 
     let sender_clone = sender.clone();
     let wallet_adder_clone = wallet_adder.clone();
@@ -155,7 +160,6 @@ pub fn initialize_change_wallet(builder: &Builder, sender: &Sender<UIRequest>){
     let sender_clone = sender.clone();
     wallet_selector.connect_changed(move |combo_box|{
         if let Some(active_text) = combo_box.active_text(){
-            println!("{}",active_text);
             match sender_clone.send(UIRequest::ChangeWallet(combo_box.active_id().unwrap().to_string()) ){
                 Ok(_) => {},
                 Err(e) => println!("Error sending ChangeWallet request: {:?}", e),

@@ -21,7 +21,7 @@ fn update_total_amount(builder: &Builder) {
     let fee_amount: SpinButton = builder.object("Fee Amount").unwrap();
     
     let sth_amount = (send_amount.value() * BITCOIN_TO_SATOSHIS).round() + (fee_amount.value() * BITCOIN_TO_SATOSHIS).round();
-    let total_amount = sth_amount as f64 / BITCOIN_TO_SATOSHIS;
+    let total_amount = sth_amount / BITCOIN_TO_SATOSHIS;
 
     total_amount_label.set_label(&total_amount.to_string());
 }
@@ -106,12 +106,14 @@ fn handle_transaction_sending(builder: &Builder,address: &str, amount: f64, fee:
     
     if address.len() != ADDRESS_LEN {
         let error_dialog: Dialog = builder.object("Invalid Address Dialog").unwrap();
+        error_dialog.set_title("Address Error");
         error_dialog.run();
         error_dialog.hide();
         return;
     }
     if amount + fee > balance {
         let error_dialog: Dialog = builder.object("Invalid Amount Dialog").unwrap();
+        error_dialog.set_title("Amount Error");
         error_dialog.run();
         error_dialog.hide();
         return;

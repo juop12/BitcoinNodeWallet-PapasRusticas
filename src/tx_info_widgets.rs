@@ -15,9 +15,9 @@ pub fn build_utxo_info(utxo_info: &UTxOInfo) -> Box {
 
     let tx_id_label = Label::new(Some(format!("Hash: {}", hash_as_string).as_str()));
     tx_id_label.set_halign(Align::Start);
-    let index_label = Label::new(Some(format!("Index: {}", utxo_info.outpoint.index.to_string()).as_str())); 
+    let index_label = Label::new(Some(format!("Index: {}", utxo_info.outpoint.index).as_str())); 
     index_label.set_halign(Align::Start);   
-    let amount_label = Label::new(Some(format!("Amount: {}", amount_btc.to_string()).as_str()));
+    let amount_label = Label::new(Some(format!("Amount: {}", amount_btc).as_str()));
     amount_label.set_halign(Align::Start);
     let separator = Label::new(Some(SEPARATOR));
     separator.set_halign(Align::Start);
@@ -40,7 +40,7 @@ pub fn build_pending_tx_info(pending_tx_info: &TxInfo) -> Box{
 
     let tx_id_label = Label::new(Some(format!("Hash: {}", hash_as_string).as_str()));
     tx_id_label.set_halign(Align::Start);
-    let amount_label = Label::new(Some(format!("Amount: {}", amount_btc.to_string()).as_str()));
+    let amount_label = Label::new(Some(format!("Amount: {}", amount_btc).as_str()));
     amount_label.set_halign(Align::Start);
     let separator = Label::new(Some(SEPARATOR));
     separator.set_halign(Align::Start);

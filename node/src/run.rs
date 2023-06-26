@@ -96,7 +96,6 @@ fn run_main_loop(node: &mut Node, mut wallet: Wallet, receiver: &mpsc::Receiver<
             wallet.send_wallet_info(sender_to_ui)?;
             
             last_update_time = Instant::now();
-            println!("Balance: {}",node.balance);
         }
     }
     

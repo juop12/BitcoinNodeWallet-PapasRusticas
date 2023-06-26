@@ -48,7 +48,7 @@ fn run_app(app: &Application, glade_src: &str, sender: Sender<UIRequest>, a: Arc
         Some(receiver) => receiver,
         None => return,
     };
-    show_loading_screen(&builder, &app);
+    show_loading_screen(&builder, app);
     let sender_clone = sender.clone();
     let builder_clone = builder.clone();
     let app_cloned = app.clone();
@@ -68,7 +68,7 @@ fn run_app(app: &Application, glade_src: &str, sender: Sender<UIRequest>, a: Arc
     });
 
     app.connect_shutdown(move |_| {
-        if let Ok(_) = sender_clone.send(UIRequest::EndOfProgram){
+        if sender_clone.send(UIRequest::EndOfProgram).is_ok(){
             let window = builder_clone.object::<Window>("Ventana").unwrap();
             window.close();
         };
@@ -85,7 +85,7 @@ fn close_loading_window(builder: &Builder){
 /// after the node has finished initializing, this window is the one that
 /// the user sees
 fn start_window(app: &Application, builder: &Builder, sender: &Sender<UIRequest>) {
-    initialize_elements(&builder, &sender);
+    initialize_elements(builder, sender);
     close_loading_window(builder);
     let window: Window = builder.object("Ventana").unwrap();
     window.set_application(Some(app));
@@ -128,6 +128,7 @@ fn connect_block_switcher_buttons(builder: &Builder, sender: &Sender<UIRequest>)
 fn activate_wallet_adder(builder: &Builder){
     let button: Button = builder.object("Wallet Adder").unwrap();
     let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
+    wallet_adder.set_title("Add Wallet");
     button.connect_clicked(move |_| {
         wallet_adder.show_all();
         wallet_adder.run();
