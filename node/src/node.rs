@@ -32,8 +32,10 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
+
 const MESSAGE_HEADER_SIZE: usize = 24;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
+
 
 pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
 pub type SafeVecHeader = Arc<Mutex<Vec<BlockHeader>>>;
@@ -92,14 +94,11 @@ impl Node {
     /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
     /// tcp_streams vector. Returns the node
     pub fn new(config: Config) -> Result<Node, NodeError> {
-        let logger = match Logger::from_path(config.log_path.as_str()) {
-            Ok(logger) => logger,
-            Err(_) => return Err(NodeError::ErrorCreatingNode),
-        };
-        let data_handler = match NodeDataHandler::new(&config.headers_path, &config.blocks_path) {
-            Ok(handler) => handler,
-            Err(_) => return Err(NodeError::ErrorCreatingNode),
-        };
+        
+        let logger = Logger::from_path(config.log_path.as_str()).map_err(|_| NodeError::ErrorCreatingNode)?;
+
+        let data_handler = NodeDataHandler::new(&config.headers_path, &config.blocks_path).map_err(|_| NodeError::ErrorCreatingNode)?;
+
         let mut node = Node::_new(
             config.version,
             config.local_host,
@@ -108,6 +107,7 @@ impl Node {
             data_handler,
             config.begin_time,
         );
+
         let mut address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port, config.ipv6_enabled);
         address_vector.reverse(); // Generally the first nodes are slow, so we reverse the vector to connect to the fastest nodes first
 
@@ -117,6 +117,7 @@ impl Node {
                 Err(error) => node.logger.log_error(&error),
             }
         }
+
         node.logger.log(format!(
             "Amount of peers conected = {}",
             node.tcp_streams.len()
@@ -162,12 +163,12 @@ impl Node {
         self.pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)
     }
 
-    /// Creates a threadpool responsable for receiving threads.
+    /// Creates a threadpool responsable for receiving messages in different threads.
     pub fn start_receiving_messages(&mut self){
         self.message_receiver = Some(MessageReceiver::new(&self.tcp_streams, &self.blockchain, &self.block_headers, &self.pending_tx ,&self.logger));
     }
 
-    ///-
+    /// Actual receive_message wrapper. Encapsulates node's parameteres.
     fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
         let stream = &mut self.tcp_streams[stream_index];
         receive_message(stream, &self.block_headers, &self.blockchain, &self.pending_tx, &self.logger, ibd)
@@ -176,12 +177,14 @@ impl Node {
 
 impl Drop for Node {
     fn drop(&mut self) {
+        // Finishing every thread gracefully.
         if let Some(message_receiver) = self.message_receiver.take(){
             if let Err(error) = message_receiver.finish_receiving(){
                 self.logger.log_error(&error);
             }
         }
         
+        //Saving data.
         self.logger.log(format!("Saving received data"));
 
         if self.store_headers_in_disk().is_err(){
@@ -244,6 +247,7 @@ pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, bl
 
     Ok(block_headers_msg_h.get_command_name())
 }
+
 
 #[cfg(test)]
 mod tests {

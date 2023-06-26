@@ -93,7 +93,7 @@ impl Wallet{
         Ok(UIResponse::TxSent)
     }
 
-    fn handle_obtain_tx_proof(&self, node: &Node, tx_hash: [u8;32], block_index: usize)-> Result<UIResponse, WalletError>{
+    pub fn handle_obtain_tx_proof(&self, node: &Node, tx_hash: [u8;32], block_index: usize)-> Result<UIResponse, WalletError>{
         let (merkle_proof, merkle_root) = node.get_merkle_tx_proof(tx_hash, block_index).map_err(|_| WalletError::ErrorObtainingTxProof)?;
         
         let mut prev_hash = tx_hash;

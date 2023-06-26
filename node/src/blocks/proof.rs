@@ -1,7 +1,6 @@
 use crate::blocks::blockchain::*;
 use bitcoin_hashes::{sha256d, Hash};
 
-use super::{Transaction};
 
 /// Gets the target threshold of the n_bits specified
 fn get_target_threshold(n_bits: u32) -> [u8; 32] {
@@ -41,9 +40,10 @@ fn hash_pairs_for_merkle_tree(hash_1: [u8; 32], hash_2: [u8; 32]) -> [u8; 32] {
 
 /// Calculates the merkle root of the header of a block.
 /// Receives the hashes of its transactions, and returns the merkle root.
-fn calculate_merkle_tree_level(mut hash_vector: Vec<[u8; 32]>) -> Vec<[u8; 32]> {
+fn calculate_merkle_tree_level(mut hash_vector: Vec<[u8; 32]>, merkle_tree: &mut Vec<Vec<[u8;32]>>){
     if hash_vector.len() == 1 {
-        return hash_vector;
+        merkle_tree.push(hash_vector);
+        return;
     }
     if hash_vector.len() % 2 != 0 {
         let last_transaction_hash = hash_vector[hash_vector.len() - 1];
@@ -54,9 +54,9 @@ fn calculate_merkle_tree_level(mut hash_vector: Vec<[u8; 32]>) -> Vec<[u8; 32]> 
         let new_hash = hash_pairs_for_merkle_tree(hash_vector[2 * i], hash_vector[2 * i + 1]);
         new_hash_vector.push(new_hash);
     }
-    let mut higher_level = calculate_merkle_tree_level(new_hash_vector);
-    higher_level.extend(hash_vector);
-    higher_level
+    calculate_merkle_tree_level(new_hash_vector, merkle_tree);
+    merkle_tree.push(hash_vector);
+
 }
 
 /// Validates the proof of inclusion of a block, by checking if the merkle root of the block
@@ -67,17 +67,20 @@ pub fn validate_block_proof_of_inclusion(block: &Block) -> bool {
         return true;
     }
     
-    let calculated_merkle_tree = calculate_merkle_tree_level(hash_vector);
+    let mut merkle_tree = Vec::new();
+    calculate_merkle_tree_level(hash_vector, &mut merkle_tree);
     let header_merkle_root = *block.get_header().get_merkle_root();
-    calculated_merkle_tree[0] == header_merkle_root
+    merkle_tree[0][0] == header_merkle_root
 }
 
+///-
 pub struct HashPair{
     left: [u8;32],
     right: [u8;32],
 }
 
 impl HashPair{
+    ///-
     fn new(left: [u8;32], right: [u8;32])->HashPair{
         HashPair{
             left,
@@ -85,6 +88,7 @@ impl HashPair{
         }
     }
 
+    ///-
     pub fn contains(&self, hash: [u8;32])-> bool{
         if (self.left == hash) || (self.right == hash){
             return true;
@@ -92,39 +96,52 @@ impl HashPair{
         false
     }
 
+    ///-
     pub fn hash(&self)-> [u8;32]{
         hash_pairs_for_merkle_tree(self.left, self.right)
     }
 }
 
+///-
 pub fn proof_of_transaction_included_in(transaction_hash: [u8;32], block: &Block)-> (Vec<HashPair>, [u8;32]){
     let hash_vector = block.get_tx_hashes();
     if hash_vector.is_empty() {
         return (Vec::new(), block.get_header().merkle_root_hash);
     }
     
-    let calculated_merkle_tree = calculate_merkle_tree_level(hash_vector);
-    let mut current_position = 0 ;
-    for (i, tx_hash) in calculated_merkle_tree.iter().enumerate().rev(){
+    let mut merkle_tree = Vec::new();
+    calculate_merkle_tree_level(hash_vector, &mut merkle_tree);
+    
+    let mut level_position: usize = 0 ;
+
+    for (i, tx_hash) in merkle_tree[merkle_tree.len()-1].iter().enumerate(){
         if *tx_hash == transaction_hash{
-            current_position = i;
+            level_position = i;
             break;
         }
     }
     
     let mut merkle_proof = Vec::new();
 
-    while current_position > 0{
+    for current_level in merkle_tree.iter().rev(){
+        if current_level.len() == 1{
+            break;
+        } 
+        
         let hash_pair;
-        //es hijo derecho
-        if (current_position % 2) == 0{
-            hash_pair = HashPair::new(calculated_merkle_tree[current_position -1], calculated_merkle_tree[current_position]);
-        }else{
-            hash_pair = HashPair::new(calculated_merkle_tree[current_position], calculated_merkle_tree[current_position + 1]);
+        
+        //es hijo izq
+        if (level_position % 2) == 0{
+            hash_pair = HashPair::new(current_level[level_position], current_level[level_position + 1]);
+        } else {
+            hash_pair = HashPair::new(current_level[level_position -1], current_level[level_position]);
         }
         merkle_proof.push(hash_pair);
+        
+        level_position = level_position / 2;
     }
-    (merkle_proof, calculated_merkle_tree[0])
+
+    (merkle_proof, merkle_tree[0][0])
 }
 
 #[cfg(test)]
@@ -133,12 +150,14 @@ mod test {
     use crate::blocks::{transaction::Transaction, BlockHeader};
     use bitcoin_hashes::{sha256d, Hash};
 
+
     const VALID_HEADER_BYTES: [u8; 80] = [
         0, 128, 154, 33, 97, 0, 155, 57, 119, 6, 109, 83, 36, 160, 202, 81, 110, 211, 12, 33, 242,
         251, 163, 225, 189, 198, 99, 91, 39, 0, 0, 0, 0, 0, 0, 0, 81, 36, 107, 173, 77, 174, 133,
         197, 186, 33, 40, 129, 186, 247, 243, 121, 96, 34, 123, 34, 217, 248, 194, 216, 2, 183, 11,
         96, 57, 6, 158, 34, 104, 145, 103, 100, 140, 202, 39, 25, 74, 168, 232, 213,
     ];
+
 
     // Auxiliar functions
     //=================================================================
