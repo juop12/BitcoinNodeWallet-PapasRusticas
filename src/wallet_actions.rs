@@ -1,4 +1,4 @@
-use node::utils::ui_communication_protocol::{UIToWalletCommunication as UIRequest, BlockInfo,WalletInfo};
+use node::utils::ui_communication_protocol::{BlockInfo,WalletInfo};
 use crate::wallet_transactions::{add_row,modify_block_header};
 use gtk::prelude::*;
 use gtk::{Builder,TreeStore,ListBox, Dialog};
@@ -6,8 +6,6 @@ use crate::wallet_send::update_balance;
 use crate::wallet_overview::{update_sending_pending_balance, update_receiving_pending_balance, update_available_balance};
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 use crate::utxo_info_widget::*;
-use std::sync::mpsc::Sender;
-use node::utils::btc_errors::NodeError;
 
 
 const SATOSHI_TO_BTC: f64 = 100000000.0;
@@ -69,7 +67,6 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
     for pending_tx in wallet_info.pending_tx.clone(){
         pending_tx_list.insert(&build_pending_tx_info(&pending_tx),-1);
     }
-    //meter pending
 }
 
 /// Shows the success message of a transaction well sent

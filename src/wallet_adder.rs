@@ -1,5 +1,5 @@
 use gtk::prelude::*;
-use gtk::{Application, ComboBoxText, Builder, Entry, Dialog, Button, Label};
+use gtk::{ComboBoxText, Builder, Entry, Dialog, Button, Label};
 use crate::UiError;
 use crate::error_handling::*;
 use crate::wallet_persistance::*;
@@ -87,7 +87,7 @@ fn handle_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
 }
 
 /// Shows the initial login screen where there are no wallets saved in disk.
-fn handle_initial_login(builder: &Builder, sender: &Sender<UIRequest>, app: &Application) {
+fn handle_initial_login(builder: &Builder) {
     let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
     wallet_adder.set_title("Initial Login");
     wallet_adder.show_all();
@@ -97,7 +97,7 @@ fn handle_initial_login(builder: &Builder, sender: &Sender<UIRequest>, app: &App
 
 /// Loads the wallets saved in disk and creates the combobx object with them so 
 /// the user can select one and change wallets to already existing ones 
-pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>,app: &Application){
+pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>){
     let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
 
     match get_saved_wallets_from_disk(&wallet_selector){
@@ -109,7 +109,7 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>,
         },
         Err(error) => {
             match error{
-                UiError::WalletsCSVWasEmpty => handle_initial_login(builder, sender, app),
+                UiError::WalletsCSVWasEmpty => handle_initial_login(builder),
                 _ => handle_error(builder, format!("An Error occured: {:#?}", error)),
             };
         },

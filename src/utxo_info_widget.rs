@@ -4,7 +4,7 @@ use gtk::{Label , Box, Orientation, Align};
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
 const SATOSHI_TO_BTC: f64 = 100000000.0;
-const SEPARATOR: &str = "---------------------------------------------------------------------------------------------------------------------------";
+const SEPARATOR: &str = "------------------------------------------------------------------------------------------------------------";
 
 /// Builds a Box containing the information of the Wallet UTXOs and it formats it
 /// to be displayed correctly in the UI

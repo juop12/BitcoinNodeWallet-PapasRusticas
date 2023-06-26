@@ -1,5 +1,4 @@
-use gio::glib::value::FromValue;
-use gtk::{prelude::*, TreeIter};
+use gtk::prelude::*;
 use gtk::{ Builder, TreeStore,glib,Label,Button,TreeSelection,Dialog};
 use node::blocks::BlockHeader;
 use chrono::{NaiveDateTime, TimeZone, Utc};

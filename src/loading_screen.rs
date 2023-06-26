@@ -1,17 +1,13 @@
 use gtk::prelude::*;
-use gtk::{Application, Builder, Label, Window, TextIter, TextBuffer, TextView};
+use gtk::{Application, Builder, Label, Window};
 use std::io::Read;
 use std::thread;
 use std::time::{Instant, Duration};
 use std::{
     fs::{File},
-    io::{BufRead, BufReader, Seek, SeekFrom},
+    io::{BufReader, Seek, SeekFrom},
 };
-use std::sync::mpsc::Sender;
-use node::utils::ui_communication_protocol::{
-    UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse
-};
-use glib::{timeout_add_seconds, Continue, Sender as GlibSender, Receiver as GlibReceiver};
+use glib::{Continue, Sender as GlibSender};
 
 pub enum LoadingSreenError {
     ErrorReadingFile,
@@ -73,7 +69,7 @@ fn read_last_lines(file_path: &str, num_lines: usize) -> Result<Vec<String>, Loa
 /// Shows the loading screen and starts a thread that reads the node log file
 /// and updates the loading screen every second with the last lines of the log file
 /// for the user to see the progress of the initialization of the node.
-pub fn show_loading_screen(builder: &Builder, sender: &Sender<UIRequest>, app: &Application){
+pub fn show_loading_screen(builder: &Builder, app: &Application){
     let loading_window: Window = builder.object("Loading Screen Window").unwrap();
     loading_window.set_title("Loading Screen");
     loading_window.set_application(Some(app));

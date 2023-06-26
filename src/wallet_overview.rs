@@ -1,5 +1,4 @@
 use gtk::prelude::*;
-use crate::UiError;
 use gtk::{Builder,Label};
 
 /// Updates the available balance according to the amount passed as argument

@@ -1,11 +1,8 @@
-use gtk::gdk::keys::constants::O;
 use gtk::prelude::*;
-use gtk::{Application, Builder, Button, Dialog, Window, Label};
+use gtk::{Application, Builder, Button, Dialog, Window};
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use glib::{Sender as GlibSender, Receiver as GlibReceiver};
-use node::utils::btc_errors::WalletError;
 use crate::activate_adjustments;
 use crate::wallet_adder::{
     initialize_wallet_adder_actions,initialize_wallet_selector, 
@@ -26,7 +23,6 @@ use crate::error_handling::*;
 
 
 const SENDER_ERROR: &str = "Error sending message to node through mpsc channel";
-//const PRIV_KEY_LEN_BASE_58: usize = 52;
 
 /// Enum that represents the possible errors that can happen in the UI
 #[derive(Debug)]
@@ -47,7 +43,7 @@ fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
     let (glib_sender, glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
     let (sender, receiver) = mpsc::channel::<UIRequest>();
     thread::spawn(move || {run(args, glib_sender.clone(), receiver)});
-    show_loading_screen(&builder, &sender, &app);
+    show_loading_screen(&builder, &app);
     let sender_clone = sender.clone();
     let program_running = Arc::new(Mutex::from(true));
     let program_running_cloned = program_running.clone();
@@ -64,7 +60,6 @@ fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
             UIResponse::TxSent => handle_tx_sent(&builder),
             UIResponse::WalletError(error) => handle_error(&builder, format!("An Error occured: {:#?}",  error)),
             UIResponse::ErrorInitializingNode => handle_initialization_error(&builder, &app_cloned),
-            _ => {},
         }
         glib::Continue(true)
     });
@@ -89,7 +84,7 @@ fn close_loading_window(builder: &Builder){
 /// after the node has finished initializing, this window is the one that
 /// the user sees
 fn start_window(app: &Application, builder: &Builder, sender: &Sender<UIRequest>) {
-    initialize_elements(&builder, &sender, app);
+    initialize_elements(&builder, &sender);
     close_loading_window(builder);
     let window: Window = builder.object("Ventana").unwrap();
     window.set_application(Some(app));
@@ -98,7 +93,7 @@ fn start_window(app: &Application, builder: &Builder, sender: &Sender<UIRequest>
 
 /// Defines the important signals and actions of the UI elements, such as buttons, sliders, 
 /// adding wallets, etc
-fn initialize_elements(builder: &Builder, sender: &Sender<UIRequest>, app: &Application){
+fn initialize_elements(builder: &Builder, sender: &Sender<UIRequest>){
     activate_wallet_adder(builder);
     activate_use_available_balance(builder);
     activate_clear_all_button(builder);
@@ -107,7 +102,7 @@ fn initialize_elements(builder: &Builder, sender: &Sender<UIRequest>, app: &Appl
     initialize_wallet_adder_actions(builder, sender);
     connect_block_switcher_buttons(builder, sender);
     activate_send_button(builder, sender);
-    initialize_wallet_selector(builder, sender, app);
+    initialize_wallet_selector(builder, sender);
     initialize_change_wallet(builder, sender);
     initialize_merkle_proof_button(builder, sender);
 }

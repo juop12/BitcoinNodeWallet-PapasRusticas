@@ -43,7 +43,7 @@ pub fn get_saved_wallets_from_disk(wallet_selector: &ComboBoxText) -> Result<Vec
 
         let splitted_line: Vec<&str> = field.split(',').collect();
 
-        wallet_selector.append(Some(&splitted_line[0]), &splitted_line[1]); //p puede fallar el &splitted_line[1], lo agregue despues
+        wallet_selector.append(Some(&splitted_line[0]), &splitted_line[1]);
         wallets.push(vec![splitted_line[0].to_string(), splitted_line[1].to_string()]);
         count += 1;
     }
