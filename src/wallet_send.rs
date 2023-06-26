@@ -116,8 +116,8 @@ fn handle_transaction_sending(builder: &Builder,address: &str, amount: f64, fee:
         error_dialog.hide();
         return;
     }
-    let amount_in_sth = (amount * BITCOIN_TO_SATOSHIS) as i64;
-    let fee_in_sth = (fee * BITCOIN_TO_SATOSHIS) as i64;
+    let amount_in_sth = (amount * BITCOIN_TO_SATOSHIS).round() as i64;
+    let fee_in_sth = (fee * BITCOIN_TO_SATOSHIS).round() as i64;
     sender.send(UIRequest::CreateTx(amount_in_sth, fee_in_sth, address.to_string())).unwrap();
     
 }
@@ -154,8 +154,8 @@ pub fn activate_send_button(builder: &Builder, sender: &Sender<UIRequest>) {
     let sender_clone = sender.clone();
     send_button.connect_clicked(move |_| {
         let address = address_entry.text();
-        let amount = amount.value().round();
-        let fee = fee.value().round();
+        let amount = amount.value();
+        let fee = fee.value();
         let balance_amount = balance_label.label().parse::<f64>().unwrap();
         handle_transaction_sending(&builder_clone,address.as_str(), amount, fee, balance_amount, &sender_clone);
     });
