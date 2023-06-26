@@ -1,12 +1,13 @@
 use crate::{
     messages::{get_data_message::*, message_trait::Message},
-    node::*,
+    node::{*, handshake::PEER_TIMEOUT},
     utils::btc_errors::BlockDownloaderError,
 };
 
 use std::{
     net::TcpStream,
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc, Arc, Mutex}, 
+    time::Instant,
 };
 use workers::*;
 
@@ -57,7 +58,7 @@ pub fn block_downloader_thread_loop(
 
     let aux_bundle = bundle.clone();
 
-    match get_blocks_from_bundle(bundle, stream, &safe_headers, &safe_block_chain,logger) {
+    match get_blocks_from_bundle(bundle, stream, &safe_headers, &safe_block_chain, logger) {
         Ok(blocks) => blocks,
         Err(error) => {
             if let Err(error) = missed_bundles_sender.send(aux_bundle) {
@@ -204,7 +205,7 @@ impl BlockDownloader {
         };
 
         while let Ok(bundle) = self.missed_bundles_receiver.try_recv() {
-            get_blocks_from_bundle(bundle, &mut stream, &self.safe_headers, &self.safe_blockchain,&self.logger)?;
+            get_blocks_from_bundle(bundle, &mut stream, &self.safe_headers, &self.safe_blockchain, &self.logger)?;
         }
 
         Ok(())
@@ -217,25 +218,28 @@ fn receive_block(
     safe_blockchain: &SafeBlockChain,
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
-    
-    let dummy_pending_tx = Arc::new(Mutex::new(HashMap::new()));
-
-    match receive_message(stream, safe_headers, safe_blockchain, &dummy_pending_tx, logger, true){
-        Ok(message_cmd) => {
-            match message_cmd.as_str() {
-                "block\0\0\0\0\0\0\0" => return Ok(()),
-                "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
-                _ => return receive_block(stream, safe_headers, safe_blockchain, logger),
-            };
-        }
-        Err(error) => {
-            match error{
-                NodeError::ErrorDownloadingBlockBundle => return Err(BlockDownloaderError::BundleNotFound),
-                NodeError::ErrorValidatingBlock => return Err(BlockDownloaderError::ErrorValidatingBlock),
-                _ => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+        
+    let start_time = Instant::now(); 
+    let pending_tx_dummy = Arc::new(Mutex::from(HashMap::new()));
+    while start_time.elapsed() < PEER_TIMEOUT{
+        match receive_message(stream, safe_headers, safe_blockchain, &pending_tx_dummy, logger, true){
+            Ok(message_cmd) => {
+                match message_cmd.as_str() {
+                    "block\0\0\0\0\0\0\0" => return Ok(()),
+                    "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
+                    _ => {},
+                };
+            }
+            Err(error) => {
+                match error{
+                    NodeError::ErrorDownloadingBlockBundle => return Err(BlockDownloaderError::BundleNotFound),
+                    NodeError::ErrorValidatingBlock => return Err(BlockDownloaderError::ErrorValidatingBlock),
+                    _ => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+                }
             }
         }
     }
+    Err(BlockDownloaderError::ErrorReceivingBlockMessage)
 }
 
 
@@ -267,7 +271,7 @@ fn get_blocks_from_bundle(
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     for _ in 0..amount_of_hashes {
-        receive_block(stream, safe_headers, safe_blockchain,logger)?;
+        receive_block(stream, safe_headers, safe_blockchain, logger)?;
     }
 
     Ok(())

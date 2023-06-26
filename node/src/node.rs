@@ -32,8 +32,10 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
+
 const MESSAGE_HEADER_SIZE: usize = 24;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
+
 
 pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
 pub type SafeVecHeader = Arc<Mutex<Vec<BlockHeader>>>;
@@ -49,6 +51,7 @@ pub struct Node {
     starting_block_time: u32,
     blockchain: SafeBlockChain,
     utxo_set: HashMap<Outpoint, TxOut>,
+    pub message_receiver: Option<MessageReceiver>,
     pub balance: i64,
     pub pending_tx: SafePendingTx,
     last_proccesed_block: usize,
@@ -76,6 +79,7 @@ impl Node {
             starting_block_time,
             blockchain: Arc::new(Mutex::from(HashMap::new())),
             utxo_set: HashMap::new(),
+            message_receiver: None,
             data_handler,
             pending_tx: Arc::new(Mutex::from(HashMap::new())),
             balance: 0,
@@ -90,14 +94,11 @@ impl Node {
     /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
     /// tcp_streams vector. Returns the node
     pub fn new(config: Config) -> Result<Node, NodeError> {
-        let logger = match Logger::from_path(config.log_path.as_str()) {
-            Ok(logger) => logger,
-            Err(_) => return Err(NodeError::ErrorCreatingNode),
-        };
-        let data_handler = match NodeDataHandler::new(&config.headers_path, &config.blocks_path) {
-            Ok(handler) => handler,
-            Err(_) => return Err(NodeError::ErrorCreatingNode),
-        };
+        
+        let logger = Logger::from_path(config.log_path.as_str()).map_err(|_| NodeError::ErrorCreatingNode)?;
+
+        let data_handler = NodeDataHandler::new(&config.headers_path, &config.blocks_path).map_err(|_| NodeError::ErrorCreatingNode)?;
+
         let mut node = Node::_new(
             config.version,
             config.local_host,
@@ -106,6 +107,7 @@ impl Node {
             data_handler,
             config.begin_time,
         );
+
         let mut address_vector = node.peer_discovery(DNS_ADDRESS, config.dns_port, config.ipv6_enabled);
         address_vector.reverse(); // Generally the first nodes are slow, so we reverse the vector to connect to the fastest nodes first
 
@@ -115,6 +117,7 @@ impl Node {
                 Err(error) => node.logger.log_error(&error),
             }
         }
+
         node.logger.log(format!(
             "Amount of peers conected = {}",
             node.tcp_streams.len()
@@ -160,12 +163,12 @@ impl Node {
         self.pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)
     }
 
-    /// Creates a threadpool responsable for receiving threads.
-    pub fn start_receiving_messages(&self) -> Result<MessageReceiver, NodeError> {
-
-        Ok(MessageReceiver::new(&self.tcp_streams, &self.blockchain, &self.block_headers, &self.pending_tx ,&self.logger))
+    /// Creates a threadpool responsable for receiving messages in different threads.
+    pub fn start_receiving_messages(&mut self){
+        self.message_receiver = Some(MessageReceiver::new(&self.tcp_streams, &self.blockchain, &self.block_headers, &self.pending_tx ,&self.logger));
     }
 
+    /// Actual receive_message wrapper. Encapsulates node's parameteres.
     fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError>{
         let stream = &mut self.tcp_streams[stream_index];
         receive_message(stream, &self.block_headers, &self.blockchain, &self.pending_tx, &self.logger, ibd)
@@ -174,6 +177,14 @@ impl Node {
 
 impl Drop for Node {
     fn drop(&mut self) {
+        // Finishing every thread gracefully.
+        if let Some(message_receiver) = self.message_receiver.take(){
+            if let Err(error) = message_receiver.finish_receiving(){
+                self.logger.log_error(&error);
+            }
+        }
+        
+        //Saving data.
         self.logger.log(format!("Saving received data"));
 
         if self.store_headers_in_disk().is_err(){
@@ -207,9 +218,10 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderM
 pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, blockchain: &SafeBlockChain, pending_tx: &SafePendingTx, logger: &Logger, ibd: bool) -> Result<String, NodeError> {
     let block_headers_msg_h = receive_message_header(stream)?;
 
-    logger.log(block_headers_msg_h.get_command_name());
+    logger.log(format!("Received message: {}", block_headers_msg_h.get_command_name()));
 
     let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
+    
     if stream.read_exact(&mut msg_bytes).is_err() {
         return Err(NodeError::ErrorReceivingMessage);
     }
@@ -218,23 +230,18 @@ pub fn receive_message(stream: &mut TcpStream, block_headers: &SafeVecHeader, bl
         "ping\0\0\0\0\0\0\0\0" => {
             handle_ping_message(stream, &block_headers_msg_h, msg_bytes)?;
         }
-        "inv\0\0\0\0\0\0\0\0\0" => {
-            if !ibd {
-                handle_inv_message(stream, msg_bytes, block_headers, blockchain, pending_tx, logger)?;
-            }
-        }
+        "inv\0\0\0\0\0\0\0\0\0" => if !ibd{
+            handle_inv_message(stream, msg_bytes, blockchain, pending_tx)?;
+        },
         "block\0\0\0\0\0\0\0" => handle_block_message(msg_bytes, block_headers, blockchain, pending_tx, logger, ibd)?,
         "headers\0\0\0\0\0" => handle_block_headers_message(msg_bytes, block_headers)?,
-        "tx\0\0\0\0\0\0\0\0\0\0" => {
-            if !ibd{
-                handle_tx_message(msg_bytes, pending_tx)?;
-            }
-        }
+        "tx\0\0\0\0\0\0\0\0\0\0" => handle_tx_message(msg_bytes, pending_tx)?,
         _ => {},
     };
 
     Ok(block_headers_msg_h.get_command_name())
 }
+
 
 #[cfg(test)]
 mod tests {

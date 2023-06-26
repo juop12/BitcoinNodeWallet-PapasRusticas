@@ -309,16 +309,6 @@ impl Transaction {
     }
 
     ///-
-    fn insert_scipt(&mut self, signature_script: Vec<u8>){
-        let signature_script_length = signature_script.len();
-
-        for tx_in in &mut self.tx_in{
-            tx_in.script_length = VarLenInt::new(signature_script_length);
-            tx_in.signature_script = signature_script.clone();
-        };
-    }
-
-    ///-
     pub fn create(amount: i64, fee: i64, unspent_outpoints: Vec<Outpoint>, unspent_balance: i64, pub_key: PublicKey, priv_key: SecretKey, address: [u8;25]) -> Result<Transaction, TransactionError>{
         
         let change: i64 = unspent_balance - amount - fee;

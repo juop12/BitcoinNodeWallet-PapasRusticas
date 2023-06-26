@@ -2,13 +2,15 @@ use std::time::Duration;
 
 use crate::node::*;
 
-const PEER_TIMEOUT: Duration = Duration::from_secs(15);
-
+pub const PEER_TIMEOUT: Duration = Duration::from_secs(15);
 impl Node {
     /// Returns a tcp stream representing the conection with the peer, if this fails returns ErrorConnectingToPeer
     fn connect_to_peer(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> {
         match TcpStream::connect_timeout(&receiving_addrs, PEER_TIMEOUT) {
-            Ok(tcp_stream) => Ok(tcp_stream),
+            Ok(tcp_stream) => {
+                tcp_stream.set_write_timeout(Some(PEER_TIMEOUT)).map_err(|_| NodeError::ErrorConnectingToPeer)?;
+                Ok(tcp_stream)
+            },
             Err(_) => Err(NodeError::ErrorConnectingToPeer),
         }
     }
@@ -59,7 +61,7 @@ impl Node {
             Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
         };
 
-        self.logger.log(hm.get_command_name());
+        self.logger.log(format!("Received message: {}", hm.get_command_name()));
         let cmd_name = hm.get_command_name();
 
         match cmd_name.as_str() {

@@ -95,7 +95,7 @@ impl Node {
 
             let i = headers_received;
             headers_received += 2000;
-            let mut block_headers = self.get_block_headers()?;
+            let block_headers = self.get_block_headers()?;
             last_hash = block_headers[block_headers.len() - 1].hash();
 
             if i == block_headers.len() {
@@ -211,11 +211,11 @@ impl Node {
         
         let mut block_downloader = self.start_downloading()?;
         
+        block_downloader.finish_downloading().map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
+        
         self.logger.log(String::from("Started storing headers to disk"));
         self.store_headers_in_disk()?;
         self.logger.log(String::from("Finished storing headers to disk"));
-        
-        block_downloader.finish_downloading().map_err(|_| NodeError::ErrorDownloadingBlockBundle);
         
         //p
         println!("# final de headers  = {}", self.get_block_headers()?.len());

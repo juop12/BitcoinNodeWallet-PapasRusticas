@@ -4,15 +4,13 @@
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkAdjustment" id="Amount Adjustment">
     <property name="upper">21000000</property>
-    <property name="step-increment">1.0000000000000001e-09</property>
+    <property name="step-increment">1e-08</property>
     <property name="page-increment">10</property>
   </object>
-  <object class="GtkAdjustment" id="Fee Adjustment">
-    <property name="upper">21000000</property>
-    <property name="step-increment">1.0000000000000001e-09</property>
-    <property name="page-increment">10</property>
-  </object>
-  <object class="GtkDialog" id="Invalid Amount Dialog">
+  <object class="GtkDialog" id="Error Dialog">
+    <property name="name">Invalid Private Key Dialog</property>
+    <property name="width-request">300</property>
+    <property name="height-request">100</property>
     <property name="can-focus">False</property>
     <property name="type-hint">dialog</property>
     <child internal-child="vbox">
@@ -23,6 +21,125 @@
         <child internal-child="action_area">
           <object class="GtkButtonBox">
             <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="hexpand">True</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="Error Button">
+                <property name="label" translatable="yes">Ok</property>
+                <property name="name">Wallet Adder Error Button</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Error Label">
+            <property name="name">Wallet Adder Error Label</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+            <property name="label" translatable="yes"> Error Label</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkAdjustment" id="Fee Adjustment">
+    <property name="upper">21000000</property>
+    <property name="step-increment">1e-08</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkDialog" id="Invalid Address Dialog">
+    <property name="width-request">300</property>
+    <property name="height-request">100</property>
+    <property name="can-focus">False</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="hexpand">True</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="Invalid Address Button">
+                <property name="label" translatable="yes">Ok</property>
+                <property name="name">Wallet Adder Success Button</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <property name="hexpand">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Invalid Address Label">
+            <property name="name">Wallet Adder Success Label</property>
+            <property name="width-request">0</property>
+            <property name="height-request">0</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+            <property name="label" translatable="yes">Error: Invalid address</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkDialog" id="Invalid Amount Dialog">
+    <property name="width-request">300</property>
+    <property name="height-request">100</property>
+    <property name="can-focus">False</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can-focus">False</property>
+        <property name="vexpand">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="hexpand">True</property>
             <property name="layout-style">center</property>
             <child>
               <object class="GtkButton" id="Invalid Amount Button">
@@ -66,14 +183,89 @@ than the current Balance</property>
       </object>
     </child>
   </object>
-  <object class="GtkDialog" id="Invalid Private Key Dialog">
-    <property name="name">Invalid Private Key Dialog</property>
+  <object class="GtkWindow" id="Loading Screen Window">
+    <property name="width-request">800</property>
+    <property name="height-request">350</property>
+    <property name="can-focus">False</property>
+    <property name="resizable">False</property>
+    <child>
+      <object class="GtkBox">
+        <property name="width-request">500</property>
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="valign">baseline</property>
+            <property name="ypad">6</property>
+            <property name="label" translatable="yes">BITCOIN WALLET</property>
+            <property name="justify">fill</property>
+            <property name="yalign">0</property>
+            <attributes>
+              <attribute name="font-desc" value="Khmer OS System 20"/>
+              <attribute name="weight" value="bold"/>
+              <attribute name="scale" value="1"/>
+              <attribute name="foreground" value="#f5f5c2c21111"/>
+            </attributes>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Initializing Node">
+            <property name="name">Initializing Node</property>
+            <property name="width-request">400</property>
+            <property name="height-request">40</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Initializing Node, this may take a moment...</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Log Label">
+            <property name="height-request">100</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSpinner" id="Loading Screen Spinner">
+            <property name="height-request">60</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="active">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">3</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkTextBuffer" id="Log Buffer"/>
+  <object class="GtkDialog" id="Merkle Failure Dialog">
     <property name="can-focus">False</property>
     <property name="type-hint">dialog</property>
     <child internal-child="vbox">
       <object class="GtkBox">
-        <property name="width-request">500</property>
-        <property name="height-request">100</property>
         <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
         <property name="spacing">2</property>
@@ -82,15 +274,15 @@ than the current Balance</property>
             <property name="can-focus">False</property>
             <property name="halign">center</property>
             <property name="hexpand">True</property>
-            <property name="vexpand">True</property>
             <property name="layout-style">end</property>
             <child>
-              <object class="GtkButton" id="Invalid Private Key Button">
+              <object class="GtkButton" id="Merkle Failure Button">
                 <property name="label" translatable="yes">Ok</property>
-                <property name="name">Invalid Private Key Button</property>
+                <property name="name">Wallet Adder Success Button</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
+                <property name="hexpand">True</property>
               </object>
               <packing>
                 <property name="expand">True</property>
@@ -106,11 +298,69 @@ than the current Balance</property>
           </packing>
         </child>
         <child>
-          <object class="GtkLabel" id="Invalid Private Key Label">
+          <object class="GtkLabel" id="Wallet 1">
+            <property name="name">Wallet Adder Success Label</property>
+            <property name="width-request">0</property>
+            <property name="height-request">0</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="vexpand">True</property>
-            <property name="label" translatable="yes">Error: The entered Private Key for the new Wallet is invalid</property>
+            <property name="label" translatable="yes">This transactions does not belong to this block</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkDialog" id="Merkle Success Dialog">
+    <property name="can-focus">False</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="hexpand">True</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="Merkle Success Button">
+                <property name="label" translatable="yes">Ok</property>
+                <property name="name">Wallet Adder Success Button</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <property name="hexpand">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Wallet ">
+            <property name="name">Wallet Adder Success Label</property>
+            <property name="width-request">0</property>
+            <property name="height-request">0</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+            <property name="label" translatable="yes">This transactions belongs to this block</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -122,6 +372,8 @@ than the current Balance</property>
     </child>
   </object>
   <object class="GtkDialog" id="Succesful Send Dialog">
+    <property name="width-request">300</property>
+    <property name="height-request">100</property>
     <property name="can-focus">False</property>
     <property name="type-hint">dialog</property>
     <child internal-child="vbox">
@@ -132,6 +384,8 @@ than the current Balance</property>
         <child internal-child="action_area">
           <object class="GtkButtonBox">
             <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="hexpand">True</property>
             <property name="layout-style">center</property>
             <child>
               <object class="GtkButton" id="Succesful Send Button">
@@ -357,7 +611,7 @@ than the current Balance</property>
                     <property name="label-yalign">1</property>
                     <property name="shadow-type">in</property>
                     <child>
-                      <!-- n-columns=2 n-rows=4 -->
+                      <!-- n-columns=2 n-rows=5 -->
                       <object class="GtkGrid" id="Balance Numbers">
                         <property name="name">Balance Numbers</property>
                         <property name="visible">True</property>
@@ -381,12 +635,12 @@ than the current Balance</property>
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel" id="Pending Label">
+                          <object class="GtkLabel" id="Sending Pending Label">
                             <property name="name">Pending Label</property>
                             <property name="height-request">-1</property>
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Pending:</property>
+                            <property name="label" translatable="yes">Sending Pending:</property>
                             <property name="justify">right</property>
                             <property name="xalign">1</property>
                             <attributes>
@@ -413,7 +667,7 @@ than the current Balance</property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">3</property>
+                            <property name="top-attach">4</property>
                           </packing>
                         </child>
                         <child>
@@ -425,7 +679,7 @@ than the current Balance</property>
                           </object>
                           <packing>
                             <property name="left-attach">0</property>
-                            <property name="top-attach">2</property>
+                            <property name="top-attach">3</property>
                           </packing>
                         </child>
                         <child>
@@ -435,11 +689,11 @@ than the current Balance</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">2</property>
+                            <property name="top-attach">3</property>
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel" id="availableQuantity">
+                          <object class="GtkLabel" id="Available Quantity">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="label" translatable="yes">0.000000000</property>
@@ -451,7 +705,7 @@ than the current Balance</property>
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel" id="pendingQuantity">
+                          <object class="GtkLabel" id="Sending Pending Quantity">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="label" translatable="yes">0.000000000</property>
@@ -463,7 +717,7 @@ than the current Balance</property>
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkLabel" id="totalQuantity">
+                          <object class="GtkLabel" id="Total Quantity">
                             <property name="visible">True</property>
                             <property name="can-focus">False</property>
                             <property name="label" translatable="yes">0.000000000</property>
@@ -471,7 +725,37 @@ than the current Balance</property>
                           </object>
                           <packing>
                             <property name="left-attach">1</property>
-                            <property name="top-attach">3</property>
+                            <property name="top-attach">4</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="Receiving Pending Label">
+                            <property name="name">Pending Label</property>
+                            <property name="height-request">-1</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">Receiving Pending:</property>
+                            <property name="justify">right</property>
+                            <property name="xalign">1</property>
+                            <attributes>
+                              <attribute name="font-desc" value="Khmer OS System Italic 12"/>
+                            </attributes>
+                          </object>
+                          <packing>
+                            <property name="left-attach">0</property>
+                            <property name="top-attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="Receiving Pending Quantity ">
+                            <property name="visible">True</property>
+                            <property name="can-focus">False</property>
+                            <property name="label" translatable="yes">0.000000000</property>
+                            <property name="yalign">0.5</property>
+                          </object>
+                          <packing>
+                            <property name="left-attach">1</property>
+                            <property name="top-attach">2</property>
                           </packing>
                         </child>
                       </object>
@@ -628,7 +912,7 @@ than the current Balance</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="adjustment">Amount Adjustment</property>
-                            <property name="digits">9</property>
+                            <property name="digits">8</property>
                             <property name="update-policy">if-valid</property>
                           </object>
                           <packing>
@@ -779,7 +1063,7 @@ than the current Balance</property>
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="adjustment">Fee Adjustment</property>
-                        <property name="digits">9</property>
+                        <property name="digits">8</property>
                         <property name="update-policy">if-valid</property>
                       </object>
                       <packing>
@@ -874,17 +1158,18 @@ than the current Balance</property>
                             <property name="can-focus">True</property>
                             <property name="model">Tx Tree Store</property>
                             <property name="expander-column">Transaction Hash</property>
-                            <property name="reorderable">True</property>
                             <property name="enable-search">False</property>
                             <property name="show-expanders">False</property>
+                            <property name="activate-on-single-click">True</property>
                             <child internal-child="selection">
-                              <object class="GtkTreeSelection" id="TxTreeSelection"/>
+                              <object class="GtkTreeSelection" id="Tx Tree Selection"/>
                             </child>
                             <child>
                               <object class="GtkTreeViewColumn" id="Tx Index">
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">70</property>
                                 <property name="title" translatable="yes">Index</property>
+                                <property name="clickable">True</property>
                                 <child>
                                   <object class="GtkCellRendererText"/>
                                   <attributes>
@@ -898,6 +1183,7 @@ than the current Balance</property>
                                 <property name="sizing">fixed</property>
                                 <property name="fixed-width">70</property>
                                 <property name="title" translatable="yes">Transaction Hash</property>
+                                <property name="clickable">True</property>
                                 <child>
                                   <object class="GtkCellRendererText"/>
                                   <attributes>
@@ -1118,6 +1404,20 @@ than the current Balance</property>
                     <property name="y">25</property>
                   </packing>
                 </child>
+                <child>
+                  <object class="GtkButton" id="Merkle Proof Button">
+                    <property name="label" translatable="yes">Merkle Proof of Inclusion</property>
+                    <property name="width-request">230</property>
+                    <property name="height-request">40</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                  </object>
+                  <packing>
+                    <property name="x">700</property>
+                    <property name="y">510</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="name">Transactions</property>
@@ -1186,6 +1486,7 @@ than the current Balance</property>
         <child>
           <!-- n-columns=2 n-rows=2 -->
           <object class="GtkGrid" id="Wallet Adder Grid">
+            <property name="name">Wallet Adder</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="vexpand">True</property>
@@ -1238,6 +1539,63 @@ than the current Balance</property>
                 <property name="top-attach">0</property>
               </packing>
             </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkDialog" id="Wallet Adder Error Dialog">
+    <property name="name">Invalid Private Key Dialog</property>
+    <property name="width-request">300</property>
+    <property name="height-request">100</property>
+    <property name="can-focus">False</property>
+    <property name="type-hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="width-request">500</property>
+        <property name="height-request">100</property>
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can-focus">False</property>
+            <property name="halign">center</property>
+            <property name="hexpand">True</property>
+            <property name="layout-style">end</property>
+            <child>
+              <object class="GtkButton" id="Wallet Adder Error Button">
+                <property name="label" translatable="yes">Ok</property>
+                <property name="name">Wallet Adder Error Button</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="Wallet Adder Error Label">
+            <property name="name">Wallet Adder Error Label</property>
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
+            <property name="label" translatable="yes">Wallet Adder Error Label</property>
           </object>
           <packing>
             <property name="expand">False</property>
