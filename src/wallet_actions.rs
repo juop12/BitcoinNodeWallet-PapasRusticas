@@ -2,10 +2,10 @@ use node::utils::ui_communication_protocol::{BlockInfo,WalletInfo};
 use crate::wallet_transactions::{add_row,modify_block_header};
 use gtk::prelude::*;
 use gtk::{Builder,TreeStore,ListBox, Dialog};
-use crate::wallet_send::update_balance;
+use crate::wallet_send::{update_balance,update_adjustments_max_value};
 use crate::wallet_overview::{update_sending_pending_balance, update_receiving_pending_balance, update_available_balance};
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
-use crate::utxo_info_widget::*;
+use crate::tx_info_widgets::*;
 
 
 const SATOSHI_TO_BTC: f64 = 100000000.0;
@@ -59,6 +59,7 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
     update_available_balance(builder, available_balance.to_string().as_str());
     update_sending_pending_balance(builder,sending_pending_balance.to_string().as_str());
     update_receiving_pending_balance(builder,receiving_pending_balance.to_string().as_str());
+    update_adjustments_max_value(builder);
     
     for utxo in wallet_info.utxos.clone(){
         utxo_list.insert(&build_utxo_info(&utxo),-1);

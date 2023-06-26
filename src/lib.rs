@@ -6,7 +6,7 @@ pub mod wallet_transactions;
 pub mod wallet_persistance;
 pub mod wallet_actions;
 pub mod hex_bytes_to_string;
-pub mod utxo_info_widget;
+pub mod tx_info_widgets;
 pub mod loading_screen;
 pub mod error_handling;
 
@@ -18,6 +18,6 @@ pub use wallet_transactions::*;
 pub use wallet_persistance::*;
 pub use wallet_actions::*;
 pub use hex_bytes_to_string::*;
-pub use utxo_info_widget::*;
+pub use tx_info_widgets::*;
 pub use loading_screen::*;
 pub use error_handling::*;

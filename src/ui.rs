@@ -99,13 +99,13 @@ fn initialize_elements(builder: &Builder, sender: &Sender<UIRequest>){
     activate_use_available_balance(builder);
     activate_clear_all_button(builder);
     activate_adjustments(builder);
-    update_adjustments_max_value(builder);
     initialize_wallet_adder_actions(builder, sender);
     connect_block_switcher_buttons(builder, sender);
     activate_send_button(builder, sender);
     initialize_wallet_selector(builder, sender);
     initialize_change_wallet(builder, sender);
     initialize_merkle_proof_button(builder, sender);
+    update_adjustments_max_value(builder);
 }
 
 /// Connects the buttons that allow the user to switch between blocks
@@ -137,16 +137,16 @@ fn activate_wallet_adder(builder: &Builder){
 
 /// Initializes the application that runs the whole program
 pub fn start_app(args: Vec<String>){
-    let glade_src = include_str!("ui.glade");
+    let glade_src = include_str!("glade/ui.glade");
     let application = Application::builder().build();
 
     let (glib_sender, glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
-    let a = Arc::new(Mutex::from(Some(glib_receiver)));
+    let arc = Arc::new(Mutex::from(Some(glib_receiver)));
     let (sender, receiver) = mpsc::channel::<UIRequest>();
     let join_handle = thread::spawn(move || {run(args, glib_sender.clone(), receiver)});
 
     application.connect_activate(move |app| 
-        run_app(app, glade_src, sender.clone(), a.clone())
+        run_app(app, glade_src, sender.clone(), arc.clone())
     );
     
     let vector: Vec<String> = Vec::new();
