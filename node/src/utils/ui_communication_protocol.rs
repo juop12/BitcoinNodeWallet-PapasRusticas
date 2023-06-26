@@ -21,7 +21,6 @@ pub enum WalletToUICommunication {
     WalletInfo(WalletInfo),
     BlockInfo(BlockInfo),
     WalletError(WalletError),
-    NodeRunningError(NodeError),
     ResultOFTXProof(bool),
     FinishedInitializingNode,
     ErrorInitializingNode,

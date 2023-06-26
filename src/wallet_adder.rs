@@ -1,11 +1,14 @@
 use gtk::prelude::*;
-use gtk::{Application, ComboBoxText, Builder, Entry, Dialog, Button, Label, Window};
+use gtk::{Application, ComboBoxText, Builder, Entry, Dialog, Button, Label};
 use crate::UiError;
+use crate::ui::handle_error;
 use crate::wallet_persistance::*;
 use std::sync::mpsc::Sender;
 use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
 
+
 const PRIV_KEY_LEN_BASE_58: usize = 52;
+
 
 pub enum WalletAdderError {
     ErrorInvalidPrivateKey,
@@ -87,15 +90,21 @@ fn handle_initial_login(builder: &Builder, sender: &Sender<UIRequest>, app: &App
 pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>,app: &Application){
     let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
 
-    if let Err(error) = get_saved_wallets_from_disk(&wallet_selector){
-        if let UiError::WalletsCSVWasEmpty = error{
-            handle_initial_login(builder, sender, app);
-        } else {
-            //Poner ventana de error
-        }
+    match get_saved_wallets_from_disk(&wallet_selector){
+        Ok(wallets) => {
+            wallet_selector.set_active(Some(0));
+            println!("Wallets: {:#?}", wallets);
+            sender.send(UIRequest::ChangeWallet(wallets[0][0].to_string())).unwrap();
+            sender.send(UIRequest::LastBlockInfo).unwrap();
+        },
+        Err(error) => {
+            match error{
+                UiError::WalletsCSVWasEmpty => handle_initial_login(builder, sender, app),
+                _ => handle_error(builder, format!("An Error occured: {:#?}", error)),
+            };
+        },
     }
 
-    wallet_selector.set_active(Some(0));
 }
 
 pub fn initialize_wallet_adder_actions(builder: &Builder, sender: &Sender<UIRequest>){
