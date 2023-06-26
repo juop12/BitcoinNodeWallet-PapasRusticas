@@ -1,17 +1,22 @@
 use gtk::prelude::*;
-use gtk::{Application, ComboBoxText, Builder, Entry, Dialog, Button, Label, Window};
+use gtk::{ComboBoxText, Builder, Entry, Dialog, Button, Label};
 use crate::UiError;
+use crate::error_handling::*;
 use crate::wallet_persistance::*;
 use std::sync::mpsc::Sender;
 use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
 
+
 const PRIV_KEY_LEN_BASE_58: usize = 52;
+const SENDER_ERROR: &str = "Error sending message to node through mpsc channel";
 
 pub enum WalletAdderError {
     ErrorInvalidPrivateKey,
     ErrorEmptyName,
 }
 
+/// Reads the private key and returns a Result representing if ti was possible to add
+/// the wallet or not.
 fn add_wallet(builder: &Builder) -> Result<(), WalletAdderError> {
     let name: Entry = builder.object("Wallet Adder Name Entry").unwrap();
     let priv_key: Entry = builder.object("Wallet Adder Private Key Entry").unwrap();
@@ -27,6 +32,8 @@ fn add_wallet(builder: &Builder) -> Result<(), WalletAdderError> {
     Ok(())
 }
 
+/// Handles the error cases that could happen when adding a wallet and displays them
+/// in a dialog.
 fn show_wallet_adder_error(builder: &Builder, error: WalletAdderError) {
     let wallet_adder_error_dialog: Dialog = builder.object("Wallet Adder Error Dialog").unwrap();
     let wallet_adder_error_label: Label = builder.object("Wallet Adder Error Label").unwrap();
@@ -43,6 +50,8 @@ fn show_wallet_adder_error(builder: &Builder, error: WalletAdderError) {
     wallet_adder_error_dialog.run();
 }
 
+/// Handles the success case when adding a wallet and displays a dialog. The success case 
+/// involves adding the wallet to the combo box and changing the active wallet to the new one.
 fn handle_success_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     let wallet_adder_success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").unwrap();
     let wallet_adder_success_button: Button = builder.object("Wallet Adder Success Button").unwrap();
@@ -69,6 +78,7 @@ fn handle_success_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     };
 }
 
+/// Handles the success and error case while trying to add a wallet.
 fn handle_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     match add_wallet(builder) {
         Ok(_) => handle_success_add_wallet(builder, sender),
@@ -76,32 +86,38 @@ fn handle_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     }
 }
 
-fn handle_initial_login(builder: &Builder, sender: &Sender<UIRequest>, app: &Application) {
+/// Shows the initial login screen where there are no wallets saved in disk.
+fn handle_initial_login(builder: &Builder) {
     let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
-    let cancel_button: Button = builder.object("Wallet Adder Cancel Button").unwrap();
-    let main_window: Window = builder.object("Ventana").unwrap();
-    let app_clone = app.clone();
-    let wallet_adder_clone = wallet_adder.clone();
     wallet_adder.set_title("Initial Login");
     wallet_adder.show_all();
     wallet_adder.run();
-    //handle_add_wallet(builder, sender);
+    
 }
 
-pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>,app: &Application){
+/// Loads the wallets saved in disk and creates the combobx object with them so 
+/// the user can select one and change wallets to already existing ones 
+pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>){
     let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
 
-    if let Err(error) = get_saved_wallets_from_disk(&wallet_selector){
-        if let UiError::WalletsCSVWasEmpty = error{
-            handle_initial_login(builder, sender, app);
-        } else {
-            //Poner ventana de error
-        }
+    match get_saved_wallets_from_disk(&wallet_selector){
+        Ok(wallets) => {
+            wallet_selector.set_active(Some(0));
+            println!("Wallets: {:#?}", wallets);
+            sender.send(UIRequest::ChangeWallet(wallets[0][0].to_string())).expect(SENDER_ERROR);
+            sender.send(UIRequest::LastBlockInfo).expect(SENDER_ERROR);
+        },
+        Err(error) => {
+            match error{
+                UiError::WalletsCSVWasEmpty => handle_initial_login(builder),
+                _ => handle_error(builder, format!("An Error occured: {:#?}", error)),
+            };
+        },
     }
 
-    wallet_selector.set_active(Some(0));
 }
 
+/// Initializes the actions for the wallet adder dialog.
 pub fn initialize_wallet_adder_actions(builder: &Builder, sender: &Sender<UIRequest>){
     let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
     let cancel_button: Button = builder.object("Wallet Adder Cancel Button").unwrap();
@@ -132,6 +148,7 @@ pub fn initialize_wallet_adder_actions(builder: &Builder, sender: &Sender<UIRequ
 
 }
 
+/// Initializes the actions for the wallet selector dialog.
 pub fn initialize_change_wallet(builder: &Builder, sender: &Sender<UIRequest>){
     let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
 
@@ -143,7 +160,7 @@ pub fn initialize_change_wallet(builder: &Builder, sender: &Sender<UIRequest>){
                 Ok(_) => {},
                 Err(e) => println!("Error sending ChangeWallet request: {:?}", e),
             };
-            sender_clone.send(UIRequest::LastBlockInfo).unwrap();
+            sender_clone.send(UIRequest::LastBlockInfo).expect(SENDER_ERROR);
         }
     });
 }

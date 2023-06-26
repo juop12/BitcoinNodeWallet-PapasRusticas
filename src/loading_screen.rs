@@ -1,17 +1,13 @@
 use gtk::prelude::*;
-use gtk::{Application, Builder, Label, Window, TextIter, TextBuffer, TextView};
+use gtk::{Application, Builder, Label, Window};
 use std::io::Read;
 use std::thread;
 use std::time::{Instant, Duration};
 use std::{
     fs::{File},
-    io::{BufRead, BufReader, Seek, SeekFrom},
+    io::{BufReader, Seek, SeekFrom},
 };
-use std::sync::mpsc::Sender;
-use node::utils::ui_communication_protocol::{
-    UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse
-};
-use glib::{timeout_add_seconds, Continue, Sender as GlibSender, Receiver as GlibReceiver};
+use glib::{Continue, Sender as GlibSender};
 
 pub enum LoadingSreenError {
     ErrorReadingFile,
@@ -21,7 +17,12 @@ pub enum LoadingSreenError {
 }
 
 const LINES_SHOWN: usize = 11;
+const SENDER_ERROR: &str = "Error sending message to node through mpsc channel";
 
+/// Reads the last lines of a File and returns them as a
+/// vector of Strings where the least recent
+/// line is the last element of the vector.
+/// On error returns a LoadingScreenError
 fn read_last_lines(file_path: &str, num_lines: usize) -> Result<Vec<String>, LoadingSreenError> {
     let file = File::open(file_path).map_err(|_| LoadingSreenError::ErrorReadingFile)?;
     let file_size = file.metadata().map_err(|_| LoadingSreenError::ErrorReadingMetadataFromFile)?.len();
@@ -65,7 +66,10 @@ fn read_last_lines(file_path: &str, num_lines: usize) -> Result<Vec<String>, Loa
     Ok(lines)
 }
 
-pub fn show_loading_screen(builder: &Builder, sender: &Sender<UIRequest>, app: &Application){
+/// Shows the loading screen and starts a thread that reads the node log file
+/// and updates the loading screen every second with the last lines of the log file
+/// for the user to see the progress of the initialization of the node.
+pub fn show_loading_screen(builder: &Builder, app: &Application){
     let loading_window: Window = builder.object("Loading Screen Window").unwrap();
     loading_window.set_title("Loading Screen");
     loading_window.set_application(Some(app));
@@ -93,7 +97,7 @@ fn obtain_loading_progress(sender:GlibSender<Vec<String>>) {
         if last_update_time.elapsed() > Duration::from_secs(1){
             if let Ok(contents) = read_last_lines("./src/node_log.txt", LINES_SHOWN){
                 if !contents.is_empty() {
-                    sender.send(contents).unwrap();
+                    sender.send(contents).expect(SENDER_ERROR);
                 }
             } else {
                 println!("No se pudo leer el archivo");

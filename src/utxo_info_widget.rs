@@ -4,9 +4,10 @@ use gtk::{Label , Box, Orientation, Align};
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
 const SATOSHI_TO_BTC: f64 = 100000000.0;
-const SEPARATOR: &str = "-----------------------------------------------------------------------------------------";
+const SEPARATOR: &str = "------------------------------------------------------------------------------------------------------------";
 
-
+/// Builds a Box containing the information of the Wallet UTXOs and it formats it
+/// to be displayed correctly in the UI
 pub fn build_utxo_info(utxo_info: &UTxOInfo) -> Box {
     let utxo_box = Box::new(Orientation::Vertical, 0);
     let amount_btc: f64 = utxo_info.amount as f64 / SATOSHI_TO_BTC;
@@ -29,6 +30,8 @@ pub fn build_utxo_info(utxo_info: &UTxOInfo) -> Box {
     utxo_box
 }
 
+/// Builds a Box containing the information of the Pending Transactions and it formats it
+/// to be displayed correctly in the UI
 pub fn build_pending_tx_info(pending_tx_info: &TxInfo) -> Box{
     let pending_tx_box = Box::new(Orientation::Vertical, 0);
     let amount_btc: f64 = pending_tx_info.amount as f64 / SATOSHI_TO_BTC;

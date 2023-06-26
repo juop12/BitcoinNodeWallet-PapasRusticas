@@ -21,7 +21,6 @@ pub enum WalletToUICommunication {
     WalletInfo(WalletInfo),
     BlockInfo(BlockInfo),
     WalletError(WalletError),
-    NodeRunningError(NodeError),
     ResultOFTXProof(bool),
     FinishedInitializingNode,
     ErrorInitializingNode,
@@ -84,7 +83,7 @@ impl BlockInfo{
 #[derive(Clone, PartialEq)]
 pub struct TxInfo{
     pub hash: [u8;32],
-    pub amount: i64, //positivo o negativo si sale
+    pub amount: i64,
 }
 
 impl TxInfo{
