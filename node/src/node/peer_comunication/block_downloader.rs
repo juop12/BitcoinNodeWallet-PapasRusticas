@@ -43,6 +43,7 @@ pub fn block_downloader_thread_loop(
     stream: &mut TcpStream,
     safe_headers: &SafeVecHeader,
     safe_block_chain: &SafeBlockChain,
+    safe_pending_tx: &SafePendingTx,
     missed_bundles_sender: &mpsc::Sender<Bundle>,
     logger: &Logger,
 ) -> Stops {
@@ -58,7 +59,7 @@ pub fn block_downloader_thread_loop(
 
     let aux_bundle = bundle.clone();
 
-    match get_blocks_from_bundle(bundle, stream, &safe_headers, &safe_block_chain,logger) {
+    match get_blocks_from_bundle(bundle, stream, &safe_headers, &safe_block_chain,safe_pending_tx, logger) {
         Ok(blocks) => blocks,
         Err(error) => {
             if let Err(error) = missed_bundles_sender.send(aux_bundle) {
@@ -89,6 +90,7 @@ pub struct BlockDownloader {
     sender: mpsc::Sender<Bundle>,
     safe_headers: SafeVecHeader,
     safe_blockchain: SafeBlockChain,
+    safe_pending_tx: SafePendingTx,
     missed_bundles_receiver: mpsc::Receiver<Bundle>,
     logger: Logger,
 }
@@ -100,6 +102,7 @@ impl BlockDownloader {
         header_stream_index: usize,
         safe_headers: &SafeVecHeader,
         safe_blockchain: &SafeBlockChain,
+        safe_pending_tx: &SafePendingTx,
         logger: &Logger,
     ) -> Result<BlockDownloader, BlockDownloaderError> {
         let connections_ammount = outbound_connections.len();
@@ -137,6 +140,7 @@ impl BlockDownloader {
                 current_stream,
                 safe_headers.clone(),
                 safe_blockchain.clone(),
+                safe_pending_tx.clone(),
                 missed_bundles_sender.clone(),
                 logger.clone(),
             );
@@ -149,6 +153,7 @@ impl BlockDownloader {
             sender,
             safe_headers: safe_headers.clone(),
             safe_blockchain: safe_blockchain.clone(),
+            safe_pending_tx: safe_pending_tx.clone(),
             missed_bundles_receiver,
             logger: logger.clone(),
         })
@@ -205,7 +210,7 @@ impl BlockDownloader {
         };
 
         while let Ok(bundle) = self.missed_bundles_receiver.try_recv() {
-            get_blocks_from_bundle(bundle, &mut stream, &self.safe_headers, &self.safe_blockchain,&self.logger)?;
+            get_blocks_from_bundle(bundle, &mut stream, &self.safe_headers, &self.safe_blockchain,&self.safe_pending_tx, &self.logger)?;
         }
 
         Ok(())
@@ -216,14 +221,13 @@ fn receive_block(
     stream: &mut TcpStream,
     safe_headers: &SafeVecHeader,
     safe_blockchain: &SafeBlockChain,
+    safe_pending_tx: &SafePendingTx,
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
-    
-    let dummy_pending_tx = Arc::new(Mutex::new(HashMap::new()));
-    
+        
     let start_time = Instant::now(); 
     while start_time.elapsed() < PEER_TIMEOUT{
-        match receive_message(stream, safe_headers, safe_blockchain, &dummy_pending_tx, logger, true){
+        match receive_message(stream, safe_headers, safe_blockchain, safe_pending_tx, logger, true){
             Ok(message_cmd) => {
                 match message_cmd.as_str() {
                     "block\0\0\0\0\0\0\0" => return Ok(()),
@@ -264,6 +268,7 @@ fn get_blocks_from_bundle(
     stream: &mut TcpStream,
     safe_headers: &SafeVecHeader,
     safe_blockchain: &SafeBlockChain,
+    safe_pending_tx: &SafePendingTx,
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
     if requested_block_hashes.is_empty(){
@@ -272,7 +277,7 @@ fn get_blocks_from_bundle(
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     for _ in 0..amount_of_hashes {
-        receive_block(stream, safe_headers, safe_blockchain,logger)?;
+        receive_block(stream, safe_headers, safe_blockchain,safe_pending_tx, logger)?;
     }
 
     Ok(())

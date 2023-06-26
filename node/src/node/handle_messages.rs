@@ -65,7 +65,7 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
 
 ///Handles the inv message by asking for the blocks that are not in the blockchain.
 ///If the block is already in the blockchain, it is not saved.
-pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockchain: &SafeBlockChain, safe_pending_tx: &SafePendingTx) -> Result<(), NodeError> {
+pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockchain: &SafeBlockChain, safe_pending_tx: &SafePendingTx, ibd: bool) -> Result<(), NodeError> {
     let inv_msg = match InvMessage::from_bytes(&msg_bytes) {
         Ok(msg) => msg,
         Err(_) => return Err(NodeError::ErrorRecevingBroadcastedInventory),
@@ -76,17 +76,18 @@ pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_block
 
     let mut request_block_hashes = Vec::new();
     let mut request_transaction_hashes = Vec::new();
-
-    match safe_blockchain.lock(){
-        Ok(blockchain) => {
-            for hash in block_hashes{
-                if !blockchain.contains_key(&hash){
-                    request_block_hashes.push(hash);
+    if !ibd{
+        match safe_blockchain.lock(){
+            Ok(blockchain) => {
+                for hash in block_hashes{
+                    if !blockchain.contains_key(&hash){
+                        request_block_hashes.push(hash);
+                    }
                 }
-            }
-        },
-        Err(_) => return Err(NodeError::ErrorSharingReference),
-    };
+            },
+            Err(_) => return Err(NodeError::ErrorSharingReference),
+        };
+    }
 
     match safe_pending_tx.lock(){
         Ok(pending_tx) => {
@@ -102,6 +103,7 @@ pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_block
         send_get_data_message_for_blocks(request_block_hashes, stream).map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
     }
     if !request_transaction_hashes.is_empty(){
+        println!("recibi una inv tx");
         send_get_data_message_for_transactions(request_transaction_hashes, stream)?;
     }
     Ok(())
@@ -130,7 +132,7 @@ pub fn handle_tx_message(msg_bytes: Vec<u8>, safe_pending_tx: &SafePendingTx) ->
         Ok(tx_msg) => tx_msg.tx,
         Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
     };
-    
+    println!("recibi una tx");
     let mut pending_tx = safe_pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)?;
     pending_tx.insert(tx.hash(), tx);
     println!("Pending tiene {}", pending_tx.len());

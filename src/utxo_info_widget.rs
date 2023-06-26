@@ -34,7 +34,7 @@ pub fn build_utxo_info(utxo_info: &UTxOInfo) -> Box {
 /// to be displayed correctly in the UI
 pub fn build_pending_tx_info(pending_tx_info: &TxInfo) -> Box{
     let pending_tx_box = Box::new(Orientation::Vertical, 0);
-    let amount_btc: f64 = pending_tx_info.amount as f64 / SATOSHI_TO_BTC;
+    let amount_btc: f64 = (pending_tx_info.tx_out_total + pending_tx_info.tx_in_total) as f64 / SATOSHI_TO_BTC;
     let hash_as_string = get_string_representation_from_bytes(&mut pending_tx_info.hash.to_vec());
 
     let tx_id_label = Label::new(Some(format!("Hash: {}", hash_as_string).as_str()));

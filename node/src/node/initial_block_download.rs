@@ -45,6 +45,7 @@ impl Node {
             header_stream_index,
             &self.block_headers,
             &self.blockchain,
+            &self.pending_tx,
             &self.logger,
         );
         match block_downloader {
@@ -326,6 +327,7 @@ mod tests {
             0,
             &node.block_headers,
             &node.blockchain,
+            &node.pending_tx,
             &node.logger.clone(),
         )
         .unwrap();

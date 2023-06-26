@@ -97,14 +97,17 @@ impl Wallet{
         for mut node_pending in pending_tx_info{
             for wallet_pending in &self.pending_tx{
                 if wallet_pending.hash == node_pending.hash{
-                    node_pending.amount = wallet_pending.amount;
+                        node_pending.tx_out_total = wallet_pending.tx_out_total;
+                        node_pending.tx_in_total = wallet_pending.tx_in_total ;
                 }
             }
-            if node_pending.amount < 0 {
-                self.sending_pending_balance += node_pending.amount;
-            } else {
-                self.receiving_pending_balance += node_pending.amount;
+            if node_pending.tx_in_total == 0{
+                self.sending_pending_balance += 0;
+            }else{
+                self.sending_pending_balance += node_pending.tx_in_total + node_pending.tx_out_total;
             }
+            self.receiving_pending_balance += node_pending.tx_out_total;
+            
             new_pending_tx_info.push(node_pending);
         }
         self.pending_tx = new_pending_tx_info;
