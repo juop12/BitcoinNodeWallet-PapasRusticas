@@ -1,10 +1,9 @@
 use gtk::prelude::*;
 use gtk::{Application, Builder, Button, Dialog, Window};
-use std::rc::Rc;
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread::{self, JoinHandle};
-use glib::{Sender as GlibSender, Receiver as GlibReceiver};
+use std::thread::{self};
+use glib::{Receiver as GlibReceiver};
 use crate::activate_adjustments;
 use crate::wallet_adder::{
     initialize_wallet_adder_actions,initialize_wallet_selector, 
@@ -153,5 +152,8 @@ pub fn start_app(args: Vec<String>){
     let vector: Vec<String> = Vec::new();
     application.run_with_args(&vector);
 
-    join_handle.join();
+    if let Err(error) = join_handle.join(){
+        eprintln!("Error joining thread: {:#?}", error);
+    };
+    
 }

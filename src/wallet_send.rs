@@ -20,7 +20,9 @@ fn update_total_amount(builder: &Builder) {
     let send_amount: SpinButton = builder.object("Send Amount").unwrap();
     let fee_amount: SpinButton = builder.object("Fee Amount").unwrap();
     
-    let total_amount = send_amount.value() + fee_amount.value();
+    let sth_amount = (send_amount.value() * BITCOIN_TO_SATOSHIS).round() + (fee_amount.value() * BITCOIN_TO_SATOSHIS).round();
+    let total_amount = sth_amount as f64 / BITCOIN_TO_SATOSHIS;
+
     total_amount_label.set_label(&total_amount.to_string());
 }
 

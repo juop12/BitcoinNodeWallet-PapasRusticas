@@ -1,4 +1,4 @@
-use crate::utils::btc_errors::{NodeError, WalletError};
+use crate::utils::btc_errors::WalletError;
 use crate::blocks::BlockHeader;
 use crate::blocks::Outpoint;
 use crate::wallet::Wallet;
@@ -8,7 +8,7 @@ pub const TX_PAGE_LENGTH: usize = 30;
 pub const BLOCK_PAGE_LENGTH: usize = 10;
 
 pub enum UIToWalletCommunication {
-    ChangeWallet(/* private key*/String),    //ui se tiene que fijar que las longitudes esten bien, ya sea en hexa o en base 58. La wallet dependiendo de la cantidad lo pasa a array, y cambia la wallet. 
+    ChangeWallet(/* private key*/String),                              //ui se tiene que fijar que las longitudes esten bien, ya sea en hexa o en base 58. La wallet dependiendo de la cantidad lo pasa a array, y cambia la wallet. 
     CreateTx(/* amount*/i64, /* fee*/i64, /*addres */String),         //ui manda en distintas bases el adrress, se fijan las longitudes
     ObtainTxProof(/*txhash */[u8;32], /*block number */ usize),
     EndOfProgram,

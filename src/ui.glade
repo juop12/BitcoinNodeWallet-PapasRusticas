@@ -4,7 +4,7 @@
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkAdjustment" id="Amount Adjustment">
     <property name="upper">21000000</property>
-    <property name="step-increment">1.0000000000000001e-09</property>
+    <property name="step-increment">1e-08</property>
     <property name="page-increment">10</property>
   </object>
   <object class="GtkDialog" id="Error Dialog">
@@ -64,7 +64,7 @@
   </object>
   <object class="GtkAdjustment" id="Fee Adjustment">
     <property name="upper">21000000</property>
-    <property name="step-increment">1.0000000000000001e-09</property>
+    <property name="step-increment">1e-08</property>
     <property name="page-increment">10</property>
   </object>
   <object class="GtkDialog" id="Invalid Address Dialog">
@@ -185,6 +185,7 @@ than the current Balance</property>
   </object>
   <object class="GtkWindow" id="Loading Screen Window">
     <property name="width-request">800</property>
+    <property name="height-request">350</property>
     <property name="can-focus">False</property>
     <property name="resizable">False</property>
     <child>
@@ -235,6 +236,7 @@ than the current Balance</property>
             <property name="height-request">100</property>
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="vexpand">True</property>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -910,7 +912,7 @@ than the current Balance</property>
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="adjustment">Amount Adjustment</property>
-                            <property name="digits">9</property>
+                            <property name="digits">8</property>
                             <property name="update-policy">if-valid</property>
                           </object>
                           <packing>
@@ -1061,7 +1063,7 @@ than the current Balance</property>
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
                         <property name="adjustment">Fee Adjustment</property>
-                        <property name="digits">9</property>
+                        <property name="digits">8</property>
                         <property name="update-policy">if-valid</property>
                       </object>
                       <packing>

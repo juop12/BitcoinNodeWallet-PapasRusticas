@@ -96,7 +96,7 @@ impl Node {
         Ok(block_info)
     }
 
-    pub fn get_block_info_from(&self, mut block_number: usize) -> Result<BlockInfo, NodeError>{
+    pub fn get_block_info_from(&self, block_number: usize) -> Result<BlockInfo, NodeError>{
         let hash = match self.get_block_headers(){
             Ok(block_headers) => {
                 if block_number - 1 >= block_headers.len(){
