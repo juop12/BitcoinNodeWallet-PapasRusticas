@@ -52,18 +52,17 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
     let tree_store: TreeStore = builder.object("Tx Tree Store").unwrap();
 
     let block_number_label: Label = builder.object("Block Header Frame Label").unwrap();
-    println!("Block number: {}", block_number_label.label().to_string());
     
     let sender_clone = sender.clone();
     merkle_button.connect_clicked(move |_| {
-        let block_number = match block_number_label.label().to_string().split(" ").last() {
+        let block_number = match block_number_label.label().to_string().split(' ').last() {
             Some(block_number) => block_number[1..].parse::<usize>().unwrap(),
             None => return,
         };
         let (_,tree_iter) = match tree_selection.selected(){
             Some((tree_model, tree_iter)) => (tree_model, tree_iter),
             None => {
-                println!("Error while selecting tree iter");
+                eprintln!("Error while selecting tree iter");
                 return;
             }
         };
@@ -89,9 +88,11 @@ pub fn handle_result_of_tx_proof(builder: &Builder, result: bool){
     activate_buttons(builder);
 
     if result {
+        merkle_success_dialog.set_title("Proof of inclusion Success");
         merkle_success_dialog.run();
         merkle_success_dialog.hide();
     } else {
+        merkle_failure_dialog.set_title("Proof of inclusion Failure");
         merkle_failure_dialog.run();
         merkle_failure_dialog.hide();
     }

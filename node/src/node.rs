@@ -185,7 +185,7 @@ impl Drop for Node {
         }
         
         //Saving data.
-        self.logger.log(format!("Saving received data"));
+        self.logger.log("Saving received data".to_string());
 
         if self.store_headers_in_disk().is_err(){
             return self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
@@ -195,7 +195,7 @@ impl Drop for Node {
             return self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
         };
 
-        self.logger.log(format!("Finished storing data"));
+        self.logger.log("Finished storing data".to_string());
     }
 }
 

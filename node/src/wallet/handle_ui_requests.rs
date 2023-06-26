@@ -11,7 +11,10 @@ use super::Wallet;
 
 
 impl Wallet{
-
+    /// Main fucntions, that calls to the correspoding handle, depending on what the ui requested. 
+    /// If the individual handle fails the it sends the error to the ui but this function does not 
+    /// return error. The only circumstance when this function returns error is if it cannot 
+    /// comunicate with th ui
     pub fn handle_ui_request(mut self, node: &mut Node, request: UIRequest, sender_to_ui: &GlibSender<UIResponse>, program_running: &mut bool)-> Result<Wallet, WalletError>{
         let ui_response = match request{
             UIRequest::ChangeWallet(priv_key_string) => match self.handle_change_wallet(node, priv_key_string, sender_to_ui){
@@ -36,6 +39,9 @@ impl Wallet{
         Ok(self)
     }
 
+    /// Returns the bloc info of the requested block number inside a UiResponse. 
+    /// If the block was not found it returns error_finding block, on any other 
+    /// error return ErrorGettingBlockInfo
     pub fn handle_get_block_info(&mut self, node: &Node, block_number: usize) -> Result<UIResponse, WalletError>{
         let block_info = match node.get_block_info_from(block_number){
             Ok(block_info) => block_info,
@@ -53,6 +59,9 @@ impl Wallet{
         Ok(UIResponse::BlockInfo(block_info))
     }
     
+    /// Returns the bloc info of the last block of the blockchain inside a UiResponse. 
+    /// If the block was not found it returns error_finding block, on any other 
+    /// error return ErrorGettingBlockInfo
     pub fn handle_last_block_info(&mut self, node: &Node) -> Result<UIResponse, WalletError>{
         let block_info = match node.get_last_block_info(){
             Ok(block_info) => block_info,
@@ -70,20 +79,22 @@ impl Wallet{
         Ok(UIResponse::BlockInfo(block_info))
     }
 
+    /// Sends the current wallet information to the ui
     pub fn send_wallet_info(&self, sender_to_ui: &GlibSender<UIResponse>) -> Result<(), WalletError>{
         let wallet_info = WalletInfo::from(self);
         sender_to_ui.send(UIResponse::WalletInfo(wallet_info)).map_err(|_| WalletError::ErrorSendingToUI)?;
         Ok(())
     }
 
+    /// Changes wallet to the onew whose private key is written in the string either in base 58 or hex.
     pub fn handle_change_wallet(&self, node: &mut Node, priv_key_string: String, sender_to_ui: &GlibSender<UIResponse>) -> Result<Wallet, WalletError>{
         let mut new_wallet = Wallet::from(priv_key_string)?;
         node.set_wallet(&mut new_wallet).map_err(|_| WalletError::ErrorSettingWallet)?;
         self.send_wallet_info(sender_to_ui)?;
-        //new_wallet = new_wallet.handle_ui_request(node, UIRequest::Update, sender_to_ui, &mut true)?;
         Ok(new_wallet)
     }
 
+    /// Creates and sends a transaction to the receiver addres of value amount and fee.
     fn handle_create_tx(&mut self, node: &mut Node, amount: i64, fee: i64, receiver_address: String)-> Result<UIResponse, WalletError>{
         let address_bytes = bs58::decode(receiver_address).into_vec().map_err(|_| WalletError::ErrorSendingTx)?;
         let mut address: [u8;25] = [0;25];
@@ -93,6 +104,7 @@ impl Wallet{
         Ok(UIResponse::TxSent)
     }
 
+    /// Requests the merkle proof of inclution to the node and verifies it.
     pub fn handle_obtain_tx_proof(&self, node: &Node, tx_hash: [u8;32], block_index: usize)-> Result<UIResponse, WalletError>{
         let (merkle_proof, merkle_root) = node.get_merkle_tx_proof(tx_hash, block_index).map_err(|_| WalletError::ErrorObtainingTxProof)?;
         

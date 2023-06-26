@@ -54,7 +54,6 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
     for tx in block.get_transactions(){
         if pending_tx.remove(&tx.hash()).is_some(){
             logger.log(String::from("Transaccion sacada de pending"));
-            println!("Pending tiene {}", pending_tx.len());
         }
     }
     
@@ -102,7 +101,6 @@ pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_block
         send_get_data_message_for_blocks(request_block_hashes, stream).map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
     }
     if !request_transaction_hashes.is_empty(){
-        println!("recibi una inv tx");
         send_get_data_message_for_transactions(request_transaction_hashes, stream)?;
     }
     Ok(())
@@ -131,10 +129,8 @@ pub fn handle_tx_message(msg_bytes: Vec<u8>, safe_pending_tx: &SafePendingTx) ->
         Ok(tx_msg) => tx_msg.tx,
         Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
     };
-    println!("recibi una tx");
     let mut pending_tx = safe_pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)?;
     pending_tx.insert(tx.hash(), tx);
-    println!("Pending tiene {}", pending_tx.len());
     Ok(())
 }
 

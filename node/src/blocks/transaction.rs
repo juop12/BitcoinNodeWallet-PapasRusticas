@@ -163,24 +163,25 @@ impl TxOut {
         if self.pk_script[OP_CHECKSIG_POSITION] != OP_CHECKSIG{
             return None;
         }
-        return Some(&self.pk_script[3..23])
+        Some(&self.pk_script[3..23])
     }
 
-    ///-
-    pub fn clone(&self) -> TxOut{
-        TxOut { 
-            value: self.value,
-            pk_script_length: VarLenInt::new(self.pk_script_length.to_usize()), 
-            pk_script: self.pk_script.clone() 
-        }
-    }
-
-    ///-
+    /// Checks whether the txout belongs to the pkhash
     pub fn belongs_to(&self, pk_hash: [u8;20]) -> bool{
         if let Some(owner_pk_hash) = self.pk_hash_under_p2pkh_protocol(){
             return pk_hash == owner_pk_hash;
         }
         false
+    }
+}
+
+impl Clone for TxOut{
+    fn clone(&self) -> Self {
+        TxOut { 
+            value: self.value,
+            pk_script_length: VarLenInt::new(self.pk_script_length.to_usize()), 
+            pk_script: self.pk_script.clone() 
+        }
     }
 }
 
@@ -196,12 +197,11 @@ impl TxIn {
         }
     }
 
-    ///-
+    /// Creates a txin with no signature_script
     pub fn create_unsigned_with(previous_output: Outpoint) -> TxIn{
         TxIn::new(previous_output, Vec::new(), u32::MAX)
     }
     
-    ///-
     pub fn insert_script_signature(&mut self, signature_script: Vec<u8>){
         self.script_length = VarLenInt::new(signature_script.len());
         self.signature_script = signature_script;
@@ -268,7 +268,7 @@ impl TxIn {
 
         let (_sig, bytes_left) = self.signature_script.split_at(sig_len.to_usize() + sig_len.amount_of_bytes());
         
-        let pub_key_len = match VarLenInt::from_bytes(&bytes_left){
+        let pub_key_len = match VarLenInt::from_bytes(bytes_left){
             Some(pub_key_len) => pub_key_len,
             None => return false,
         };
@@ -308,7 +308,7 @@ impl Transaction {
         }
     }
 
-    ///-
+    /// Creates and signs a transaction according to the p2pkh protocol
     pub fn create(amount: i64, fee: i64, unspent_outpoints: Vec<Outpoint>, unspent_balance: i64, pub_key: PublicKey, priv_key: SecretKey, address: [u8;25]) -> Result<Transaction, TransactionError>{
         
         let change: i64 = unspent_balance - amount - fee;
@@ -343,10 +343,8 @@ impl Transaction {
     //  3-  z = int::from_big_endian  hash256(modified_transaccion.to_bytes)
     //  4- der = private_key.sign(z).der()
     //  5- sig = der + SIGHASH_ALL.to_bytes(1, 'big')  The signature is actually a combination of the DER signature and the hash type, (suma) which is SIGHASH_ALL in our case
-    
-    //  6- sec = private_key.point.sec() // ES LA PUBKEY COMPRESSED DE 33 BYTES!!!
+    //  6- sec = private_key.point.sec()
     //  7- sig_script = [varlenInt(sig), sig, Varlenint(sec), sec]
-    ///-
     fn get_signature_script(&self, pub_key: PublicKey, priv_key: SecretKey)-> Result<Vec<u8>, TransactionError>{
         
         // 1
@@ -450,7 +448,6 @@ impl Transaction {
         self.to_bytes().len()
     }
 
-    ///-
     pub fn hash(&self) -> [u8; 32] {
         *sha256d::Hash::hash(&self.to_bytes()).as_byte_array()
     }
@@ -460,7 +457,7 @@ impl Transaction {
     }
 }
 
-///-
+/// Creates a vector containing an unsigned txin for each outpoint
 fn create_unsigned_tx_in_vector(unspent_outpoints: Vec<Outpoint>) -> Vec<TxIn>{
     let mut tx_in_vector = Vec::new();
 
@@ -472,12 +469,11 @@ fn create_unsigned_tx_in_vector(unspent_outpoints: Vec<Outpoint>) -> Vec<TxIn>{
     tx_in_vector
 }
 
-///-
 fn assemble_signature_script(signature: Vec<u8> ,pub_key: PublicKey) -> Vec<u8>{
     let len_sig = VarLenInt::new(signature.len());
     let len_sec = VarLenInt::new(pub_key.serialize().len());
 
-    let mut signature_script = Vec::from(len_sig.to_bytes());        
+    let mut signature_script = len_sig.to_bytes();        
     signature_script.extend(signature);
     signature_script.extend(len_sec.to_bytes());
     signature_script.extend(pub_key.serialize());
@@ -485,7 +481,8 @@ fn assemble_signature_script(signature: Vec<u8> ,pub_key: PublicKey) -> Vec<u8>{
     signature_script
 }
 
-///-
+/// Creates a Txout vector with 2 txout one going to the address with the amount. 
+/// And another with the remainder of value not used in amount or fee to the sending account
 fn create_tx_out_vector(change: i64, amount: i64, pub_key: PublicKey, address: [u8;25]) -> Vec<TxOut>{
     let mut receiver_pk_hash: [u8;20] = [0; 20];
     receiver_pk_hash.copy_from_slice(&address[1..21]);
@@ -498,7 +495,6 @@ fn create_tx_out_vector(change: i64, amount: i64, pub_key: PublicKey, address: [
     vec![tx_out_receiver, tx_out_change]
 } 
 
-///-
 pub fn get_pk_script_from_pubkey(pub_key: PublicKey) -> [u8; P2PKH_SCRIPT_LENGTH]{
     let pk_hash = hash160::Hash::hash(&pub_key.serialize());
     
@@ -506,7 +502,7 @@ pub fn get_pk_script_from_pubkey(pub_key: PublicKey) -> [u8; P2PKH_SCRIPT_LENGTH
 }
 
 
-///-
+/// Returns the pk_script according to the p2pkh protocol
 fn get_pk_script(pk_hash: [u8; 20]) -> [u8; P2PKH_SCRIPT_LENGTH]{
     let mut pk_script: [u8; P2PKH_SCRIPT_LENGTH] = [0; P2PKH_SCRIPT_LENGTH];
 
@@ -679,35 +675,4 @@ mod tests {
         assert_eq!(transaction_bytes, transaction.to_bytes());
         Ok(())
     }
-
-/*
-    fn get_bytes_from_hex(hex_string: &str)-> Vec<u8>{
-        hex_string
-            .as_bytes()
-            .chunks(2)
-            .map(|chunk| u8::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16).unwrap())
-            .collect::<Vec<u8>>()
-    }
-
-    fn real_transaction_sig_script() -> Vec<u8>{
-        let hex_string = "473044022015e1ca708ca67db78c0513065e51165d22a8f79dc345ed5652b3689e55fb0e4702202a37273a155c3cb6b292d67460a836020443748bf498e5cf90d3e19be19a67c101210285664ba4fd95fb4c8f752fd07065b197a3b25a9a82ab6c1db877f3ec2ca43143"; // String en formato hexadecimal
-        get_bytes_from_hex(hex_string)
-    }
-
-    fn real_outpoint_used() -> Outpoint{
-        let hex_string = "5a23ad0ce6fe78458793baec33592a77175672f9f2e5216b1859d131c4252d0401000000"; // String en formato hexadecimal
-        Outpoint::from_bytes(&get_bytes_from_hex(hex_string)).unwrap()
-    }
-
-    #[test]
-    fn transaction_test_5_signatures() -> Result<(), TransactionError>{
-        
-        let amount = 0.01371463 * 100000000; 
-        let unspent_balance = 51.43577627 * 100000000;        
-        let fee = unspent_balance - amount - 51.42183664  * 100000000; // 0.000225 * 100000000
-
-        Transaction::create(amount, fee, real_outpoint_used(), unspent_balance, pub_key, priv_key, address)
-    }
-*/
-
 }

@@ -33,7 +33,7 @@ fn add_transaction_hashes(builder: &Builder, transaction_hashes: &Vec<String>){
     let tx_tree_store: TreeStore = builder.object("Tx Tree Store").unwrap();
     let mut i :i32 = 1;
     for transaction_hash in transaction_hashes{
-        add_row(&tx_tree_store, &transaction_hash,i);
+        add_row(&tx_tree_store, transaction_hash,i);
         i+=1;
     }
 }
@@ -53,7 +53,7 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
     clean_list_box(&utxo_list);
     clean_list_box(&pending_tx_list);
     let available_balance: f64 = wallet_info.available_balance as f64 / SATOSHI_TO_BTC;
-    let sending_pending_balance: f64 = wallet_info.sending_pending_balance as f64 / SATOSHI_TO_BTC;  //p ver de poner ambos pendings
+    let sending_pending_balance: f64 = wallet_info.sending_pending_balance as f64 / SATOSHI_TO_BTC;  
     let receiving_pending_balance: f64 = wallet_info.receiving_pending_balance as f64 / SATOSHI_TO_BTC;
     update_balance(builder, available_balance.to_string().as_str());
     update_available_balance(builder, available_balance.to_string().as_str());
@@ -73,5 +73,6 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder){
 /// Shows the success message of a transaction well sent
 pub fn handle_tx_sent(builder: &Builder) {
     let tx_sent_dialog: Dialog = builder.object("Succesful Send Dialog").unwrap();
+    tx_sent_dialog.set_title("Transaction Sending Success");
     tx_sent_dialog.run();
 }

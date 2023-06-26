@@ -69,7 +69,7 @@ fn get_first_wallet(node: &mut Node, receiver: &mpsc::Receiver<UIRequest>, sende
     
                 node.set_wallet(&mut wallet).map_err(|_| WalletError::ErrorSettingWallet)?;
     
-                wallet.send_wallet_info(&sender_to_ui)?;
+                wallet.send_wallet_info(sender_to_ui)?;
                 
                 return Ok(Some(wallet));
             }
@@ -79,7 +79,7 @@ fn get_first_wallet(node: &mut Node, receiver: &mpsc::Receiver<UIRequest>, sende
     }
 }
 
-///-
+/// Wllet receives messages from the ui and handles them. Every REFRESH_RATE seconds the wallet updates the information of the ui
 fn run_main_loop(node: &mut Node, mut wallet: Wallet, receiver: &mpsc::Receiver<UIRequest>, sender_to_ui: &GlibSender<UIResponse>) -> Result<(), WalletError>{
     let mut last_update_time = Instant::now(); 
     let mut program_running = true;
@@ -88,22 +88,21 @@ fn run_main_loop(node: &mut Node, mut wallet: Wallet, receiver: &mpsc::Receiver<
         
         if last_update_time.elapsed() < REFRESH_RATE {
             if let Ok(request) = receiver.try_recv(){
-                wallet = wallet.handle_ui_request(node, request, &sender_to_ui, &mut program_running)?;
+                wallet = wallet.handle_ui_request(node, request, sender_to_ui, &mut program_running)?;
             }
         } else {
             
             node.update(&mut wallet).map_err(|_| WalletError::ErrorUpdatingWallet)?;
-            wallet.send_wallet_info(&sender_to_ui)?;
+            wallet.send_wallet_info(sender_to_ui)?;
             
             last_update_time = Instant::now();
-            println!("Balance: {}",node.balance);
         }
     }
     
     Ok(())
 }
 
-///-
+
 pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mpsc::Receiver<UIRequest>) {
 
     let mut node = match initialize_node(args){
@@ -115,7 +114,7 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
         return eprintln!("Error sending_to_ui: {:?}", error);
     }
 
-    node.logger.log(format!("node, running"));
+    node.logger.log("node, running".to_string());
     
     let wallet = match get_first_wallet(&mut node, &receiver, &sender_to_ui){
         Ok(wallet) => match wallet{
@@ -129,7 +128,7 @@ pub fn run(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>, receiver: mp
         return exit_program(sender_to_ui, UIResponse::WalletError(error));
     };
 
-    node.logger.log(format!("program finished gracefully"));
+    node.logger.log("program finished gracefully".to_string());
     exit_program(sender_to_ui, UIResponse::WalletFinished);
 }
 
@@ -138,7 +137,7 @@ fn exit_program(sender_to_ui: GlibSender<UIResponse>, message: UIResponse){
     match message {
         UIResponse::WalletError(error) => {
             if let WalletError::ErrorSendingToUI = error{
-                return eprintln!("Error sending_to_ui: {:?}", error);
+                eprintln!("Error sending_to_ui: {:?}", error);
             } 
         },
         _ => {

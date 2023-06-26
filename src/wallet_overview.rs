@@ -26,11 +26,9 @@ fn update_total_balance(builder :&Builder){
     let total_label: Label = builder.object("Total Quantity").unwrap();
     let available_label: Label = builder.object("Available Quantity").unwrap();
 
-    let sending_pending_label: Label = builder.object("Sending Pending Quantity").unwrap();
     let receiving_pending_label: Label = builder.object("Receiving Pending Quantity ").unwrap();
 
     let available_amount: f64 = available_label.label().parse::<f64>().unwrap();
-    let sending_pending_amount: f64 = sending_pending_label.label().parse::<f64>().unwrap();
     let receiving_pending_amount: f64 = receiving_pending_label.label().parse::<f64>().unwrap();
     let total_amount = available_amount + receiving_pending_amount;
 

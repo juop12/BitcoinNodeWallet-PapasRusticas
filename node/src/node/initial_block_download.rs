@@ -110,16 +110,12 @@ impl Node {
                 &mut total_amount_of_blocks,
                 self.starting_block_time
             )?;
-            //p
-            println!("#headers = {}", headers_received);
             self.logger.log(format!(
                 "Current ammount of downloaded headers = {}",
                 headers_received
             ));
         }
 
-        //p
-        println!("#blocks = {}", total_amount_of_blocks);
         self.logger.log(format!(
             "Total ammount of blocks = {}",
             total_amount_of_blocks
@@ -217,9 +213,6 @@ impl Node {
         self.store_headers_in_disk()?;
         self.logger.log(String::from("Finished storing headers to disk"));
         
-        //p
-        println!("# final de headers  = {}", self.get_block_headers()?.len());
-        println!("# final de blocks  = {}", self.get_blockchain()?.len());
         self.logger.log(format!(
             "Final amount of headers after IBD = {}",
             self.get_block_headers()?.len()

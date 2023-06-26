@@ -9,50 +9,6 @@ use std::{
 };
 use workers::*;
 
-/* 
-fn insert_time_orderly(header: BlockHeader, vec_headers: &mut Vec<BlockHeader>){
-    let mut i = vec_headers.len();
-    while (i > 0) && (header.time < vec_headers[i-1].time){
-        i-=1;
-    }
-    vec_headers.insert(i, header);
-}
-
-///Adds a block to the blockchain, its header to the headers vector and saves them both on disk.
-fn add_block_or_headers(mut received_block_headers: Vec<BlockHeader>, received_blocks: Vec<Block>, safe_headers: & SafeVecHeader, safe_blockchain: & SafeBlockChain, logger: &Logger) -> Result<(), MessageReceiverError> {
-    if !received_blocks.is_empty(){
-        match safe_blockchain.lock(){
-            Ok(mut blockchain) => {
-                for block in received_blocks{
-                    if !blockchain.contains_key(&block.header_hash()){
-                        received_block_headers.push(block.get_header().to_owned());
-                        blockchain.insert(block.header_hash(), block);
-                        logger.log(String::from("Se almaceno un nuevo bloque"))
-                    }
-                }
-            },
-            Err(_) => return Err(MessageReceiverError::ErrorAddingReceivedData),
-        }
-    }
-    
-    if !received_block_headers.is_empty(){
-        match safe_headers.lock(){
-            Ok(mut headers) => {
-                for header in received_block_headers{
-                    insert_time_orderly(header, &mut headers);
-                    logger.log(String::from("Se almaceno un nuevo header"));
-                };
-            },
-            Err(_) => return Err(MessageReceiverError::ErrorAddingReceivedData),
-        }
-    }
-    Ok(())
-
-} 
-*/
-
-
-
 #[derive(Debug)]
 pub struct MessageReceiver {
     workers: Vec<Worker>,
@@ -61,13 +17,12 @@ pub struct MessageReceiver {
 }
 
 impl MessageReceiver{
-    ///-
     pub fn new(outbound_connections: &Vec<TcpStream>, safe_blockchain: &SafeBlockChain, safe_headers: &SafeVecHeader, safe_pending_tx: &SafePendingTx, logger: &Logger)->MessageReceiver{
         let amount_of_peers = outbound_connections.len();
         let mut workers = Vec::new();
         let mut finished_working_indicators = Vec::new();
         for (id, stream) in outbound_connections
-        .into_iter()
+        .iter()
         .enumerate()
         .take(amount_of_peers)
         {
@@ -109,6 +64,7 @@ impl MessageReceiver{
     }
 }
 
+/// Main loop of eache message receiver
 pub fn message_receiver_thread_loop(stream: &mut TcpStream, 
     safe_block_headers: &SafeVecHeader, 
     safe_block_chain: &SafeBlockChain, 
@@ -127,7 +83,7 @@ pub fn message_receiver_thread_loop(stream: &mut TcpStream,
         
     }
 
-    if receive_message(stream, safe_block_headers, safe_block_chain, safe_pending_tx, &logger, false).is_err(){
+    if receive_message(stream, safe_block_headers, safe_block_chain, safe_pending_tx, logger, false).is_err(){
         return Stops::UngracefullStop;
     }
     Stops::Continue

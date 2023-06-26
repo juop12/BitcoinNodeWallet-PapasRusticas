@@ -33,10 +33,8 @@ fn get_bundle(id: usize, receiver: &SafeReceiver, logger: &Logger) -> Option<Bun
 /// gets the blocks from it's peer, and saves them to the shared reference block vector.
 /// If anything fails along the way it loggs acordingly, as well as other things like
 /// received messages.
-/// It returs an option representing wheter the loop must stop (Some) or continue None.
-/// The bool stored in Some represents whether the stop is a "Gracefull stop", meaning
-/// the thread must return true (for example when receiving an end of channel), or an
-/// "Ungracefull stop" meaning the loop failed at some point
+/// It returns a type of stop, depending on wheather the worker finished, gracefully, ungracefully, 
+/// or must continue
 pub fn block_downloader_thread_loop(
     id: usize,
     receiver: &SafeReceiver,
@@ -58,7 +56,7 @@ pub fn block_downloader_thread_loop(
 
     let aux_bundle = bundle.clone();
 
-    match get_blocks_from_bundle(bundle, stream, &safe_headers, &safe_block_chain, logger) {
+    match get_blocks_from_bundle(bundle, stream, safe_headers, safe_block_chain, logger) {
         Ok(blocks) => blocks,
         Err(error) => {
             if let Err(error) = missed_bundles_sender.send(aux_bundle) {
@@ -212,6 +210,7 @@ impl BlockDownloader {
     }
 }
 
+/// Receives messages until it receives either block or not found
 fn receive_block(
     stream: &mut TcpStream,
     safe_headers: &SafeVecHeader,

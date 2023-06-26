@@ -100,7 +100,7 @@ impl HashPair{
     }
 }
 
-/// Returns a vector of hashpairs that can be used to veify the merkle proof
+/// Returns a vector of hashpairs that can be used to veify with the also returned merkle
 pub fn proof_of_transaction_included_in(transaction_hash: [u8;32], block: &Block)-> (Vec<HashPair>, [u8;32]){
     let hash_vector = block.get_tx_hashes();
     if hash_vector.is_empty() {
@@ -126,17 +126,14 @@ pub fn proof_of_transaction_included_in(transaction_hash: [u8;32], block: &Block
             break;
         } 
         
-        let hash_pair;
-        
-        //es hijo izq
-        if (level_position % 2) == 0{
-            hash_pair = HashPair::new(current_level[level_position], current_level[level_position + 1]);
+        let hash_pair = if (level_position % 2) == 0{ 
+            HashPair::new(current_level[level_position], current_level[level_position + 1])
         } else {
-            hash_pair = HashPair::new(current_level[level_position -1], current_level[level_position]);
-        }
+            HashPair::new(current_level[level_position -1], current_level[level_position])
+        };
         merkle_proof.push(hash_pair);
         
-        level_position = level_position / 2;
+        level_position /= 2;
     }
 
     (merkle_proof, merkle_tree[0][0])

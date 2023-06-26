@@ -127,7 +127,7 @@ impl NodeDataHandler {
         Ok(())
     }
 
-    /// Saves all the headers (as bytes) passed by parameter in the headers file.
+    /// Saves the headers starting form start (as bytes) passed by parameter in the headers file.
     /// On error returns NodeDataHandlerError
     pub fn save_headers_to_disk(&mut self, safe_headers: &SafeVecHeader, start: usize) -> Result<(), NodeDataHandlerError> {
         let block_headers = safe_headers.lock().map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
@@ -146,7 +146,8 @@ impl NodeDataHandler {
         Ok(())
     }
 
-    /// -
+    /// Saves the blocks starting form start (as bytes) passed by parameter in the headers file.
+    /// On error returns NodeDataHandlerError
     pub fn save_blocks_to_disk(&mut self, safe_blockchain: &SafeBlockChain, safe_headers: &SafeVecHeader, start: usize) -> Result<(), NodeDataHandlerError> {
         let block_headers = safe_headers.lock().map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
         let blockchain = safe_blockchain.lock().map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
