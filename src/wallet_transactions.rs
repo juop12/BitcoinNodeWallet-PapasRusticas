@@ -12,13 +12,16 @@ use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
 const INDEX_COLUMN: u32 = 0;
 const TX_HASH_COLUMN: u32 = 1;
+const SENDER_ERROR: &str = "Error sending message to Node/Wallet thread";
 
+/// Adds a row to the transaction tree store.
 pub fn add_row(tx_tree_store: &TreeStore, tx_hash: &str, index: i32){
     let tree_iter = tx_tree_store.append(None);
     tx_tree_store.set_value(&tree_iter, INDEX_COLUMN, &glib::Value::from(index.to_string()));
     tx_tree_store.set_value(&tree_iter, TX_HASH_COLUMN, &glib::Value::from(tx_hash));
 }
 
+/// Receives all the information of a block and it updates the UI with it
 pub fn modify_block_header(builder: &Builder, block_number: usize, tx_hashes: &Vec<[u8;32]>, header: &BlockHeader){
 
     let header_hash_label: Label = builder.object("Header Hash").unwrap();
@@ -41,6 +44,9 @@ pub fn modify_block_header(builder: &Builder, block_number: usize, tx_hashes: &V
     header_label.set_label(format!("CURRENT BLOCK HEADER: BLOCK N° #{}", block_number).as_str());
 }
 
+/// Connects the button to the function that will request the merkle proof
+/// checking if the user has selected a transaction and converting the hash
+/// to a byte array.
 pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIRequest>){
     let merkle_button: Button = builder.object("Merkle Proof Button").unwrap();
     let tree_selection: TreeSelection = builder.object("Tx Tree Selection").unwrap();
@@ -67,15 +73,17 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
         
         let hash = value.get::<String>().unwrap();
         let hash_bytes = get_bytes_from_hex(hash);
-        let array: [u8; 32] = hash_bytes.try_into().unwrap();
+        let array: [u8; 32] = match hash_bytes.try_into(){
+            Ok(array) => array,
+            Err(_) => return,
+        };
 
-        println!("Hash: {:?}", array);
-        sender_clone.send(UIRequest::ObtainTxProof(array,  block_number-1)).unwrap();
+        sender_clone.send(UIRequest::ObtainTxProof(array,  block_number-1)).expect(SENDER_ERROR);
     });
 
 }
 
-
+/// Handles the result of the merkle proof request, showing a dialog with the result.
 pub fn handle_result_of_tx_proof(builder: &Builder, result: bool){
     let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
     let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
@@ -91,11 +99,13 @@ pub fn handle_result_of_tx_proof(builder: &Builder, result: bool){
 
 }
 
+/// Connects the buttons of the merkle proof result dialogs to the function that
+/// will hide them.
 fn activate_buttons(builder: &Builder){
     let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
+    let failure_dialog_button: Button = builder.object("Merkle Failure Button").unwrap();
     let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
     let success_dialog_button: Button = builder.object("Merkle Success Button").unwrap();
-    let failure_dialog_button: Button = builder.object("Merkle Failure Button").unwrap();
 
     success_dialog_button.connect_clicked(move |_| {
         merkle_success_dialog.hide();

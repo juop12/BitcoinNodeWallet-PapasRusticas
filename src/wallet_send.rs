@@ -5,6 +5,7 @@ use std::sync::mpsc::Sender;
 const ADDRESS_LEN: usize = 34;
 const BITCOIN_TO_SATOSHIS: f64 = 100000000.0;
 
+/// Updates the balance label with the new balance.
 pub fn update_balance(balance :&Builder, amount :&str) {
     let balance_label: Label = match balance.object("Balance Amount"){
         Some(balance_label) => balance_label,
@@ -13,6 +14,7 @@ pub fn update_balance(balance :&Builder, amount :&str) {
     balance_label.set_label(amount);
 }
 
+/// Updates the total amount balance according to the amount passed as argument
 fn update_total_amount(builder: &Builder) {
     let total_amount_label: Label = builder.object("Total Amount Label").unwrap();
     let send_amount: SpinButton = builder.object("Send Amount").unwrap();
@@ -22,6 +24,8 @@ fn update_total_amount(builder: &Builder) {
     total_amount_label.set_label(&total_amount.to_string());
 }
 
+/// Connects the signals of the send amount and fee amount spin buttons to the update_total_amount function.
+/// This function is called when the user changes the value of the spin buttons.
 pub fn activate_adjustments(builder: &Builder){
 
     let send_amount: SpinButton = builder.object("Send Amount").unwrap();
@@ -37,6 +41,8 @@ pub fn activate_adjustments(builder: &Builder){
     });
 }
 
+/// Updates the sending value of the wallet according to the available balance
+/// the user has
 fn use_available_balance(available_balance_label: &SpinButton, balance_amount: &Label) {
     
     let new_value = match balance_amount.label().parse::<f64>(){
@@ -46,6 +52,7 @@ fn use_available_balance(available_balance_label: &SpinButton, balance_amount: &
     available_balance_label.set_value(new_value);
 }
 
+/// Connects the signal of the use available balance button to the use_available_balance function.
 pub fn activate_use_available_balance(builder: &Builder){
     let button: Button = match builder.object("Use Available Balance"){
         Some(button) => button,
@@ -64,6 +71,7 @@ pub fn activate_use_available_balance(builder: &Builder){
     });
 }
 
+/// Connects the corresponding signals to the clear all button to clear all the fields
 pub fn activate_clear_all_button(builder: &Builder){
     let button: Button = match builder.object("Clear All Button"){
         Some(button) => button,
@@ -89,6 +97,9 @@ pub fn activate_clear_all_button(builder: &Builder){
     });
 }
 
+/// Handles the transaction sending process. It checks if the address is valid and if the amount is valid.
+/// If the fields are not correct, it shows an error dialog.
+/// If the fields are correct, it sends a CreateTx message to the wallet.
 fn handle_transaction_sending(builder: &Builder,address: &str, amount: f64, fee: f64, balance: f64, sender: &Sender<UIRequest>){
     
     if address.len() != ADDRESS_LEN {
@@ -109,6 +120,7 @@ fn handle_transaction_sending(builder: &Builder,address: &str, amount: f64, fee:
     
 }
 
+/// Connects the signal of the dialogs to the hide function for each one
 fn activate_dialogs(builder: &Builder){
     let error_address_dialog: Dialog = builder.object("Invalid Address Dialog").unwrap();
     let error_adress_button: Button = builder.object("Invalid Address Button").unwrap();
@@ -129,6 +141,7 @@ fn activate_dialogs(builder: &Builder){
     });
 }
 
+/// Connects the signal of the send button to the handle_transaction_sending function.
 pub fn activate_send_button(builder: &Builder, sender: &Sender<UIRequest>) {
     let address_entry: Entry = builder.object("Pay To Entry").unwrap();
     let amount: SpinButton = builder.object("Send Amount").unwrap();
@@ -147,6 +160,7 @@ pub fn activate_send_button(builder: &Builder, sender: &Sender<UIRequest>) {
     activate_dialogs(builder);
 }
 
+/// Sets the maximum value of the adjustments to the balance amount.
 pub fn update_adjustments_max_value(builder: &Builder){
     let balance_amount: Label = match builder.object("BalanceAmount"){
         Some(balance_label) => balance_label,

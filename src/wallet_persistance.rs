@@ -12,6 +12,7 @@ use crate::UiError;
 
 const PATH_NAME: &str = "src/wallets.csv"; 
 
+/// Saves the wallet in the disk, if the file doesn't exist, it creates it.
 pub fn save_wallet_in_disk(priv_key: &str, name_text: &str) -> Result<(), UiError>{    
     
     let mut file = _open_write_handler(PATH_NAME)?;
@@ -27,6 +28,8 @@ pub fn save_wallet_in_disk(priv_key: &str, name_text: &str) -> Result<(), UiErro
     Ok(())
 }
 
+/// Reads the wallets from the disk and returns a vector of vectors of strings, where each
+/// vector of strings represents a wallet. On error returns an UiError.
 pub fn get_saved_wallets_from_disk(wallet_selector: &ComboBoxText) -> Result<Vec<Vec<String>>, UiError>{
 
     let file = _open_read_only_handler(PATH_NAME)?;
@@ -52,6 +55,8 @@ pub fn get_saved_wallets_from_disk(wallet_selector: &ComboBoxText) -> Result<Vec
     Ok(wallets)
 }
 
+/// Manages the opening of the file in order to work with the saved wallets and
+/// in order to save new wallets. On error returns an UiError.
 fn _open_write_handler(path: &str) -> Result<File, UiError>{
     OpenOptions::new()
         .write(true)
