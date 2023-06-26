@@ -18,6 +18,7 @@ use node::run::*;
 use node::utils::ui_communication_protocol::{
     UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse
 };
+use crate::wallet_transactions::{initialize_merkle_proof_button, handle_result_of_tx_proof};
 use crate::loading_screen::show_loading_screen;
 //const PRIV_KEY_LEN_BASE_58: usize = 52;
 pub enum UiError {
@@ -49,6 +50,7 @@ fn run_app(app: &Application, glade_src: &str, args: Vec<String>){
             UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
             UIResponse::TxSent => handle_tx_sent(&builder, &sender),
             UIResponse::WalletFinished => app_cloned.quit(),
+            UIResponse::ResultOFTXProof(result) => handle_result_of_tx_proof(&builder, result),
             _ => {},
         }
         glib::Continue(true)
@@ -80,6 +82,7 @@ fn initialize_elements(builder: &Builder, sender: &Sender<UIRequest>, app: &Appl
     initialize_wallet_selector(builder, sender, app);
     show_loading_screen(&builder, &sender, &app);
     initialize_change_wallet(builder, sender);
+    initialize_merkle_proof_button(builder, sender);
 }
 
 fn connect_block_switcher_buttons(builder: &Builder, sender: &Sender<UIRequest>){

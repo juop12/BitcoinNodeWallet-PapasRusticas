@@ -78,14 +78,10 @@ fn handle_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
 
 fn handle_initial_login(builder: &Builder, sender: &Sender<UIRequest>, app: &Application) {
     let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
-    let cancel_button: Button = builder.object("Wallet Adder Cancel Button").unwrap();
-    let main_window: Window = builder.object("Ventana").unwrap();
-    let app_clone = app.clone();
-    let wallet_adder_clone = wallet_adder.clone();
     wallet_adder.set_title("Initial Login");
     wallet_adder.show_all();
     wallet_adder.run();
-    //handle_add_wallet(builder, sender);
+    
 }
 
 pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>,app: &Application){

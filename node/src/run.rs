@@ -6,7 +6,7 @@ use crate::{
     node::*,
     wallet::*,
     utils::config::*,
-    utils::WalletError;
+    utils::WalletError,
 };
 use std::{
     sync::mpsc,

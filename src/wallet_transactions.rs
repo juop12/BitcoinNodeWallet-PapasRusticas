@@ -1,7 +1,12 @@
-use gtk::prelude::*;
-use gtk::{ Builder,  TreeStore,glib,Label};
+use gio::glib::value::FromValue;
+use gtk::{prelude::*, TreeIter};
+use gtk::{ Builder, TreeStore,glib,Label,Button,TreeSelection,Dialog};
 use node::blocks::BlockHeader;
 use chrono::{NaiveDateTime, TimeZone, Utc};
+use node::wallet::get_bytes_from_hex;
+
+use std::sync::mpsc::Sender;
+use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
 
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
@@ -34,4 +39,70 @@ pub fn modify_block_header(builder: &Builder, block_number: usize, tx_hashes: &V
     date_label.set_label(date.to_string().as_str());
     tx_count_label.set_label(tx_hashes.len().to_string().as_str());
     header_label.set_label(format!("CURRENT BLOCK HEADER: BLOCK N° #{}", block_number).as_str());
+}
+
+pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIRequest>){
+    let merkle_button: Button = builder.object("Merkle Proof Button").unwrap();
+    let tree_selection: TreeSelection = builder.object("Tx Tree Selection").unwrap();
+    let tree_store: TreeStore = builder.object("Tx Tree Store").unwrap();
+
+    let block_number_label: Label = builder.object("Block Header Frame Label").unwrap();
+    println!("Block number: {}", block_number_label.label().to_string());
+    
+    let sender_clone = sender.clone();
+    merkle_button.connect_clicked(move |_| {
+        let block_number = match block_number_label.label().to_string().split(" ").last() {
+            Some(block_number) => block_number[1..].parse::<usize>().unwrap(),
+            None => return,
+        };
+        let (_,tree_iter) = match tree_selection.selected(){
+            Some((tree_model, tree_iter)) => (tree_model, tree_iter),
+            None => {
+                println!("Error while selecting tree iter");
+                return;
+            }
+        };
+
+        let value = tree_store.value(&tree_iter, TX_HASH_COLUMN as i32);
+        
+        let hash = value.get::<String>().unwrap();
+        let hash_bytes = get_bytes_from_hex(hash);
+        let array: [u8; 32] = hash_bytes.try_into().unwrap();
+
+        println!("Hash: {:?}", array);
+        sender_clone.send(UIRequest::ObtainTxProof(array,  block_number-1)).unwrap();
+    });
+
+}
+
+
+pub fn handle_result_of_tx_proof(builder: &Builder, result: bool){
+    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
+    let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
+    activate_buttons(builder);
+
+    if result {
+        merkle_success_dialog.run();
+        merkle_success_dialog.hide();
+    } else {
+        merkle_failure_dialog.run();
+        merkle_failure_dialog.hide();
+    }
+
+}
+
+fn activate_buttons(builder: &Builder){
+    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
+    let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
+    let success_dialog_button: Button = builder.object("Merkle Success Button").unwrap();
+    let failure_dialog_button: Button = builder.object("Merkle Failure Button").unwrap();
+
+    success_dialog_button.connect_clicked(move |_| {
+        merkle_success_dialog.hide();
+    });
+
+    failure_dialog_button.connect_clicked(move |_| {
+        merkle_failure_dialog.hide();
+    });
+
 }
