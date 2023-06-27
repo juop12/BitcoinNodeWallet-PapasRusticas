@@ -98,7 +98,7 @@ fn handle_initial_login(builder: &Builder) {
 }
 
 /// Loads the wallets saved in disk and creates the combobx object with them so
-/// the user can select one and change wallets to already existing ones
+/// the user can select one and change wallets to already existing ones.
 pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>) {
     let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
 
