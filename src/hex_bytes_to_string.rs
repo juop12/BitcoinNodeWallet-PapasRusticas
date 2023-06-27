@@ -6,7 +6,7 @@ pub fn get_string_representation_from_bytes(bytes_vec: &mut [u8]) -> String {
 }
 
 /// This function takes a hexadecimal string and returns a vector of bytes.
-pub fn get_hex_from_bytes(bytes_vec: &[u8]) -> String{
+pub fn get_hex_from_bytes(bytes_vec: &[u8]) -> String {
     bytes_vec
         .iter()
         .map(|byte| format!("{:02X}", byte))

@@ -37,7 +37,7 @@ impl Message for InvMessage {
     /// Creates the coresponding message, using a slice of bytes,
     /// which must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError> {
-        let count = match VarLenInt::from_bytes(slice){
+        let count = match VarLenInt::from_bytes(slice) {
             Some(var_len_int) => var_len_int,
             None => return Err(MessageError::ErrorCreatingInvMessage),
         };
@@ -86,7 +86,9 @@ impl InvMessage {
     }
 
     /// Creates a new InvMessage with the given block hashes.
-    pub fn create_message_inventory_transaction_type(inventory_entries: Vec<[u8; 32]>) -> InvMessage {
+    pub fn create_message_inventory_transaction_type(
+        inventory_entries: Vec<[u8; 32]>,
+    ) -> InvMessage {
         let mut inventory: Vec<Entry> = Vec::new();
         for hash in inventory_entries {
             inventory.push(Entry::as_transaction_entry(hash))

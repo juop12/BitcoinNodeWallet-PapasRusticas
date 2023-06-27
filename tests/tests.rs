@@ -6,9 +6,7 @@ mod test {
     use node::utils::ui_communication_protocol::WalletToUICommunication as UIResponse;
     use node::wallet::Wallet;
 
-
     const BEGIN_TIME_EPOCH: u32 = 1681084800; // 2023-04-10
-
 
     #[test]
     fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes(
@@ -56,49 +54,71 @@ mod test {
     }
 
     #[test]
-    fn test3_set_wallet(){
+    fn test3_set_wallet() {
+        let mut node =
+            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
+        let wallet =
+            Wallet::from("cTcbayZmdiCxNywGxfLXGLqS2Y8uTNzGktbFXZnkNCR3zeN1XMQC".to_string())
+                .unwrap();
+        let (glib_sender, _glib_receiver) =
+            glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
 
-        let mut node = initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
-        let wallet = Wallet::from("cTcbayZmdiCxNywGxfLXGLqS2Y8uTNzGktbFXZnkNCR3zeN1XMQC".to_string()).unwrap();
-        let (glib_sender, _glib_receiver) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
-
-        let wallet = wallet.handle_change_wallet(&mut node, "cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string(), &glib_sender).unwrap();
+        let wallet = wallet
+            .handle_change_wallet(
+                &mut node,
+                "cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string(),
+                &glib_sender,
+            )
+            .unwrap();
         assert_eq!(wallet.balance, 70000);
         assert_eq!(wallet.utxos.len(), 1);
     }
 
     #[test]
-    fn test4_block_info(){
-        
-        let mut node = initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
-        let mut wallet = Wallet::from("cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string()).unwrap();
+    fn test4_block_info() {
+        let mut node =
+            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
+        let mut wallet =
+            Wallet::from("cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string())
+                .unwrap();
 
-        if let UIResponse::BlockInfo(block_info) = wallet.handle_last_block_info(&mut node).unwrap(){
+        if let UIResponse::BlockInfo(block_info) = wallet.handle_last_block_info(&mut node).unwrap()
+        {
             let block_headers = node.get_block_headers().unwrap();
             let block_chain = node.get_blockchain().unwrap();
-            let block = block_chain.get(&block_headers[block_headers.len()-1].hash()).unwrap();
+            let block = block_chain
+                .get(&block_headers[block_headers.len() - 1].hash())
+                .unwrap();
             assert_eq!(block_info.block_header, block.get_header());
             assert_eq!(block_info.block_number, block_headers.len());
             assert_eq!(block_info.block_tx_hashes.len(), block.transactions.len());
-            return 
+            return;
         }
         panic!("Wrong response");
     }
 
     #[test]
-    fn test5_tx_valida()->Result<(),NodeError>{
-        
-        let mut node = initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
-        let wallet = Wallet::from("cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string()).unwrap();
+    fn test5_tx_valida() -> Result<(), NodeError> {
+        let mut node =
+            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
+        let wallet =
+            Wallet::from("cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string())
+                .unwrap();
         let block_hash = node.get_block_headers()?[2439100 - 1].hash();
-        let tx_hash = node.get_blockchain()?.get(&block_hash).unwrap().get_tx_hashes()[0];
+        let tx_hash = node
+            .get_blockchain()?
+            .get(&block_hash)
+            .unwrap()
+            .get_tx_hashes()[0];
         println!("{:?}", tx_hash);
-        if let UIResponse::ResultOFTXProof(result) = wallet.handle_obtain_tx_proof(&mut node, tx_hash, 2439100).unwrap(){
+        if let UIResponse::ResultOFTXProof(result) = wallet
+            .handle_obtain_tx_proof(&mut node, tx_hash, 2439100)
+            .unwrap()
+        {
             assert!(result);
             return Ok(());
         }
-        
+
         panic!("Wrong response");
     }
-
 }

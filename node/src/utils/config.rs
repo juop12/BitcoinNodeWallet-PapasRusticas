@@ -128,12 +128,10 @@ fn parse_date(line: &str) -> Option<u32> {
 mod tests {
     use super::*;
 
-
     const BEGIN_TIME: &str = "2023-04-10";
     const LOG_FILE_PATH: &str = "tests_txt/config_test_log.txt";
     const HEADERS_FILE_PATH: &str = "tests_txt/headers.bin";
     const BLOCKS_FILE_PATH: &str = "tests_txt/blocks.bin";
-
 
     #[test]
     fn config_test_1_valid_file_creates_config() {

@@ -1,12 +1,12 @@
 use crate::{
     messages::{get_data_message::*, message_trait::Message},
-    node::{*, handshake::PEER_TIMEOUT},
+    node::{handshake::PEER_TIMEOUT, *},
     utils::btc_errors::BlockDownloaderError,
 };
 
 use std::{
     net::TcpStream,
-    sync::{mpsc, Arc, Mutex}, 
+    sync::{mpsc, Arc, Mutex},
     time::Instant,
 };
 use workers::*;
@@ -33,7 +33,7 @@ fn get_bundle(id: usize, receiver: &SafeReceiver, logger: &Logger) -> Option<Bun
 /// gets the blocks from it's peer, and saves them to the shared reference block vector.
 /// If anything fails along the way it loggs acordingly, as well as other things like
 /// received messages.
-/// It returns a type of stop, depending on wheather the worker finished, gracefully, ungracefully, 
+/// It returns a type of stop, depending on wheather the worker finished, gracefully, ungracefully,
 /// or must continue
 pub fn block_downloader_thread_loop(
     id: usize,
@@ -75,7 +75,7 @@ pub fn block_downloader_thread_loop(
             }
         }
     };
-    
+
     Stops::Continue
 }
 
@@ -203,7 +203,13 @@ impl BlockDownloader {
         };
 
         while let Ok(bundle) = self.missed_bundles_receiver.try_recv() {
-            get_blocks_from_bundle(bundle, &mut stream, &self.safe_headers, &self.safe_blockchain, &self.logger)?;
+            get_blocks_from_bundle(
+                bundle,
+                &mut stream,
+                &self.safe_headers,
+                &self.safe_blockchain,
+                &self.logger,
+            )?;
         }
 
         Ok(())
@@ -217,30 +223,37 @@ fn receive_block(
     safe_blockchain: &SafeBlockChain,
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
-        
-    let start_time = Instant::now(); 
+    let start_time = Instant::now();
     let pending_tx_dummy = Arc::new(Mutex::from(HashMap::new()));
-    while start_time.elapsed() < PEER_TIMEOUT{
-        match receive_message(stream, safe_headers, safe_blockchain, &pending_tx_dummy, logger, true){
+    while start_time.elapsed() < PEER_TIMEOUT {
+        match receive_message(
+            stream,
+            safe_headers,
+            safe_blockchain,
+            &pending_tx_dummy,
+            logger,
+            true,
+        ) {
             Ok(message_cmd) => {
                 match message_cmd.as_str() {
                     "block\0\0\0\0\0\0\0" => return Ok(()),
                     "notfound\0\0\0\0" => return Err(BlockDownloaderError::BundleNotFound),
-                    _ => {},
+                    _ => {}
                 };
             }
-            Err(error) => {
-                match error{
-                    NodeError::ErrorDownloadingBlockBundle => return Err(BlockDownloaderError::BundleNotFound),
-                    NodeError::ErrorValidatingBlock => return Err(BlockDownloaderError::ErrorValidatingBlock),
-                    _ => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+            Err(error) => match error {
+                NodeError::ErrorDownloadingBlockBundle => {
+                    return Err(BlockDownloaderError::BundleNotFound)
                 }
-            }
+                NodeError::ErrorValidatingBlock => {
+                    return Err(BlockDownloaderError::ErrorValidatingBlock)
+                }
+                _ => return Err(BlockDownloaderError::ErrorReceivingBlockMessage),
+            },
         }
     }
     Err(BlockDownloaderError::ErrorReceivingBlockMessage)
 }
-
 
 /// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
 /// Returns an error if it was not possible to send the message.
@@ -264,7 +277,7 @@ fn get_blocks_from_bundle(
     safe_blockchain: &SafeBlockChain,
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
-    if requested_block_hashes.is_empty(){
+    if requested_block_hashes.is_empty() {
         return Ok(());
     }
     let amount_of_hashes = requested_block_hashes.len();

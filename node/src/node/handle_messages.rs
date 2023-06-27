@@ -1,10 +1,12 @@
-
 use crate::node::*;
 
 use super::peer_comunication::block_downloader::send_get_data_message_for_blocks;
 
 ///Handles the headers message by hashing the last received header and asking for more headers.
-pub fn handle_block_headers_message(msg_bytes: Vec<u8>, safe_block_headers: &SafeVecHeader) -> Result<(), NodeError> {
+pub fn handle_block_headers_message(
+    msg_bytes: Vec<u8>,
+    safe_block_headers: &SafeVecHeader,
+) -> Result<(), NodeError> {
     let block_headers_msg = match BlockHeadersMessage::from_bytes(&msg_bytes) {
         Ok(block_headers_message) => block_headers_message,
         Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
@@ -12,27 +14,36 @@ pub fn handle_block_headers_message(msg_bytes: Vec<u8>, safe_block_headers: &Saf
 
     let received_block_headers = block_headers_msg.headers;
 
-    match safe_block_headers.lock(){
+    match safe_block_headers.lock() {
         Ok(mut block_headers) => block_headers.extend(received_block_headers),
         Err(_) => return Err(NodeError::ErrorSharingReference),
     }
-            
+
     Ok(())
 }
 
 /// Handles the block message by validating the proof of work and the proof of inclusion and the saving it.
 /// If the block is already in the blockchain, it is not saved.
-pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, safe_blockchain: &SafeBlockChain, safe_pending_tx: &SafePendingTx, logger: &Logger, ibd: bool) -> Result<(), NodeError> {
+pub fn handle_block_message(
+    msg_bytes: Vec<u8>,
+    safe_headers: &SafeVecHeader,
+    safe_blockchain: &SafeBlockChain,
+    safe_pending_tx: &SafePendingTx,
+    logger: &Logger,
+    ibd: bool,
+) -> Result<(), NodeError> {
     let block = match BlockMessage::from_bytes(&msg_bytes) {
         Ok(block_msg) => block_msg.block,
         Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
     };
-    
-    let mut blockchain = safe_blockchain.lock().map_err(|_| NodeError::ErrorSharingReference)?;
-    
+
+    let mut blockchain = safe_blockchain
+        .lock()
+        .map_err(|_| NodeError::ErrorSharingReference)?;
+
     let block_header = block.get_header();
-    
-    if blockchain.contains_key(&block_header.hash()){
+
+    if blockchain.contains_key(&block_header.hash()) {
         return Ok(());
     }
 
@@ -42,29 +53,38 @@ pub fn handle_block_message(msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, sa
     };
     if !validate_block_proof_of_inclusion(&block) {
         logger.log(String::from("Proof of inclusion failed for a block"));
-        return Err(NodeError::ErrorValidatingBlock)
+        return Err(NodeError::ErrorValidatingBlock);
     };
 
     if !ibd {
-        let mut block_headers = safe_headers.lock().map_err(|_| NodeError::ErrorSharingReference)?;
+        let mut block_headers = safe_headers
+            .lock()
+            .map_err(|_| NodeError::ErrorSharingReference)?;
         block_headers.push(block_header);
     }
-    
-    let mut pending_tx = safe_pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)?;
-    for tx in block.get_transactions(){
-        if pending_tx.remove(&tx.hash()).is_some(){
+
+    let mut pending_tx = safe_pending_tx
+        .lock()
+        .map_err(|_| NodeError::ErrorSharingReference)?;
+    for tx in block.get_transactions() {
+        if pending_tx.remove(&tx.hash()).is_some() {
             logger.log(String::from("Transaccion sacada de pending"));
         }
     }
-    
-    blockchain.insert(block.header_hash(),block);
-            
+
+    blockchain.insert(block.header_hash(), block);
+
     Ok(())
 }
 
 ///Handles the inv message by asking for the blocks that are not in the blockchain.
 ///If the block is already in the blockchain, it is not saved.
-pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockchain: &SafeBlockChain, safe_pending_tx: &SafePendingTx) -> Result<(), NodeError> {
+pub fn handle_inv_message(
+    stream: &mut TcpStream,
+    msg_bytes: Vec<u8>,
+    safe_blockchain: &SafeBlockChain,
+    safe_pending_tx: &SafePendingTx,
+) -> Result<(), NodeError> {
     let inv_msg = match InvMessage::from_bytes(&msg_bytes) {
         Ok(msg) => msg,
         Err(_) => return Err(NodeError::ErrorRecevingBroadcastedInventory),
@@ -75,39 +95,44 @@ pub fn handle_inv_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_block
 
     let mut request_block_hashes = Vec::new();
     let mut request_transaction_hashes = Vec::new();
-    
-    match safe_blockchain.lock(){
+
+    match safe_blockchain.lock() {
         Ok(blockchain) => {
-            for hash in block_hashes{
-                if !blockchain.contains_key(&hash){
+            for hash in block_hashes {
+                if !blockchain.contains_key(&hash) {
                     request_block_hashes.push(hash);
                 }
             }
-        },
+        }
         Err(_) => return Err(NodeError::ErrorSharingReference),
     };
 
-    match safe_pending_tx.lock(){
+    match safe_pending_tx.lock() {
         Ok(pending_tx) => {
-            for hash in transaction_hashes{
-                if !pending_tx.contains_key(&hash){
+            for hash in transaction_hashes {
+                if !pending_tx.contains_key(&hash) {
                     request_transaction_hashes.push(hash);
                 }
             }
-        },
+        }
         Err(_) => return Err(NodeError::ErrorSharingReference),
     };
-    if !request_block_hashes.is_empty(){
-        send_get_data_message_for_blocks(request_block_hashes, stream).map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
+    if !request_block_hashes.is_empty() {
+        send_get_data_message_for_blocks(request_block_hashes, stream)
+            .map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
     }
-    if !request_transaction_hashes.is_empty(){
+    if !request_transaction_hashes.is_empty() {
         send_get_data_message_for_transactions(request_transaction_hashes, stream)?;
     }
     Ok(())
 }
 
 ///Handles the ping message by sending a pong message.
-pub fn handle_ping_message(stream: &mut TcpStream, header_message: &HeaderMessage, nonce: Vec<u8>) -> Result<(), NodeError> {
+pub fn handle_ping_message(
+    stream: &mut TcpStream,
+    header_message: &HeaderMessage,
+    nonce: Vec<u8>,
+) -> Result<(), NodeError> {
     if nonce.len() != 8 {
         return Err(NodeError::ErrorReceivingPing);
     }
@@ -124,12 +149,17 @@ pub fn handle_ping_message(stream: &mut TcpStream, header_message: &HeaderMessag
 
 ///Handles the block message by validating the proof of work and the proof of inclusion and the saving it.
 /// If the block is already in the blockchain, it is not saved.
-pub fn handle_tx_message(msg_bytes: Vec<u8>, safe_pending_tx: &SafePendingTx) -> Result<(), NodeError> {
+pub fn handle_tx_message(
+    msg_bytes: Vec<u8>,
+    safe_pending_tx: &SafePendingTx,
+) -> Result<(), NodeError> {
     let tx = match TxMessage::from_bytes(&msg_bytes) {
         Ok(tx_msg) => tx_msg.tx,
         Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
     };
-    let mut pending_tx = safe_pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)?;
+    let mut pending_tx = safe_pending_tx
+        .lock()
+        .map_err(|_| NodeError::ErrorSharingReference)?;
     pending_tx.insert(tx.hash(), tx);
     Ok(())
 }

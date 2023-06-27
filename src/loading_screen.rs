@@ -1,13 +1,13 @@
+use glib::{Continue, Sender as GlibSender};
 use gtk::prelude::*;
 use gtk::{Application, Builder, Label, Window};
 use std::io::Read;
 use std::thread;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 use std::{
-    fs::{File},
+    fs::File,
     io::{BufReader, Seek, SeekFrom},
 };
-use glib::{Continue, Sender as GlibSender};
 
 pub enum LoadingSreenError {
     ErrorReadingFile,
@@ -25,7 +25,10 @@ const SENDER_ERROR: &str = "Error sending message to node through mpsc channel";
 /// On error returns a LoadingScreenError
 fn read_last_lines(file_path: &str, num_lines: usize) -> Result<Vec<String>, LoadingSreenError> {
     let file = File::open(file_path).map_err(|_| LoadingSreenError::ErrorReadingFile)?;
-    let file_size = file.metadata().map_err(|_| LoadingSreenError::ErrorReadingMetadataFromFile)?.len();
+    let file_size = file
+        .metadata()
+        .map_err(|_| LoadingSreenError::ErrorReadingMetadataFromFile)?
+        .len();
     let mut reader = BufReader::new(file);
 
     let mut lines: Vec<String> = Vec::new();
@@ -42,8 +45,12 @@ fn read_last_lines(file_path: &str, num_lines: usize) -> Result<Vec<String>, Loa
 
         offset -= read_bytes as u64;
 
-        reader.seek(SeekFrom::Start(offset)).map_err(|_| LoadingSreenError::ErrorSeekingFile)?;
-        reader.read_exact(&mut buffer[..read_bytes]).map_err(|_| LoadingSreenError::ErrorReadingLine)?;
+        reader
+            .seek(SeekFrom::Start(offset))
+            .map_err(|_| LoadingSreenError::ErrorSeekingFile)?;
+        reader
+            .read_exact(&mut buffer[..read_bytes])
+            .map_err(|_| LoadingSreenError::ErrorReadingLine)?;
 
         let mut line_start = read_bytes;
         for (i, &byte) in buffer[..read_bytes].iter().enumerate().rev() {
@@ -69,7 +76,7 @@ fn read_last_lines(file_path: &str, num_lines: usize) -> Result<Vec<String>, Loa
 /// Shows the loading screen and starts a thread that reads the node log file
 /// and updates the loading screen every second with the last lines of the log file
 /// for the user to see the progress of the initialization of the node.
-pub fn show_loading_screen(builder: &Builder, app: &Application){
+pub fn show_loading_screen(builder: &Builder, app: &Application) {
     let loading_window: Window = builder.object("Loading Screen Window").unwrap();
     loading_window.set_title("Loading Screen");
     loading_window.set_application(Some(app));
@@ -78,24 +85,23 @@ pub fn show_loading_screen(builder: &Builder, app: &Application){
     let (sx, rx) = glib::MainContext::channel::<Vec<String>>(glib::PRIORITY_DEFAULT);
     thread::spawn(move || obtain_loading_progress(sx));
     rx.attach(None, move |mut contents| {
-            contents.reverse();
-            let result: String = contents
+        contents.reverse();
+        let result: String = contents
             .iter()
             .map(|s| s.replace('\0', ""))
             .collect::<Vec<String>>()
             .join("\n");
-            log_label.set_text(&result);
-            
+        log_label.set_text(&result);
+
         Continue(true)
     });
 }
 
-fn obtain_loading_progress(sender:GlibSender<Vec<String>>) {
-
-    let mut last_update_time = Instant::now(); 
+fn obtain_loading_progress(sender: GlibSender<Vec<String>>) {
+    let mut last_update_time = Instant::now();
     loop {
-        if last_update_time.elapsed() > Duration::from_secs(1){
-            if let Ok(contents) = read_last_lines("./src/node_log.txt", LINES_SHOWN){
+        if last_update_time.elapsed() > Duration::from_secs(1) {
+            if let Ok(contents) = read_last_lines("./src/node_log.txt", LINES_SHOWN) {
                 if !contents.is_empty() {
                     sender.send(contents).expect(SENDER_ERROR);
                 }

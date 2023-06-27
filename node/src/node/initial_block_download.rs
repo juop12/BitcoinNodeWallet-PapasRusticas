@@ -54,18 +54,28 @@ impl Node {
     }
 
     /// Receives messages from a given peer till it receives a headersMessage or 30 seconds have passed
-    fn receive_headers_message(&mut self, sync_node_index: usize, peer_timeout: u64) -> Result<(), NodeError> {
+    fn receive_headers_message(
+        &mut self,
+        sync_node_index: usize,
+        peer_timeout: u64,
+    ) -> Result<(), NodeError> {
         let mut start_time = Instant::now();
         let target_duration = Duration::from_secs(peer_timeout);
         while self.receive_message(sync_node_index, true)? != "headers\0\0\0\0\0" {
             if Instant::now() - start_time > target_duration {
-                self.logger.log(format!("Peer {} timed_out switching peers", sync_node_index));
+                self.logger.log(format!(
+                    "Peer {} timed_out switching peers",
+                    sync_node_index
+                ));
                 return Err(NodeError::ErrorReceivingHeadersMessageInIBD);
             }
             start_time = Instant::now();
         }
         if Instant::now() - start_time > target_duration {
-            self.logger.log(format!("Peer {} timed_out switching peers", sync_node_index));
+            self.logger.log(format!(
+                "Peer {} timed_out switching peers",
+                sync_node_index
+            ));
             return Err(NodeError::ErrorReceivingHeadersMessageInIBD);
         }
         Ok(())
@@ -77,7 +87,7 @@ impl Node {
         &mut self,
         block_downloader: &BlockDownloader,
         sync_node_index: usize,
-        peer_timeout: u64
+        peer_timeout: u64,
     ) -> Result<(), NodeError> {
         let mut headers_received = self.get_block_headers()?.len();
         let mut last_hash = HASHEDGENESISBLOCK;
@@ -108,7 +118,7 @@ impl Node {
                 request_block_hashes_bundle,
                 block_downloader,
                 &mut total_amount_of_blocks,
-                self.starting_block_time
+                self.starting_block_time,
             )?;
             self.logger.log(format!(
                 "Current ammount of downloaded headers = {}",
@@ -132,17 +142,20 @@ impl Node {
         Ok(())
     }
 
-    /// Writes the necessary headers into disk, to be able to continue the IBD from the last point. 
+    /// Writes the necessary headers into disk, to be able to continue the IBD from the last point.
     /// On error returns NodeError. Written starting from the given positions.
     pub fn store_headers_in_disk(&mut self) -> Result<(), NodeError> {
-        self.data_handler.save_headers_to_disk(&self.block_headers, self.headers_in_disk).map_err(|_| NodeError::ErrorSavingDataToDisk)
+        self.data_handler
+            .save_headers_to_disk(&self.block_headers, self.headers_in_disk)
+            .map_err(|_| NodeError::ErrorSavingDataToDisk)
     }
 
-    /// Writes the necessary blocks into disk, to be able to continue the IBD from the last point. 
+    /// Writes the necessary blocks into disk, to be able to continue the IBD from the last point.
     /// On error returns NodeError. Written starting from the given positions.
     pub fn store_blocks_in_disk(&mut self) -> Result<(), NodeError> {
-        self.data_handler.save_blocks_to_disk(&self.blockchain, &self.block_headers,self.headers_in_disk).map_err(|_| NodeError::ErrorSavingDataToDisk)
-
+        self.data_handler
+            .save_blocks_to_disk(&self.blockchain, &self.block_headers, self.headers_in_disk)
+            .map_err(|_| NodeError::ErrorSavingDataToDisk)
     }
 
     /// Loads the blocks and headers from disk. On error returns NodeError
@@ -158,7 +171,9 @@ impl Node {
         };
 
         for block in blocks {
-            _ = self.get_blockchain()?.insert(block.get_header().hash(), block);
+            _ = self
+                .get_blockchain()?
+                .insert(block.get_header().hash(), block);
         }
         self.get_block_headers()?.extend(headers);
         Ok(())
@@ -181,10 +196,13 @@ impl Node {
                 }
             };
             i += 1;
-            if i >= self.tcp_streams.len(){
+            if i >= self.tcp_streams.len() {
                 i = 0;
-                peer_time_out +=1;
-                self.logger.log(format!("Reducing time standards, new peer_time_out = {} seconds", peer_time_out));
+                peer_time_out += 1;
+                self.logger.log(format!(
+                    "Reducing time standards, new peer_time_out = {} seconds",
+                    peer_time_out
+                ));
             }
             if let Err(error) = block_downloader.finish_downloading() {
                 self.logger.log_error(&error);
@@ -198,21 +216,27 @@ impl Node {
     /// and then downloads the blocks starting from the given time.
     /// On error returns NodeError
     pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
-        self.logger.log(String::from("Started loading data from disk"));
+        self.logger
+            .log(String::from("Started loading data from disk"));
         self.load_blocks_and_headers()?;
-        self.logger.log(String::from("Finished loading data from disk"));
+        self.logger
+            .log(String::from("Finished loading data from disk"));
 
-        let mut aux_len= self.get_block_headers()?.len();
+        let mut aux_len = self.get_block_headers()?.len();
         self.headers_in_disk = aux_len;
-        
+
         let mut block_downloader = self.start_downloading()?;
-        
-        block_downloader.finish_downloading().map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
-        
-        self.logger.log(String::from("Started storing headers to disk"));
+
+        block_downloader
+            .finish_downloading()
+            .map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
+
+        self.logger
+            .log(String::from("Started storing headers to disk"));
         self.store_headers_in_disk()?;
-        self.logger.log(String::from("Finished storing headers to disk"));
-        
+        self.logger
+            .log(String::from("Finished storing headers to disk"));
+
         self.logger.log(format!(
             "Final amount of headers after IBD = {}",
             self.get_block_headers()?.len()
@@ -221,14 +245,16 @@ impl Node {
             "Final amount of blocks after IBD = {}",
             self.get_blockchain()?.len()
         ));
-        
-        self.logger.log(String::from("Started storing blocks to disk"));
+
+        self.logger
+            .log(String::from("Started storing blocks to disk"));
         self.store_blocks_in_disk()?;
-        self.logger.log(String::from("Finished storing blocks to disk"));
-        
-        aux_len= self.get_block_headers()?.len();
+        self.logger
+            .log(String::from("Finished storing blocks to disk"));
+
+        aux_len = self.get_block_headers()?.len();
         self.headers_in_disk = aux_len;
-        
+
         self.last_proccesed_block = aux_len;
 
         Ok(())
@@ -236,35 +262,35 @@ impl Node {
 }
 
 /// Requests block_downloader to download block bundles (16 blocks each),
-    /// that were created after the starting_block_time.
-    /// If at the end we do not have enough to form a full block bundle, then then unrequested block hashes are returned
-    fn request_blocks(
-        mut i: usize,
-        block_headers: &Vec<BlockHeader>,
-        mut request_block_hashes_bundle: Vec<[u8; 32]>,
-        block_downloader: &BlockDownloader,
-        total_amount_of_blocks: &mut usize,
-        starting_block_time: u32,
-    ) -> Result<Vec<[u8; 32]>, NodeError> {
-        while i < block_headers.len() {
-            if block_headers[i].time > starting_block_time {
-                *total_amount_of_blocks += 1;
-                request_block_hashes_bundle.push(block_headers[i].hash());
-                if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE {
-                    if block_downloader
-                        .download_block_bundle(request_block_hashes_bundle)
-                        .is_err()
-                    {
-                        return Err(NodeError::ErrorDownloadingBlockBundle);
-                    }
-                    request_block_hashes_bundle = Vec::new();
+/// that were created after the starting_block_time.
+/// If at the end we do not have enough to form a full block bundle, then then unrequested block hashes are returned
+fn request_blocks(
+    mut i: usize,
+    block_headers: &Vec<BlockHeader>,
+    mut request_block_hashes_bundle: Vec<[u8; 32]>,
+    block_downloader: &BlockDownloader,
+    total_amount_of_blocks: &mut usize,
+    starting_block_time: u32,
+) -> Result<Vec<[u8; 32]>, NodeError> {
+    while i < block_headers.len() {
+        if block_headers[i].time > starting_block_time {
+            *total_amount_of_blocks += 1;
+            request_block_hashes_bundle.push(block_headers[i].hash());
+            if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE {
+                if block_downloader
+                    .download_block_bundle(request_block_hashes_bundle)
+                    .is_err()
+                {
+                    return Err(NodeError::ErrorDownloadingBlockBundle);
                 }
+                request_block_hashes_bundle = Vec::new();
             }
-            i += 1;
         }
-
-        Ok(request_block_hashes_bundle)
+        i += 1;
     }
+
+    Ok(request_block_hashes_bundle)
+}
 
 #[cfg(test)]
 mod tests {
@@ -312,7 +338,7 @@ mod tests {
             blocks_path: String::from(BLOCKS_FILE_PATH),
             ipv6_enabled: false,
         };
-        
+
         let mut node = Node::new(config)?;
         let mut block_downloader = BlockDownloader::new(
             &node.tcp_streams,
@@ -325,7 +351,7 @@ mod tests {
 
         let mut sync_node_index = 0;
         node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
-        while let Err(_) = node.receive_headers_message(sync_node_index,15) {
+        while let Err(_) = node.receive_headers_message(sync_node_index, 15) {
             sync_node_index += 1;
             node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, sync_node_index)?;
         }

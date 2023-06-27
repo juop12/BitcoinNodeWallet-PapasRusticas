@@ -1,8 +1,4 @@
-use crate::{
-    
-    node::*,
-    utils::btc_errors::BlockDownloaderError,
-};
+use crate::{node::*, utils::btc_errors::BlockDownloaderError};
 
 use std::{
     net::TcpStream,
@@ -14,20 +10,19 @@ use block_downloader::block_downloader_thread_loop;
 use message_receiver::message_receiver_thread_loop;
 pub type FinishedIndicator = Arc<Mutex<bool>>;
 
-pub enum Stops{
+pub enum Stops {
     GracefullStop,
     UngracefullStop,
     Continue,
 }
 
-impl Stops{
-    fn log_message(&self, id: usize)->String{
-        match *self{
+impl Stops {
+    fn log_message(&self, id: usize) -> String {
+        match *self {
             Stops::GracefullStop => format!("Worker {} finished gracefully", id),
             Stops::UngracefullStop => format!("Worker {} finished ungracefully", id),
             Stops::Continue => String::new(),
         }
-        
     }
 }
 
@@ -52,7 +47,6 @@ impl Worker {
         missed_bundles_sender: mpsc::Sender<Bundle>,
         logger: Logger,
     ) -> Worker {
-
         let thread = thread::spawn(move || loop {
             let stop = block_downloader_thread_loop(
                 id,
@@ -64,45 +58,55 @@ impl Worker {
                 &logger,
             );
 
-            match stop{
+            match stop {
                 Stops::GracefullStop => {
                     logger.log(Stops::GracefullStop.log_message(id));
                     return Some(stream);
-                },
+                }
                 Stops::UngracefullStop => {
                     logger.log(Stops::UngracefullStop.log_message(id));
-                    return None
-                },
+                    return None;
+                }
                 Stops::Continue => continue,
             }
         });
 
-        Worker {
-            _id: id,
-            thread,
-        }
+        Worker { _id: id, thread }
     }
 
     /// Creates a worker for a MessageReceiver
-    pub fn new_message_receiver_worker(mut stream: TcpStream, safe_block_headers: SafeVecHeader, safe_block_chain: SafeBlockChain, safe_pending_tx: SafePendingTx,logger: Logger, finished: FinishedIndicator, id: usize)->Worker{
-
+    pub fn new_message_receiver_worker(
+        mut stream: TcpStream,
+        safe_block_headers: SafeVecHeader,
+        safe_block_chain: SafeBlockChain,
+        safe_pending_tx: SafePendingTx,
+        logger: Logger,
+        finished: FinishedIndicator,
+        id: usize,
+    ) -> Worker {
         let thread = thread::spawn(move || loop {
             logger.log(format!("Sigo vivo: {}", id));
-            match message_receiver_thread_loop(&mut stream, &safe_block_headers, &safe_block_chain, &safe_pending_tx, &logger, &finished){
+            match message_receiver_thread_loop(
+                &mut stream,
+                &safe_block_headers,
+                &safe_block_chain,
+                &safe_pending_tx,
+                &logger,
+                &finished,
+            ) {
                 Stops::GracefullStop => {
                     logger.log(Stops::GracefullStop.log_message(id));
                     return Some(stream);
-                },
+                }
                 Stops::UngracefullStop => {
                     logger.log(Stops::UngracefullStop.log_message(id));
-                    return None
-                },
+                    return None;
+                }
                 Stops::Continue => continue,
             }
-
         });
 
-        Worker{ thread, _id: id}
+        Worker { thread, _id: id }
     }
 
     ///Joins the thread of the worker, returning an error if it was not possible to join it.

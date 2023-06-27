@@ -54,7 +54,7 @@ fn write_to_file(writer: &mut BufWriter<File>, bytes: &[u8]) -> Result<(), NodeD
 /// On error returns NodeDataHandlerError.
 fn get_bytes_from_file(reader: &mut BufReader<File>) -> Result<Vec<u8>, NodeDataHandlerError> {
     let mut bytes: Vec<u8> = Vec::new();
-    match reader.read_to_end(&mut bytes){
+    match reader.read_to_end(&mut bytes) {
         Ok(_) => Ok(bytes),
         Err(_) => Err(NodeDataHandlerError::ErrorReadingBytes),
     }
@@ -62,7 +62,10 @@ fn get_bytes_from_file(reader: &mut BufReader<File>) -> Result<Vec<u8>, NodeData
 
 impl NodeDataHandler {
     /// Creates a new NodeDataHandler.
-    pub fn new(headers_file_path: &str, blocks_file_path: &str) -> Result<NodeDataHandler, NodeDataHandlerError> {
+    pub fn new(
+        headers_file_path: &str,
+        blocks_file_path: &str,
+    ) -> Result<NodeDataHandler, NodeDataHandlerError> {
         let read_headers_file = open_file(headers_file_path, true, false)?;
         let write_headers_file = open_file(headers_file_path, false, true)?;
         let read_blocks_file = open_file(blocks_file_path, true, false)?;
@@ -94,7 +97,7 @@ impl NodeDataHandler {
                 Ok(header) => headers.push(header),
                 Err(_) => return Err(NodeDataHandlerError::ErrorReadingHeaders),
             }
-        };
+        }
         Ok(headers)
     }
 
@@ -107,15 +110,15 @@ impl NodeDataHandler {
         let reader_reference = &mut self.blocks_reader;
         let bytes_from_file = get_bytes_from_file(reader_reference)?;
         let mut block_bytes = bytes_from_file.as_slice();
-        
-        while !block_bytes.is_empty(){
+
+        while !block_bytes.is_empty() {
             let block = match Block::from_bytes(block_bytes) {
                 Ok(block) => block,
                 Err(_) => return Err(NodeDataHandlerError::ErrorReadingBlocks),
             };
             (_, block_bytes) = block_bytes.split_at(block.amount_of_bytes());
             blocks.push(block);
-        };
+        }
         Ok(blocks)
     }
 
@@ -129,10 +132,16 @@ impl NodeDataHandler {
 
     /// Saves the headers starting form start (as bytes) passed by parameter in the headers file.
     /// On error returns NodeDataHandlerError
-    pub fn save_headers_to_disk(&mut self, safe_headers: &SafeVecHeader, start: usize) -> Result<(), NodeDataHandlerError> {
-        let block_headers = safe_headers.lock().map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
+    pub fn save_headers_to_disk(
+        &mut self,
+        safe_headers: &SafeVecHeader,
+        start: usize,
+    ) -> Result<(), NodeDataHandlerError> {
+        let block_headers = safe_headers
+            .lock()
+            .map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
 
-        for header in block_headers.iter().skip(start){
+        for header in block_headers.iter().skip(start) {
             self.save_header(header)?;
         }
         Ok(())
@@ -148,9 +157,18 @@ impl NodeDataHandler {
 
     /// Saves the blocks starting form start (as bytes) passed by parameter in the headers file.
     /// On error returns NodeDataHandlerError
-    pub fn save_blocks_to_disk(&mut self, safe_blockchain: &SafeBlockChain, safe_headers: &SafeVecHeader, start: usize) -> Result<(), NodeDataHandlerError> {
-        let block_headers = safe_headers.lock().map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
-        let blockchain = safe_blockchain.lock().map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
+    pub fn save_blocks_to_disk(
+        &mut self,
+        safe_blockchain: &SafeBlockChain,
+        safe_headers: &SafeVecHeader,
+        start: usize,
+    ) -> Result<(), NodeDataHandlerError> {
+        let block_headers = safe_headers
+            .lock()
+            .map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
+        let blockchain = safe_blockchain
+            .lock()
+            .map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
         for header in block_headers.iter().skip(start) {
             if let Some(block) = blockchain.get(&header.hash()) {
                 self.save_block(block)?;

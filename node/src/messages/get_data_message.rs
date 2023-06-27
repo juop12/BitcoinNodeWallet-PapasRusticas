@@ -38,7 +38,9 @@ impl GetDataMessage {
         }
     }
 
-    pub fn create_message_inventory_transaction_type(inventory_entries: Vec<[u8; 32]>) -> GetDataMessage {
+    pub fn create_message_inventory_transaction_type(
+        inventory_entries: Vec<[u8; 32]>,
+    ) -> GetDataMessage {
         GetDataMessage {
             inv: InvMessage::create_message_inventory_transaction_type(inventory_entries),
         }
