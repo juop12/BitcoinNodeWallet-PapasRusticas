@@ -5,10 +5,7 @@ use crate::{node::*, utils::config::*, utils::WalletError, wallet::*};
 use glib::Sender as GlibSender;
 use std::{
     sync::mpsc,
-    time::{Duration, Instant},
 };
-
-const REFRESH_RATE: Duration = Duration::from_secs(5);
 
 /// Creates a new node correctely and sets workers for receiving messages from other peers.
 /// If an error occurs it returns None.
@@ -54,7 +51,6 @@ pub fn initialize_node(args: Vec<String>) -> Option<Node> {
 fn get_first_wallet(
     node: &mut Node,
     receiver: &mpsc::Receiver<UIRequest>,
-    sender_to_ui: &GlibSender<UIResponse>,
 ) -> Result<Option<Wallet>, WalletError> {
     loop {
         let ui_request = receiver
@@ -65,10 +61,7 @@ fn get_first_wallet(
             UIRequest::ChangeWallet(priv_key) => {
                 let mut wallet = Wallet::from(priv_key)?;
 
-                node.set_wallet(&mut wallet)
-                    .map_err(|_| WalletError::ErrorSettingWallet)?;
-
-                wallet.send_wallet_info(sender_to_ui)?;
+                node.set_wallet(&mut wallet).map_err(|_| WalletError::ErrorSettingWallet)?;
 
                 return Ok(Some(wallet));
             }
@@ -78,29 +71,13 @@ fn get_first_wallet(
     }
 }
 
-/// Wllet receives messages from the ui and handles them. Every REFRESH_RATE seconds the wallet updates the information of the ui
-fn run_main_loop(
-    node: &mut Node,
-    mut wallet: Wallet,
-    receiver: &mpsc::Receiver<UIRequest>,
-    sender_to_ui: &GlibSender<UIResponse>,
-) -> Result<(), WalletError> {
-    let mut last_update_time = Instant::now();
+/// Wallet receives messages from the ui and handles them. Every REFRESH_RATE seconds the wallet updates the information of the ui
+fn run_main_loop(node: &mut Node, mut wallet: Wallet, receiver: &mpsc::Receiver<UIRequest>, sender_to_ui: &GlibSender<UIResponse>) -> Result<(), WalletError> {
     let mut program_running = true;
 
     while program_running {
-        if last_update_time.elapsed() < REFRESH_RATE {
-            if let Ok(request) = receiver.try_recv() {
-                wallet =
-                    wallet.handle_ui_request(node, request, sender_to_ui, &mut program_running)?;
-            }
-        } else {
-            node.update(&mut wallet)
-                .map_err(|_| WalletError::ErrorUpdatingWallet)?;
-            wallet.send_wallet_info(sender_to_ui)?;
-
-            last_update_time = Instant::now();
-        }
+        let request = receiver.recv().map_err(|_| WalletError::ErrorReceivingFromUI)?;
+        wallet = wallet.handle_ui_request(node, request, sender_to_ui, &mut program_running)?;
     }
 
     Ok(())
@@ -122,7 +99,7 @@ pub fn run(
 
     node.logger.log("node, running".to_string());
 
-    let wallet = match get_first_wallet(&mut node, &receiver, &sender_to_ui) {
+    let wallet = match get_first_wallet(&mut node, &receiver) {
         Ok(wallet) => match wallet {
             Some(wallet) => wallet,
             None => return exit_program(sender_to_ui, UIResponse::WalletFinished),

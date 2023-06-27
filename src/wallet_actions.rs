@@ -8,8 +8,16 @@ use crate::wallet_transactions::{add_row, modify_block_header};
 use gtk::prelude::*;
 use gtk::{Builder, Dialog, ListBox, TreeStore};
 use node::utils::ui_communication_protocol::{BlockInfo, WalletInfo};
+use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
+use std::{
+    sync::mpsc::Sender,
+    time::Duration,
+    thread,
+};
 
+const REFRESH_RATE: Duration = Duration::from_secs(5);
 const SATOSHI_TO_BTC: f64 = 100000000.0;
+
 
 /// Receives a BlockInfo and it updates the UI with the information of the block
 /// and the transactions in it
@@ -72,6 +80,16 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder) {
     for pending_tx in wallet_info.pending_tx.clone() {
         pending_tx_list.insert(&build_pending_tx_info(&pending_tx), -1);
     }
+}
+
+pub fn send_ui_update_request(sender: &Sender<UIRequest>) {
+    let sender = sender.clone();
+    thread::spawn( move || {
+        loop {
+            thread::sleep(REFRESH_RATE);
+            sender.send(UIRequest::UpdateWallet).expect("Could not send update request");
+        }
+    });
 }
 
 /// Shows the success message of a transaction well sent

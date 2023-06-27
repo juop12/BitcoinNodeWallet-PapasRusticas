@@ -21,14 +21,13 @@ impl Wallet {
     ) -> Result<Wallet, WalletError> {
         let ui_response = match request {
             UIRequest::ChangeWallet(priv_key_string) => {
-                match self.handle_change_wallet(node, priv_key_string, sender_to_ui) {
+                match self.handle_change_wallet(node, priv_key_string) {
                     Ok(wallet) => return Ok(wallet),
                     Err(wallet_error) => Err(wallet_error),
                 }
             }
-            UIRequest::CreateTx(amount, fee, address) => {
-                self.handle_create_tx(node, amount, fee, address)
-            }
+            UIRequest::CreateTx(amount, fee, address) => self.handle_create_tx(node, amount, fee, address),
+            UIRequest::UpdateWallet => self.handle_update_wallet(node),
             UIRequest::LastBlockInfo => self.handle_last_block_info(node),
             UIRequest::NextBlockInfo => self.handle_get_block_info(node, self.current_block - 1),
             UIRequest::PrevBlockInfo => self.handle_get_block_info(node, self.current_block + 1),
@@ -52,7 +51,18 @@ impl Wallet {
         Ok(self)
     }
 
-    /// Returns the bloc info of the requested block number inside a UiResponse.
+    /// Updates the Wallet information and then returns it in a WalletInfo.
+    /// If theres a problem with obtaining the SafeVectors, then it 
+    /// returns ErrorUpdatingWallet.
+    pub fn handle_update_wallet(&mut self, node: &mut Node) -> Result<UIResponse, WalletError>{
+        node.update(self).map_err(|_| WalletError::ErrorUpdatingWallet)?;
+        
+        let wallet_info = WalletInfo::from(self);
+
+        Ok(UIResponse::WalletInfo(wallet_info))
+    }
+
+    /// Returns the block info of the requested block number inside a UiResponse.
     /// If the block was not found it returns error_finding block, on any other
     /// error return ErrorGettingBlockInfo
     pub fn handle_get_block_info(
@@ -76,7 +86,7 @@ impl Wallet {
         Ok(UIResponse::BlockInfo(block_info))
     }
 
-    /// Returns the bloc info of the last block of the blockchain inside a UiResponse.
+    /// Returns the block info of the last block of the blockchain inside a UiResponse.
     /// If the block was not found it returns error_finding block, on any other
     /// error return ErrorGettingBlockInfo
     pub fn handle_last_block_info(&mut self, node: &Node) -> Result<UIResponse, WalletError> {
@@ -96,33 +106,20 @@ impl Wallet {
         Ok(UIResponse::BlockInfo(block_info))
     }
 
-    /// Sends the current wallet information to the ui
-    pub fn send_wallet_info(
-        &self,
-        sender_to_ui: &GlibSender<UIResponse>,
-    ) -> Result<(), WalletError> {
-        let wallet_info = WalletInfo::from(self);
-        sender_to_ui
-            .send(UIResponse::WalletInfo(wallet_info))
-            .map_err(|_| WalletError::ErrorSendingToUI)?;
-        Ok(())
-    }
-
-    /// Changes wallet to the onew whose private key is written in the string either in base 58 or hex.
+    /// Changes wallet to the one whose private key is written in the string either in base 58 or hex.
     pub fn handle_change_wallet(
         &self,
         node: &mut Node,
         priv_key_string: String,
-        sender_to_ui: &GlibSender<UIResponse>,
     ) -> Result<Wallet, WalletError> {
+
         let mut new_wallet = Wallet::from(priv_key_string)?;
-        node.set_wallet(&mut new_wallet)
-            .map_err(|_| WalletError::ErrorSettingWallet)?;
-        self.send_wallet_info(sender_to_ui)?;
+        node.set_wallet(&mut new_wallet).map_err(|_| WalletError::ErrorSettingWallet)?;
+    
         Ok(new_wallet)
     }
 
-    /// Creates and sends a transaction to the receiver addres of value amount and fee.
+    /// Creates and sends a transaction to the receiver address of value amount and fee.
     fn handle_create_tx(
         &mut self,
         node: &mut Node,

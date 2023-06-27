@@ -80,7 +80,8 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
         let value = tree_store.value(&tree_iter, TX_HASH_COLUMN as i32);
 
         let hash = value.get::<String>().unwrap();
-        let hash_bytes = get_bytes_from_hex(hash);
+        let mut hash_bytes = get_bytes_from_hex(hash);
+        hash_bytes.reverse();
         let transaction_hash: [u8; 32] = match hash_bytes.try_into() {
             Ok(transaction_hash) => transaction_hash,
             Err(_) => return,

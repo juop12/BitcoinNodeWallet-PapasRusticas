@@ -64,8 +64,11 @@ fn handle_success_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     let priv_key_text = priv_key.text().to_string();
     let priv_key_text_clone = priv_key_text.clone();
     let name_text = name.text().to_string();
-    sender.send(UIRequest::ChangeWallet(priv_key_text)).unwrap();
-    sender.send(UIRequest::LastBlockInfo).unwrap();
+
+    sender.send(UIRequest::ChangeWallet(priv_key_text)).expect(SENDER_ERROR);
+    sender.send(UIRequest::LastBlockInfo).expect(SENDER_ERROR);
+    sender.send(UIRequest::UpdateWallet).expect(SENDER_ERROR);
+    
     name.set_text("");
     priv_key.set_text("");
     wallet_adder_success_dialog.show_all();
@@ -110,6 +113,7 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>)
                 .send(UIRequest::ChangeWallet(wallets[0][0].to_string()))
                 .expect(SENDER_ERROR);
             sender.send(UIRequest::LastBlockInfo).expect(SENDER_ERROR);
+            sender.send(UIRequest::UpdateWallet).expect(SENDER_ERROR);
         }
         Err(error) => {
             match error {
@@ -169,6 +173,7 @@ pub fn initialize_change_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
             sender_clone
                 .send(UIRequest::LastBlockInfo)
                 .expect(SENDER_ERROR);
+            sender_clone.send(UIRequest::UpdateWallet).expect(SENDER_ERROR);
         }
     });
 }

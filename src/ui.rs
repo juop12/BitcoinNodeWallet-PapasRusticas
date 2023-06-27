@@ -17,9 +17,10 @@ use node::run::*;
 use node::utils::ui_communication_protocol::{
     UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse,
 };
-use std::sync::mpsc::Sender;
-use std::sync::{mpsc, Arc, Mutex};
-use std::thread::{self};
+use std::{
+    sync::{mpsc, mpsc::Sender, Arc, Mutex},
+    thread,
+};
 
 const SENDER_ERROR: &str = "Error sending message to node through mpsc channel";
 
@@ -51,7 +52,8 @@ fn run_app(
         Some(receiver) => receiver,
         None => return,
     };
-    show_loading_screen(&builder, app);
+    let (loading_sender, loading_receiver) = mpsc::channel();
+    show_loading_screen(&builder, app, loading_receiver);
     let sender_clone = sender.clone();
     let builder_clone = builder.clone();
     let app_cloned = app.clone();
@@ -61,7 +63,7 @@ fn run_app(
             UIResponse::ResultOFTXProof(result) => handle_result_of_tx_proof(&builder, result),
             UIResponse::WalletInfo(wallet_info) => handle_wallet_info(&wallet_info, &builder),
             UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
-            UIResponse::FinishedInitializingNode => start_window(&app_cloned, &builder, &sender),
+            UIResponse::FinishedInitializingNode => start_window(&app_cloned, &builder, &sender, &loading_sender),
             UIResponse::WalletFinished => app_cloned.quit(),
             UIResponse::TxSent => handle_tx_sent(&builder),
             UIResponse::WalletError(error) => {
@@ -81,17 +83,18 @@ fn run_app(
 }
 
 /// Closes the initial loading window when the node finishes initializing
-fn close_loading_window(builder: &Builder) {
+fn close_loading_window(builder: &Builder, loading_sender: &Sender<UIResponse>) {
     let window: Window = builder.object("Loading Screen Window").unwrap();
+    loading_sender.send(UIResponse::FinishedInitializingNode).expect("Error sending message FinishedInitializingNode through mpsc channel");
     window.close();
 }
 
 /// Starts the main elemente of the UI and shows the main window of the program
 /// after the node has finished initializing, this window is the one that
 /// the user sees
-fn start_window(app: &Application, builder: &Builder, sender: &Sender<UIRequest>) {
+fn start_window(app: &Application, builder: &Builder, sender: &Sender<UIRequest>, loading_sender: &Sender<UIResponse>) {
     initialize_elements(builder, sender);
-    close_loading_window(builder);
+    close_loading_window(builder, loading_sender);
     let window: Window = builder.object("Ventana").unwrap();
     window.set_application(Some(app));
     window.show_all();
@@ -111,6 +114,7 @@ fn initialize_elements(builder: &Builder, sender: &Sender<UIRequest>) {
     initialize_change_wallet(builder, sender);
     initialize_merkle_proof_button(builder, sender);
     update_adjustments_max_value(builder);
+    send_ui_update_request(sender);
 }
 
 /// Connects the buttons that allow the user to switch between blocks

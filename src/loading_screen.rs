@@ -3,12 +3,13 @@ use gtk::prelude::*;
 use gtk::{Application, Builder, Label, Window};
 use std::io::Read;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::{
     fs::File,
     io::{BufReader, Seek, SeekFrom},
+    sync::mpsc::Receiver
 };
-
+use node::utils::ui_communication_protocol::WalletToUICommunication as UIResponse;
 pub enum LoadingSreenError {
     ErrorReadingFile,
     ErrorReadingMetadataFromFile,
@@ -18,6 +19,7 @@ pub enum LoadingSreenError {
 
 const LINES_SHOWN: usize = 11;
 const SENDER_ERROR: &str = "Error sending message to node through mpsc channel";
+const REFRESH_LOGIN_SCREEN_TIME: u64 = 1;
 
 /// Reads the last lines of a File and returns them as a
 /// vector of Strings where the least recent
@@ -76,14 +78,14 @@ fn read_last_lines(file_path: &str, num_lines: usize) -> Result<Vec<String>, Loa
 /// Shows the loading screen and starts a thread that reads the node log file
 /// and updates the loading screen every second with the last lines of the log file
 /// for the user to see the progress of the initialization of the node.
-pub fn show_loading_screen(builder: &Builder, app: &Application) {
+pub fn show_loading_screen(builder: &Builder, app: &Application, receiver: Receiver<UIResponse>) {
     let loading_window: Window = builder.object("Loading Screen Window").unwrap();
     loading_window.set_title("Loading Screen");
     loading_window.set_application(Some(app));
     loading_window.show_all();
     let log_label: Label = builder.object("Log Label").unwrap();
     let (sx, rx) = glib::MainContext::channel::<Vec<String>>(glib::PRIORITY_DEFAULT);
-    thread::spawn(move || obtain_loading_progress(sx));
+    thread::spawn(move || obtain_loading_progress(sx, receiver));
     rx.attach(None, move |mut contents| {
         contents.reverse();
         let result: String = contents
@@ -97,18 +99,23 @@ pub fn show_loading_screen(builder: &Builder, app: &Application) {
     });
 }
 
-fn obtain_loading_progress(sender: GlibSender<Vec<String>>) {
-    let mut last_update_time = Instant::now();
+fn obtain_loading_progress(sender: GlibSender<Vec<String>>, receiver: Receiver<UIResponse>) {
     loop {
-        if last_update_time.elapsed() > Duration::from_secs(1) {
-            if let Ok(contents) = read_last_lines("./src/node_log.txt", LINES_SHOWN) {
-                if !contents.is_empty() {
-                    sender.send(contents).expect(SENDER_ERROR);
-                }
-            } else {
-                println!("No se pudo leer el archivo");
+        thread::sleep(Duration::from_secs(REFRESH_LOGIN_SCREEN_TIME));
+        if let Ok(contents) = read_last_lines("./src/node_log.txt", LINES_SHOWN) {
+            if !contents.is_empty() {
+                sender.send(contents).expect(SENDER_ERROR);
             }
-            last_update_time = Instant::now();
+        } else {
+            println!("No se pudo leer el archivo");
+        }
+        if let Ok(response) = receiver.try_recv() {
+            match response {
+                UIResponse::FinishedInitializingNode => {
+                    break;
+                }
+                _ => {}
+            }
         }
     }
 }
