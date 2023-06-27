@@ -149,8 +149,7 @@ impl Block {
         let (header_bytes, mut slice) = slice.split_at(BLOCKHEADER_SIZE);
         let header = BlockHeader::from_bytes(header_bytes).ok()?;
         let transaction_count = VarLenInt::from_bytes(slice)?;
-        (_, slice) =
-            slice.split_at(transaction_count.amount_of_bytes());
+        (_, slice) = slice.split_at(transaction_count.amount_of_bytes());
 
         let mut transactions = Vec::new();
 
@@ -180,13 +179,14 @@ impl Block {
 
     /// It returns the header of the block.
     pub fn get_header(&self) -> BlockHeader {
-        BlockHeader { 
-            version: self.header.version, 
-            prev_hash: self.header.prev_hash, 
-            merkle_root_hash: self.header.merkle_root_hash, 
-            time: self.header.time, 
-            n_bits: self.header.n_bits, 
-            nonce: self.header.nonce }
+        BlockHeader {
+            version: self.header.version,
+            prev_hash: self.header.prev_hash,
+            merkle_root_hash: self.header.merkle_root_hash,
+            time: self.header.time,
+            n_bits: self.header.n_bits,
+            nonce: self.header.nonce,
+        }
     }
 
     /// It returns the transactions of the block.
@@ -195,51 +195,50 @@ impl Block {
     }
 
     /// Returns the hashes of all the transactions of a block.
-    pub fn get_tx_hashes(&self) -> Vec<[u8;32]>{
+    pub fn get_tx_hashes(&self) -> Vec<[u8; 32]> {
         self.transactions.iter().map(|tx| tx.hash()).collect()
     }
 
-    pub fn header_hash(&self) -> [u8;32]{
+    pub fn header_hash(&self) -> [u8; 32] {
         self.get_header().hash()
     }
 
     /// Returns a vector all the block transactions interpreted as utxos.
-    pub fn get_utxos(&self)->Vec<(Outpoint, TxOut)>{
+    pub fn get_utxos(&self) -> Vec<(Outpoint, TxOut)> {
         let mut utxos = Vec::new();
-        
-        for tx in &self.transactions{
+
+        for tx in &self.transactions {
             for (index, tx_out) in tx.tx_out.iter().enumerate() {
-                if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
+                if tx_out.pk_hash_under_p2pkh_protocol().is_some() {
                     let outpoint = Outpoint::new(tx.hash(), index as u32);
                     let tx_out: TxOut = tx_out.clone();
 
                     utxos.push((outpoint, tx_out));
                 }
             }
-        };
-        
+        }
+
         utxos
     }
 
     /// Returns a vector all the block transactions that belong to an account interpreted as utxos.
-    pub fn get_utxos_from(&self, wallet_pk_hash: [u8;20])->Vec<(Vec<u8>,TxOut)>{
+    pub fn get_utxos_from(&self, wallet_pk_hash: [u8; 20]) -> Vec<(Vec<u8>, TxOut)> {
         let mut utxos = Vec::new();
-        for tx in &self.transactions{
+        for tx in &self.transactions {
             for (index, tx_out) in tx.tx_out.iter().enumerate() {
-                if tx_out.belongs_to(wallet_pk_hash){
-                    if tx_out.pk_hash_under_p2pkh_protocol().is_some(){
-                        let outpoint = Outpoint::new(tx.hash(), index as u32);
-                        let tx_out_outpoint_bytes = outpoint.to_bytes();
-                        let tx_out: TxOut = tx_out.clone();
-    
-                        utxos.push((tx_out_outpoint_bytes, tx_out));
-                    }
+                if tx_out.belongs_to(wallet_pk_hash)
+                    && tx_out.pk_hash_under_p2pkh_protocol().is_some()
+                {
+                    let outpoint = Outpoint::new(tx.hash(), index as u32);
+                    let tx_out_outpoint_bytes = outpoint.to_bytes();
+                    let tx_out: TxOut = tx_out.clone();
+
+                    utxos.push((tx_out_outpoint_bytes, tx_out));
                 }
             }
-        };
+        }
         utxos
     }
-    
 }
 
 #[cfg(test)]

@@ -1,8 +1,7 @@
 use gtk::prelude::*;
-use gtk::{Builder, Application, Dialog, Label, Button};
+use gtk::{Application, Builder, Button, Dialog, Label};
 
-
-pub fn handle_error(builder: &Builder, text: String){
+pub fn handle_error(builder: &Builder, text: String) {
     let err_button: Button = builder.object("Error Button").unwrap();
     let err_dialog: Dialog = builder.object("Error Dialog").unwrap();
     let err_label: Label = builder.object("Error Label").unwrap();
@@ -14,14 +13,13 @@ pub fn handle_error(builder: &Builder, text: String){
     err_dialog.set_title("Error");
     err_dialog.show_all();
     err_dialog.run();
-
 }
 
-pub fn handle_initialization_error(builder: &Builder, app: &Application){
+pub fn handle_initialization_error(builder: &Builder, app: &Application) {
     let err_button: Button = builder.object("Error Button").unwrap();
     let err_label: Label = builder.object("Error Label").unwrap();
     let err_dialog: Dialog = builder.object("Error Dialog").unwrap();
-    let err_clone = err_dialog.clone(); 
+    let err_clone = err_dialog.clone();
     err_button.connect_clicked(move |_| {
         err_clone.hide();
     });

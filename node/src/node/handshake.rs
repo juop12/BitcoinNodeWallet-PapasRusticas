@@ -8,9 +8,11 @@ impl Node {
     fn connect_to_peer(&self, receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> {
         match TcpStream::connect_timeout(&receiving_addrs, PEER_TIMEOUT) {
             Ok(tcp_stream) => {
-                tcp_stream.set_write_timeout(Some(PEER_TIMEOUT)).map_err(|_| NodeError::ErrorConnectingToPeer)?;
+                tcp_stream
+                    .set_write_timeout(Some(PEER_TIMEOUT))
+                    .map_err(|_| NodeError::ErrorConnectingToPeer)?;
                 Ok(tcp_stream)
-            },
+            }
             Err(_) => Err(NodeError::ErrorConnectingToPeer),
         }
     }
@@ -61,7 +63,8 @@ impl Node {
             Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
         };
 
-        self.logger.log(format!("Received message: {}", hm.get_command_name()));
+        self.logger
+            .log(format!("Received message: {}", hm.get_command_name()));
         let cmd_name = hm.get_command_name();
 
         match cmd_name.as_str() {
@@ -107,14 +110,12 @@ mod tests {
     use crate::utils::mock_tcp_stream::*;
     use bitcoin_hashes::{sha256d, Hash};
 
-
     const VERSION: i32 = 70015;
     const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
     const LOCAL_PORT: u16 = 1001;
     const STARTING_BLOCK_TIME: u32 = 1681084800;
     const HEADERS_FILE_PATH: &str = "data/headers.bin";
     const BLOCKS_FILE_PATH: &str = "data/blocks.bin";
-
 
     // Auxiliar functions
     //=================================================================

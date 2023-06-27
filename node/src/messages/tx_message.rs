@@ -30,12 +30,8 @@ impl Message for TxMessage {
     }
 }
 
-impl TxMessage{
-
-    pub fn new(tx: Transaction) -> TxMessage{
-
-        TxMessage { 
-            tx
-        }
+impl TxMessage {
+    pub fn new(tx: Transaction) -> TxMessage {
+        TxMessage { tx }
     }
 }

@@ -6,9 +6,9 @@ pub mod header_message;
 pub mod inv_message;
 pub mod message_trait;
 pub mod not_found_message;
+pub mod tx_message;
 pub mod verack_message;
 pub mod version_message;
-pub mod tx_message;
 
 pub use block_headers_message::BlockHeadersMessage;
 pub use block_message::BlockMessage;
@@ -18,6 +18,6 @@ pub use header_message::HeaderMessage;
 pub use inv_message::InvMessage;
 pub use message_trait::Message;
 pub use not_found_message::NotFoundMessage;
+pub use tx_message::TxMessage;
 pub use verack_message::VerACKMessage;
 pub use version_message::VersionMessage;
-pub use tx_message::TxMessage;

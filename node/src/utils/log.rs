@@ -1,15 +1,13 @@
+use super::BtcError;
 use chrono::Utc;
 use std::{
-    {fs, fs::File, fs::OpenOptions},
-    sync::{mpsc, mpsc::Sender},
     io::Write,
+    sync::{mpsc, mpsc::Sender},
     thread,
-    };
-use super::BtcError;
-
+    {fs, fs::File, fs::OpenOptions},
+};
 
 const LOGGER_KILLER: &str = "stop";
-
 
 /// Struct that represents errors that can occur with the log.
 #[derive(Debug)]
@@ -68,7 +66,6 @@ impl Logger {
 
 /// A handler for opening the log file in write mode, on error returns ErrorOpeningFile
 fn _open_log_handler(path: &str) -> Result<File, LoggerError> {
-
     _ = fs::remove_file(path);
 
     match OpenOptions::new().create(true).write(true).open(path) {
