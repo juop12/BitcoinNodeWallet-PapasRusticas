@@ -15,6 +15,7 @@ pub enum UIToWalletCommunication {
     ), //ui manda en distintas bases el adrress, se fijan las longitudes
     ObtainTxProof(/*txhash */ [u8; 32], /*block number */ usize),
     EndOfProgram,
+    UpdateWallet,
     LastBlockInfo,
     NextBlockInfo,
     PrevBlockInfo,

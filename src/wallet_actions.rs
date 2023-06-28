@@ -6,9 +6,18 @@ use crate::wallet_overview::{
 use crate::wallet_send::{update_adjustments_max_value, update_balance};
 use crate::wallet_transactions::{add_row, modify_block_header};
 use gtk::prelude::*;
-use gtk::{Builder, Dialog, ListBox, TreeStore};
-use node::utils::ui_communication_protocol::{BlockInfo, WalletInfo};
+use gtk::{Application, Builder, Dialog, ListBox, TreeStore};
+use node::utils::ui_communication_protocol::{
+    BlockInfo, UIToWalletCommunication as UIRequest, WalletInfo,
+};
+use std::{
+    sync::mpsc::Sender,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
+const REFRESH_RATE: Duration = Duration::from_secs(5);
 const SATOSHI_TO_BTC: f64 = 100000000.0;
 
 /// Receives a BlockInfo and it updates the UI with the information of the block
@@ -74,9 +83,37 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder) {
     }
 }
 
+/// Sends a request to the wallet to update the information of the wallet
+/// every REFRESH_RATE seconds
+pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<bool>>) {
+    let sender = sender.clone();
+    thread::spawn(move || loop {
+        thread::sleep(REFRESH_RATE);
+        match running.lock() {
+            Ok(program_running) => {
+                if !*program_running {
+                    break;
+                } else {
+                    sender
+                        .send(UIRequest::UpdateWallet)
+                        .expect("Could not send update request");
+                }
+            }
+            Err(_) => return,
+        }
+    });
+}
+
 /// Shows the success message of a transaction well sent
 pub fn handle_tx_sent(builder: &Builder) {
     let tx_sent_dialog: Dialog = builder.object("Succesful Send Dialog").unwrap();
     tx_sent_dialog.set_title("Transaction Sending Success");
     tx_sent_dialog.run();
+}
+
+pub fn handle_app_finished(app: &Application, running: Arc<Mutex<bool>>) {
+    if let Ok(mut program_running) = running.lock() {
+        *program_running = false;
+        app.quit();
+    }
 }

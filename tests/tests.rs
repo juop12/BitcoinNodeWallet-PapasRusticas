@@ -57,17 +57,15 @@ mod test {
     fn test3_set_wallet() {
         let mut node =
             initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
+
         let wallet =
             Wallet::from("cTcbayZmdiCxNywGxfLXGLqS2Y8uTNzGktbFXZnkNCR3zeN1XMQC".to_string())
                 .unwrap();
-        let (glib_sender, _glib_receiver) =
-            glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
 
         let wallet = wallet
             .handle_change_wallet(
                 &mut node,
                 "cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string(),
-                &glib_sender,
             )
             .unwrap();
         assert_eq!(wallet.balance, 70000);

@@ -1,7 +1,8 @@
 /// This function takes a vector of bytes and returns a string representation of the bytes
-/// in hexadecimal format.
+/// in hexadecimal format. It is reversed because the bytes are stored in little endian format
+/// and we want to display them in big endian format.
 pub fn get_string_representation_from_bytes(bytes_vec: &mut [u8]) -> String {
-    //bytes_vec.reverse();
+    bytes_vec.reverse();
     get_hex_from_bytes(bytes_vec)
 }
 
