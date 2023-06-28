@@ -26,7 +26,9 @@ impl Wallet {
                     Err(wallet_error) => Err(wallet_error),
                 }
             }
-            UIRequest::CreateTx(amount, fee, address) => self.handle_create_tx(node, amount, fee, address),
+            UIRequest::CreateTx(amount, fee, address) => {
+                self.handle_create_tx(node, amount, fee, address)
+            }
             UIRequest::UpdateWallet => self.handle_update_wallet(node),
             UIRequest::LastBlockInfo => self.handle_last_block_info(node),
             UIRequest::NextBlockInfo => self.handle_get_block_info(node, self.current_block - 1),
@@ -52,11 +54,12 @@ impl Wallet {
     }
 
     /// Updates the Wallet information and then returns it in a WalletInfo.
-    /// If theres a problem with obtaining the SafeVectors, then it 
+    /// If theres a problem with obtaining the SafeVectors, then it
     /// returns ErrorUpdatingWallet.
-    pub fn handle_update_wallet(&mut self, node: &mut Node) -> Result<UIResponse, WalletError>{
-        node.update(self).map_err(|_| WalletError::ErrorUpdatingWallet)?;
-        
+    pub fn handle_update_wallet(&mut self, node: &mut Node) -> Result<UIResponse, WalletError> {
+        node.update(self)
+            .map_err(|_| WalletError::ErrorUpdatingWallet)?;
+
         let wallet_info = WalletInfo::from(self);
 
         Ok(UIResponse::WalletInfo(wallet_info))
@@ -112,10 +115,10 @@ impl Wallet {
         node: &mut Node,
         priv_key_string: String,
     ) -> Result<Wallet, WalletError> {
-
         let mut new_wallet = Wallet::from(priv_key_string)?;
-        node.set_wallet(&mut new_wallet).map_err(|_| WalletError::ErrorSettingWallet)?;
-    
+        node.set_wallet(&mut new_wallet)
+            .map_err(|_| WalletError::ErrorSettingWallet)?;
+
         Ok(new_wallet)
     }
 

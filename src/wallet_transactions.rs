@@ -13,6 +13,25 @@ const INDEX_COLUMN: u32 = 0;
 const TX_HASH_COLUMN: u32 = 1;
 const SENDER_ERROR: &str = "Error sending message to Node/Wallet thread";
 
+/// Connects the buttons that allow the user to switch between blocks
+pub fn connect_block_switcher_buttons(builder: &Builder, sender: &Sender<UIRequest>) {
+    let next_button: Button = builder.object("Next Block Button").unwrap();
+    let previous_button: Button = builder.object("Previous Block Button").unwrap();
+    let sender_clone = sender.clone();
+    let sender_clone_2 = sender.clone();
+    next_button.connect_clicked(move |_| {
+        sender_clone_2
+            .send(UIRequest::NextBlockInfo)
+            .expect(SENDER_ERROR);
+    });
+
+    previous_button.connect_clicked(move |_| {
+        sender_clone
+            .send(UIRequest::PrevBlockInfo)
+            .expect(SENDER_ERROR);
+    });
+}
+
 /// Adds a row to the transaction tree store.
 pub fn add_row(tx_tree_store: &TreeStore, tx_hash: &str, index: i32) {
     let tree_iter = tx_tree_store.append(None);
@@ -71,10 +90,7 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
         };
         let (_, tree_iter) = match tree_selection.selected() {
             Some((tree_model, tree_iter)) => (tree_model, tree_iter),
-            None => {
-                eprintln!("Error while selecting tree iter");
-                return;
-            }
+            None => return,
         };
 
         let value = tree_store.value(&tree_iter, TX_HASH_COLUMN as i32);

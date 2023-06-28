@@ -14,6 +14,19 @@ pub enum WalletAdderError {
     ErrorEmptyName,
 }
 
+/// Initializes the wallet selector, which lets the user add a wallet introducing a Name
+/// and a private key
+pub fn activate_wallet_adder(builder: &Builder) {
+    let button: Button = builder.object("Wallet Adder").unwrap();
+    let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
+    wallet_adder.set_title("Add Wallet");
+    button.connect_clicked(move |_| {
+        wallet_adder.show_all();
+        wallet_adder.run();
+        wallet_adder.hide();
+    });
+}
+
 /// Reads the private key and returns a Result representing if ti was possible to add
 /// the wallet or not.
 fn add_wallet(builder: &Builder) -> Result<(), WalletAdderError> {
@@ -65,10 +78,12 @@ fn handle_success_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     let priv_key_text_clone = priv_key_text.clone();
     let name_text = name.text().to_string();
 
-    sender.send(UIRequest::ChangeWallet(priv_key_text)).expect(SENDER_ERROR);
+    sender
+        .send(UIRequest::ChangeWallet(priv_key_text))
+        .expect(SENDER_ERROR);
     sender.send(UIRequest::LastBlockInfo).expect(SENDER_ERROR);
     sender.send(UIRequest::UpdateWallet).expect(SENDER_ERROR);
-    
+
     name.set_text("");
     priv_key.set_text("");
     wallet_adder_success_dialog.show_all();
@@ -173,7 +188,9 @@ pub fn initialize_change_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
             sender_clone
                 .send(UIRequest::LastBlockInfo)
                 .expect(SENDER_ERROR);
-            sender_clone.send(UIRequest::UpdateWallet).expect(SENDER_ERROR);
+            sender_clone
+                .send(UIRequest::UpdateWallet)
+                .expect(SENDER_ERROR);
         }
     });
 }

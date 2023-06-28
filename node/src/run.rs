@@ -3,9 +3,7 @@ use crate::utils::ui_communication_protocol::{
 };
 use crate::{node::*, utils::config::*, utils::WalletError, wallet::*};
 use glib::Sender as GlibSender;
-use std::{
-    sync::mpsc,
-};
+use std::sync::mpsc;
 
 /// Creates a new node correctely and sets workers for receiving messages from other peers.
 /// If an error occurs it returns None.
@@ -61,7 +59,8 @@ fn get_first_wallet(
             UIRequest::ChangeWallet(priv_key) => {
                 let mut wallet = Wallet::from(priv_key)?;
 
-                node.set_wallet(&mut wallet).map_err(|_| WalletError::ErrorSettingWallet)?;
+                node.set_wallet(&mut wallet)
+                    .map_err(|_| WalletError::ErrorSettingWallet)?;
 
                 return Ok(Some(wallet));
             }
@@ -72,11 +71,18 @@ fn get_first_wallet(
 }
 
 /// Wallet receives messages from the ui and handles them. Every REFRESH_RATE seconds the wallet updates the information of the ui
-fn run_main_loop(node: &mut Node, mut wallet: Wallet, receiver: &mpsc::Receiver<UIRequest>, sender_to_ui: &GlibSender<UIResponse>) -> Result<(), WalletError> {
+fn run_main_loop(
+    node: &mut Node,
+    mut wallet: Wallet,
+    receiver: &mpsc::Receiver<UIRequest>,
+    sender_to_ui: &GlibSender<UIResponse>,
+) -> Result<(), WalletError> {
     let mut program_running = true;
 
     while program_running {
-        let request = receiver.recv().map_err(|_| WalletError::ErrorReceivingFromUI)?;
+        let request = receiver
+            .recv()
+            .map_err(|_| WalletError::ErrorReceivingFromUI)?;
         wallet = wallet.handle_ui_request(node, request, sender_to_ui, &mut program_running)?;
     }
 

@@ -7,9 +7,9 @@ use std::time::Duration;
 use std::{
     fs::File,
     io::{BufReader, Seek, SeekFrom},
-    sync::mpsc::Receiver
+    sync::{Arc, Mutex},
 };
-use node::utils::ui_communication_protocol::WalletToUICommunication as UIResponse;
+
 pub enum LoadingSreenError {
     ErrorReadingFile,
     ErrorReadingMetadataFromFile,
@@ -19,7 +19,7 @@ pub enum LoadingSreenError {
 
 const LINES_SHOWN: usize = 11;
 const SENDER_ERROR: &str = "Error sending message to node through mpsc channel";
-const REFRESH_LOGIN_SCREEN_TIME: u64 = 1;
+const REFRESH_LOGIN_SCREEN_TIME: Duration = Duration::from_secs(1);
 
 /// Reads the last lines of a File and returns them as a
 /// vector of Strings where the least recent
@@ -78,14 +78,14 @@ fn read_last_lines(file_path: &str, num_lines: usize) -> Result<Vec<String>, Loa
 /// Shows the loading screen and starts a thread that reads the node log file
 /// and updates the loading screen every second with the last lines of the log file
 /// for the user to see the progress of the initialization of the node.
-pub fn show_loading_screen(builder: &Builder, app: &Application, receiver: Receiver<UIResponse>) {
+pub fn show_loading_screen(builder: &Builder, app: &Application, running: Arc<Mutex<bool>>) {
     let loading_window: Window = builder.object("Loading Screen Window").unwrap();
     loading_window.set_title("Loading Screen");
     loading_window.set_application(Some(app));
     loading_window.show_all();
     let log_label: Label = builder.object("Log Label").unwrap();
     let (sx, rx) = glib::MainContext::channel::<Vec<String>>(glib::PRIORITY_DEFAULT);
-    thread::spawn(move || obtain_loading_progress(sx, receiver));
+    thread::spawn(move || obtain_loading_progress(sx, running));
     rx.attach(None, move |mut contents| {
         contents.reverse();
         let result: String = contents
@@ -99,23 +99,29 @@ pub fn show_loading_screen(builder: &Builder, app: &Application, receiver: Recei
     });
 }
 
-fn obtain_loading_progress(sender: GlibSender<Vec<String>>, receiver: Receiver<UIResponse>) {
-    loop {
-        thread::sleep(Duration::from_secs(REFRESH_LOGIN_SCREEN_TIME));
-        if let Ok(contents) = read_last_lines("./src/node_log.txt", LINES_SHOWN) {
-            if !contents.is_empty() {
-                sender.send(contents).expect(SENDER_ERROR);
-            }
-        } else {
-            println!("No se pudo leer el archivo");
+fn send_last_lines_to_login_screen(sender: GlibSender<Vec<String>>) {
+    if let Ok(contents) = read_last_lines("./src/node_log.txt", LINES_SHOWN) {
+        if !contents.is_empty() {
+            sender.send(contents).expect(SENDER_ERROR);
         }
-        if let Ok(response) = receiver.try_recv() {
-            match response {
-                UIResponse::FinishedInitializingNode => {
+    } else {
+        println!("No se pudo leer el archivo");
+    }
+}
+
+/// Reads the node log file and sends the last lines to the UI thread
+fn obtain_loading_progress(sender: GlibSender<Vec<String>>, running: Arc<Mutex<bool>>) {
+    loop {
+        thread::sleep(REFRESH_LOGIN_SCREEN_TIME);
+        match running.lock() {
+            Ok(program_running) => {
+                if !*program_running {
+                    send_last_lines_to_login_screen(sender.clone());
+                } else {
                     break;
                 }
-                _ => {}
             }
+            Err(_) => return,
         }
     }
 }

@@ -55,10 +55,13 @@ mod test {
 
     #[test]
     fn test3_set_wallet() {
-        let mut node = initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
-        
-        let wallet = Wallet::from("cTcbayZmdiCxNywGxfLXGLqS2Y8uTNzGktbFXZnkNCR3zeN1XMQC".to_string()).unwrap();
-        
+        let mut node =
+            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
+
+        let wallet =
+            Wallet::from("cTcbayZmdiCxNywGxfLXGLqS2Y8uTNzGktbFXZnkNCR3zeN1XMQC".to_string())
+                .unwrap();
+
         let wallet = wallet
             .handle_change_wallet(
                 &mut node,
