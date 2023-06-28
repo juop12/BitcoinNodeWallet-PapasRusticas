@@ -70,7 +70,7 @@ fn get_first_wallet(
     }
 }
 
-/// Wallet receives messages from the ui and handles them. Every REFRESH_RATE seconds the wallet updates the information of the ui
+/// Wallet receives messages from the ui and handles them.
 fn run_main_loop(
     node: &mut Node,
     mut wallet: Wallet,
