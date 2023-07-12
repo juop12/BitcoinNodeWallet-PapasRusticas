@@ -8,7 +8,8 @@ pub mod wallet_communication;
 
 use self::{
     data_handler::NodeDataHandler, handle_messages::*, message_receiver::MessageReceiver,
-    peer_comunication::*,
+    peer_comunication::*, 
+    handshake::outgoing_handshake,
 };
 use crate::{
     blocks::{blockchain::*, proof::*, transaction::TxOut, Outpoint, Transaction},
@@ -19,9 +20,13 @@ use crate::{
 use std::{
     collections::HashMap,
     io::{Read, Write},
-    net::{SocketAddr, TcpStream, ToSocketAddrs},
+    net::{SocketAddr, TcpStream, ToSocketAddrs, TcpListener},
     sync::{Arc, Mutex, MutexGuard},
+    thread::{self, sleep}, 
+    time::Duration,
 };
+
+pub const NEW_CONECTION_INTERVAL: Duration = Duration::from_secs(5);
 
 const MESSAGE_HEADER_SIZE: usize = 24;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
@@ -33,7 +38,7 @@ pub type SafePendingTx = Arc<Mutex<HashMap<[u8; 32], Transaction>>>;
 /// Struct that represents the bitcoin node
 pub struct Node {
     version: i32,
-    sender_address: SocketAddr,
+    address: SocketAddr,
     pub tcp_streams: Vec<TcpStream>,
     data_handler: NodeDataHandler,
     block_headers: SafeVecHeader,
@@ -62,7 +67,7 @@ impl Node {
     ) -> Node {
         Node {
             version,
-            sender_address: SocketAddr::from((local_host, local_port)),
+            address: SocketAddr::from((local_host, local_port)),
             tcp_streams: Vec::new(),
             block_headers: Arc::new(Mutex::from(Vec::new())),
             starting_block_time,
@@ -103,7 +108,7 @@ impl Node {
         address_vector.reverse(); // Generally the first nodes are slow, so we reverse the vector to connect to the fastest nodes first
 
         for addr in address_vector {
-            match node.handshake(addr) {
+            match outgoing_handshake(node.version, addr, node.address, &node.logger) {
                 Ok(tcp_stream) => node.tcp_streams.push(tcp_stream),
                 Err(error) => node.logger.log_error(&error),
             }
@@ -183,6 +188,27 @@ impl Node {
             ibd,
         )
     }
+
+    /*
+    fn listen_new_conections(&self){
+        let listener = TcpListener::bind(self.address).unwrap();
+        listener.set_nonblocking(true);
+        let thread = thread::spawn(move || loop {
+            match listener.accept(){
+                Ok((tcp_stream, new_address)) => {
+                    self.incoming_handshake(new_address, &tcp_stream);
+                },
+                Err(error) => {
+                    if error.kind() == std::io::ErrorKind::WouldBlock{
+                        sleep(NEW_CONECTION_INTERVAL);
+                    }
+                    
+                },
+            }
+        }
+    );
+}
+*/
 }
 
 impl Drop for Node {

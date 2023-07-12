@@ -2,14 +2,15 @@ use crate::{node::*, utils::btc_errors::MessageReceiverError};
 
 use std::{
     net::TcpStream,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, 
 };
+
 use workers::*;
 
 #[derive(Debug)]
 pub struct MessageReceiver {
     workers: Vec<Worker>,
-    finished_working_indicators: Vec<FinishedIndicator>,
+    finished_working_indicator: FinishedIndicator,
     logger: Logger,
 }
 
@@ -23,7 +24,7 @@ impl MessageReceiver {
     ) -> MessageReceiver {
         let amount_of_peers = outbound_connections.len();
         let mut workers = Vec::new();
-        let mut finished_working_indicators = Vec::new();
+        let finished_working_indicator = Arc::new(Mutex::from(false));
         for (id, stream) in outbound_connections
             .iter()
             .enumerate()
@@ -36,22 +37,20 @@ impl MessageReceiver {
                     continue;
                 }
             };
-            let finished = Arc::new(Mutex::from(false));
             let worker = Worker::new_message_receiver_worker(
                 current_stream,
                 safe_headers.clone(),
                 safe_blockchain.clone(),
                 safe_pending_tx.clone(),
                 logger.clone(),
-                finished.clone(),
+                finished_working_indicator.clone(),
                 id,
             );
             workers.push(worker);
-            finished_working_indicators.push(finished);
         }
         MessageReceiver {
             workers,
-            finished_working_indicators,
+            finished_working_indicator,
             logger: logger.clone(),
         }
     }
@@ -61,11 +60,9 @@ impl MessageReceiver {
         self.logger
             .log(String::from("Requested_end_of_comunications"));
 
-        for indicator in self.finished_working_indicators {
-            match indicator.lock() {
-                Ok(mut indicator) => *indicator = true,
-                Err(_) => return Err(MessageReceiverError::ErrorFinishingReceivingMessages),
-            }
+        match self.finished_working_indicator.lock() {
+            Ok(mut indicator) => *indicator = true,
+            Err(_) => return Err(MessageReceiverError::ErrorFinishingReceivingMessages),
         }
 
         for worker in self.workers {
