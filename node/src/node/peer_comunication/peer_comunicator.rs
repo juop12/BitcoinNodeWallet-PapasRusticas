@@ -1,4 +1,4 @@
-use crate::{node::*, utils::btc_errors::MessageReceiverError};
+use crate::{node::*, utils::btc_errors::PeerComunicatorError};
 
 use std::{
     net::TcpStream,
@@ -8,23 +8,40 @@ use std::{
 use workers::*;
 
 #[derive(Debug)]
-pub struct MessageReceiver {
+pub struct PeerComunicator {
     workers: Vec<Worker>,
     finished_working_indicator: FinishedIndicator,
     logger: Logger,
 }
 
-impl MessageReceiver {
+impl PeerComunicator {
     pub fn new(
         outbound_connections: &Vec<TcpStream>,
         safe_blockchain: &SafeBlockChain,
         safe_headers: &SafeVecHeader,
         safe_pending_tx: &SafePendingTx,
         logger: &Logger,
-    ) -> MessageReceiver {
+    ) -> PeerComunicator{
+        let finished_working_indicator = Arc::new(Mutex::from(false));
+        let workers = PeerComunicator::create_message_receivers(outbound_connections, safe_blockchain, safe_headers, safe_pending_tx, &finished_working_indicator, logger);
+        PeerComunicator { 
+            workers, 
+            finished_working_indicator,
+            logger: logger.clone()
+        }
+    }
+
+
+    fn create_message_receivers(
+        outbound_connections: &Vec<TcpStream>,
+        safe_blockchain: &SafeBlockChain,
+        safe_headers: &SafeVecHeader,
+        safe_pending_tx: &SafePendingTx,
+        finished_working_indicator: &Arc<Mutex<bool>>,
+        logger: &Logger,
+    ) -> Vec<Worker> {
         let amount_of_peers = outbound_connections.len();
         let mut workers = Vec::new();
-        let finished_working_indicator = Arc::new(Mutex::from(false));
         for (id, stream) in outbound_connections
             .iter()
             .enumerate()
@@ -33,7 +50,7 @@ impl MessageReceiver {
             let current_stream = match stream.try_clone() {
                 Ok(stream) => stream,
                 Err(_) => {
-                    logger.log_error(&MessageReceiverError::ErrorCreatingWorker);
+                    logger.log_error(&PeerComunicatorError::ErrorCreatingWorker);
                     continue;
                 }
             };
@@ -48,21 +65,17 @@ impl MessageReceiver {
             );
             workers.push(worker);
         }
-        MessageReceiver {
-            workers,
-            finished_working_indicator,
-            logger: logger.clone(),
-        }
+        workers
     }
 
     /// Joins all worker threads, trying to result in a gracefull finish
-    pub fn finish_receiving(self) -> Result<(), MessageReceiverError> {
+    pub fn finish_receiving(self) -> Result<(), PeerComunicatorError> {
         self.logger
             .log(String::from("Requested_end_of_comunications"));
 
         match self.finished_working_indicator.lock() {
             Ok(mut indicator) => *indicator = true,
-            Err(_) => return Err(MessageReceiverError::ErrorFinishingReceivingMessages),
+            Err(_) => return Err(PeerComunicatorError::ErrorFinishingReceivingMessages),
         }
 
         for worker in self.workers {
@@ -75,6 +88,37 @@ impl MessageReceiver {
         Ok(())
     }
 }
+/*
+fn listen_new_conections(&self){
+    let listener = TcpListener::bind(self.address).unwrap();
+    if listener.set_nonblocking(true).is_err(){
+        self.logger.log_error(&NodeError::ErrorCantReceiveNewPeerConections);
+        return;
+    };
+    let logger = self.logger.clone();
+    let version = self.version;
+    let node_address = self.address;
+
+    let thread = thread::spawn(move || loop {
+        match listener.accept(){
+            Ok((mut tcp_stream, peer_address)) => {
+                match incoming_handshake(version, peer_address, node_address, &mut tcp_stream, &logger){
+                    Ok(_) => {
+
+                    },
+                    Err(error) => return Err(error),
+                }
+            },
+            Err(error) => {
+                if error.kind() == std::io::ErrorKind::WouldBlock{
+                    sleep(NEW_CONECTION_INTERVAL);
+                }
+            },
+        }
+    }
+);
+}
+*/
 
 /// Main loop of eache message receiver
 pub fn message_receiver_thread_loop(

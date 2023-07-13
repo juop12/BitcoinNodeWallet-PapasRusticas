@@ -7,9 +7,9 @@ pub mod utxo_set;
 pub mod wallet_communication;
 
 use self::{
-    data_handler::NodeDataHandler, handle_messages::*, message_receiver::MessageReceiver,
+    data_handler::NodeDataHandler, handle_messages::*, peer_comunicator::PeerComunicator,
     peer_comunication::*, 
-    handshake::outgoing_handshake,
+    handshake::*,
 };
 use crate::{
     blocks::{blockchain::*, proof::*, transaction::TxOut, Outpoint, Transaction},
@@ -45,7 +45,7 @@ pub struct Node {
     starting_block_time: u32,
     blockchain: SafeBlockChain,
     utxo_set: HashMap<Outpoint, TxOut>,
-    pub message_receiver: Option<MessageReceiver>,
+    pub message_receiver: Option<PeerComunicator>,
     pub balance: i64,
     pub pending_tx: SafePendingTx,
     last_proccesed_block: usize,
@@ -167,7 +167,7 @@ impl Node {
 
     /// Creates a threadpool responsable for receiving messages in different threads.
     pub fn start_receiving_messages(&mut self) {
-        self.message_receiver = Some(MessageReceiver::new(
+        self.message_receiver = Some(PeerComunicator::new(
             &self.tcp_streams,
             &self.blockchain,
             &self.block_headers,
@@ -189,26 +189,6 @@ impl Node {
         )
     }
 
-    /*
-    fn listen_new_conections(&self){
-        let listener = TcpListener::bind(self.address).unwrap();
-        listener.set_nonblocking(true);
-        let thread = thread::spawn(move || loop {
-            match listener.accept(){
-                Ok((tcp_stream, new_address)) => {
-                    self.incoming_handshake(new_address, &tcp_stream);
-                },
-                Err(error) => {
-                    if error.kind() == std::io::ErrorKind::WouldBlock{
-                        sleep(NEW_CONECTION_INTERVAL);
-                    }
-                    
-                },
-            }
-        }
-    );
-}
-*/
 }
 
 impl Drop for Node {

@@ -136,12 +136,13 @@ pub enum NodeError {
     ErrorSendingTransaction,
     ErrorNotEnoughSatoshis,
     ErrorFindingBlock,
+    ErrorCantReceiveNewPeerConections
 }
 
 impl BtcError for NodeError {}
 
 #[derive(Debug)]
-pub enum MessageReceiverError {
+pub enum PeerComunicatorError {
     ErrorReceivingMessages,
     ErrorAddingReceivedData,
     ErrorWrokerPaniced,
@@ -149,7 +150,7 @@ pub enum MessageReceiverError {
     ErrorCreatingWorker,
 }
 
-impl BtcError for MessageReceiverError {}
+impl BtcError for PeerComunicatorError {}
 
 #[derive(Debug)]
 pub enum WalletError {

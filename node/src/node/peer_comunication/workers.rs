@@ -7,7 +7,7 @@ use std::{
 };
 
 use block_downloader::block_downloader_thread_loop;
-use message_receiver::message_receiver_thread_loop;
+use peer_comunicator::message_receiver_thread_loop;
 pub type FinishedIndicator = Arc<Mutex<bool>>;
 
 pub enum Stops {

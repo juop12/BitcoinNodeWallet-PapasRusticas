@@ -7,10 +7,10 @@ pub const PEER_TIMEOUT: Duration = Duration::from_secs(15);
 /// Attemps to start and do the peer conection protocol acording to the bitcoin network. Sends a VersionMessage,
 /// and it receives a VersionMessage and a VerAckMessage, not in any order on particular.
 /// If everything works well returns a tcpstream, which lets us communicate with the peer._err
-pub fn outgoing_handshake(version: i32, receiving_addrs: SocketAddr, sending_address: SocketAddr, logger: &Logger) -> Result<TcpStream, NodeError> {
-    let mut tcp_stream = connect_to_peer(receiving_addrs)?;
+pub fn outgoing_handshake(version: i32, peer_address: SocketAddr, node_address: SocketAddr, logger: &Logger) -> Result<TcpStream, NodeError> {
+    let mut tcp_stream = connect_to_peer(peer_address)?;
 
-    handshake_send_version_message(version, receiving_addrs, sending_address, &mut tcp_stream)?;
+    handshake_send_version_message(version, peer_address, node_address, &mut tcp_stream)?;
 
     let first_msg_name = handshake_receive_verack_or_version_message(&mut tcp_stream, logger)?;
     let second_msg_name = handshake_receive_verack_or_version_message(&mut tcp_stream, logger)?;
@@ -27,9 +27,9 @@ pub fn outgoing_handshake(version: i32, receiving_addrs: SocketAddr, sending_add
 /// Attemps to do the peer conection protocol acording to the bitcoin network with a requesting peer. Sends a VersionMessage,
 /// and it receives a VersionMessage and a VerAckMessage, not in any order on particular.
 /// If everything works well returns a tcpstream, which lets us communicate with the peer._err
-pub fn incoming_handshake(version: i32, receiving_addrs: SocketAddr, sending_address: SocketAddr, new_peer_conection: &mut TcpStream, logger: &Logger)->Result<(), NodeError>{
+pub fn incoming_handshake(version: i32, peer_address: SocketAddr, node_address: SocketAddr, new_peer_conection: &mut TcpStream, logger: &Logger)->Result<(), NodeError>{
     handshake_receive_version_message(new_peer_conection, logger)?;
-    handshake_send_version_message(version, receiving_addrs, sending_address, new_peer_conection)?;
+    handshake_send_version_message(version, peer_address, node_address, new_peer_conection)?;
     handshake_send_verack_message(new_peer_conection)?;
     handshake_receive_verack_message(new_peer_conection, logger)
 }
@@ -48,7 +48,7 @@ fn connect_to_peer(receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> 
 }
 
 /// Sends the version message as bytes to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
-pub fn handshake_send_version_message<T: Read + Write>(version: i32, receiving_addrs: SocketAddr, sending_address: SocketAddr, stream: &mut T) -> Result<(), NodeError> {
+fn handshake_send_version_message<T: Read + Write>(version: i32, receiving_addrs: SocketAddr, sending_address: SocketAddr, stream: &mut T) -> Result<(), NodeError> {
     let vm = match VersionMessage::new(version, receiving_addrs, sending_address) {
         Ok(version_message) => version_message,
         Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
@@ -61,7 +61,7 @@ pub fn handshake_send_version_message<T: Read + Write>(version: i32, receiving_a
 }
 
 /// Sends the verack message to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
-pub fn handshake_send_verack_message<T: Read + Write>(stream: &mut T) -> Result<(), NodeError> {
+fn handshake_send_verack_message<T: Read + Write>(stream: &mut T) -> Result<(), NodeError> {
     let verack = match VerACKMessage::new() {
         Ok(version_message) => version_message,
         Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
