@@ -7,9 +7,11 @@ use std::{
 
 use workers::*;
 
+pub type SafeWorkers = Arc<Mutex<Option<Vec<Worker>>>>;
+
 #[derive(Debug)]
 pub struct PeerComunicator {
-    workers: Vec<Worker>,
+    workers: SafeWorkers,
     finished_working_indicator: FinishedIndicator,
     logger: Logger,
 }
@@ -25,7 +27,7 @@ impl PeerComunicator {
         let finished_working_indicator = Arc::new(Mutex::from(false));
         let workers = PeerComunicator::create_message_receivers(outbound_connections, safe_blockchain, safe_headers, safe_pending_tx, &finished_working_indicator, logger);
         PeerComunicator { 
-            workers, 
+            workers: Arc::new(Mutex::from(Some(workers))),
             finished_working_indicator,
             logger: logger.clone()
         }
@@ -78,47 +80,21 @@ impl PeerComunicator {
             Err(_) => return Err(PeerComunicatorError::ErrorFinishingReceivingMessages),
         }
 
-        for worker in self.workers {
-            if let Err(error) = worker.join_thread() {
-                self.logger.log_error(&error);
-            }
+        match self.workers.lock(){
+            Ok(workers) => {
+                for worker in workers{
+                    if let Err(error) = worker.join_thread() {
+                        self.logger.log_error(&error);
+                    }
+                }        
+            },
+            Err(_) => todo!(),
         }
-
+        
         self.logger.log(String::from("Disconected_from_peers"));
         Ok(())
     }
 }
-/*
-fn listen_new_conections(&self){
-    let listener = TcpListener::bind(self.address).unwrap();
-    if listener.set_nonblocking(true).is_err(){
-        self.logger.log_error(&NodeError::ErrorCantReceiveNewPeerConections);
-        return;
-    };
-    let logger = self.logger.clone();
-    let version = self.version;
-    let node_address = self.address;
-
-    let thread = thread::spawn(move || loop {
-        match listener.accept(){
-            Ok((mut tcp_stream, peer_address)) => {
-                match incoming_handshake(version, peer_address, node_address, &mut tcp_stream, &logger){
-                    Ok(_) => {
-
-                    },
-                    Err(error) => return Err(error),
-                }
-            },
-            Err(error) => {
-                if error.kind() == std::io::ErrorKind::WouldBlock{
-                    sleep(NEW_CONECTION_INTERVAL);
-                }
-            },
-        }
-    }
-);
-}
-*/
 
 /// Main loop of eache message receiver
 pub fn message_receiver_thread_loop(
