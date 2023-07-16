@@ -26,8 +26,6 @@ use std::{
     time::Duration,
 };
 
-pub const NEW_CONECTION_INTERVAL: Duration = Duration::from_secs(5);
-
 const MESSAGE_HEADER_SIZE: usize = 24;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
 
@@ -168,6 +166,8 @@ impl Node {
     /// Creates a threadpool responsable for receiving messages in different threads.
     pub fn start_receiving_messages(&mut self) {
         self.message_receiver = Some(PeerComunicator::new(
+            self.version,
+            self.address,
             &self.tcp_streams,
             &self.blockchain,
             &self.block_headers,
@@ -195,7 +195,7 @@ impl Drop for Node {
     fn drop(&mut self) {
         // Finishing every thread gracefully.
         if let Some(message_receiver) = self.message_receiver.take() {
-            if let Err(error) = message_receiver.finish_receiving() {
+            if let Err(error) = message_receiver.end_of_communications() {
                 self.logger.log_error(&error);
             }
         }

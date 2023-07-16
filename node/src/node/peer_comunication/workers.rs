@@ -1,15 +1,15 @@
-use crate::{node::*, utils::{btc_errors::BlockDownloaderError, log}};
+use crate::{node::*, utils::{btc_errors::BlockDownloaderError, log, PeerComunicatorError, WorkerError}};
 
 use std::{
     net::TcpStream,
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc::{self, RecvTimeoutError}, Arc, Mutex},
     thread,
 };
 
 use block_downloader::block_downloader_thread_loop;
 use peer_comunicator::message_receiver_thread_loop;
+use peer_comunicator::NEW_CONECTION_INTERVAL;
 
-use super::peer_comunicator::SafeWorkers;
 pub type FinishedIndicator = Arc<Mutex<bool>>;
 
 pub enum Stops {
@@ -19,10 +19,10 @@ pub enum Stops {
 }
 
 impl Stops {
-    fn log_message(&self, id: usize) -> String {
+    pub fn log_message(&self, starting_message: String) -> String {
         match *self {
-            Stops::GracefullStop => format!("Worker {} finished gracefully", id),
-            Stops::UngracefullStop => format!("Worker {} finished ungracefully", id),
+            Stops::GracefullStop => format!("{}: finished gracefully", starting_message),
+            Stops::UngracefullStop => format!("{}: finished ungracefully", starting_message),
             Stops::Continue => String::new(),
         }
     }
@@ -62,11 +62,11 @@ impl Worker {
 
             match stop {
                 Stops::GracefullStop => {
-                    logger.log(Stops::GracefullStop.log_message(id));
+                    logger.log(Stops::GracefullStop.log_message(format!("Wroker {}", id)));
                     return Some(stream);
                 }
                 Stops::UngracefullStop => {
-                    logger.log(Stops::UngracefullStop.log_message(id));
+                    logger.log(Stops::UngracefullStop.log_message(format!("Wroker {}", id)));
                     return None;
                 }
                 Stops::Continue => continue,
@@ -97,11 +97,11 @@ impl Worker {
                 &finished,
             ) {
                 Stops::GracefullStop => {
-                    logger.log(Stops::GracefullStop.log_message(id));
+                    logger.log(Stops::GracefullStop.log_message(format!("Wroker {}", id)));
                     return Some(stream);
                 }
                 Stops::UngracefullStop => {
-                    logger.log(Stops::UngracefullStop.log_message(id));
+                    logger.log(Stops::UngracefullStop.log_message(format!("Wroker {}", id)));
                     return None;
                 }
                 Stops::Continue => continue,
@@ -157,62 +157,66 @@ fn listen_new_conections(&self){
     }
 }
 
-struct WorkerManager{
+#[derive(Debug)]
+pub struct NewPeerConnector{
     thread: thread::JoinHandle<()>,
+    new_workers_receiver: mpsc::Receiver<TcpStream>,
 }
 
-impl WorkerManager{
+impl NewPeerConnector{
     /// Creates a worker for a MessageReceiver
     pub fn new(
         node_version: i32,
         node_address: SocketAddr, 
-        safe_block_headers: SafeVecHeader,
-        safe_blockchain: SafeBlockChain,
-        safe_pending_tx: SafePendingTx,
         logger: Logger, 
         finished: FinishedIndicator,
-        safe_workers: SafeWorkers
-    ) -> Result<WorkerManager, NodeError> {
-        let listener = TcpListener::bind(node_address).map_err(|_| NodeError::ErrorCantReceiveNewPeerConections)?;
-        listener.set_nonblocking(true).map_err(|_| NodeError::ErrorCantReceiveNewPeerConections)?;
-        let id = 0;
+    ) -> Result<NewPeerConnector, PeerComunicatorError> {
+        let listener = TcpListener::bind(node_address).map_err(|_| PeerComunicatorError::ErrorCantReceiveNewPeerConections)?;
+        listener.set_nonblocking(true).map_err(|_| PeerComunicatorError::ErrorCantReceiveNewPeerConections)?;
+        let (sender, receiver) = mpsc::channel();
+        
         let thread = thread::spawn(move || loop {
-            logger.log(format!("Sigo vivo: {}", id));
-            match peer_conection_manager_thread_loop(
+            logger.log(format!("Peer connectorSigo vivo"));
+            match new_peer_conector_thread_loop(
                 &listener,
                 node_version,
                 node_address,
-                &safe_block_headers,
-                &safe_blockchain,
-                &safe_pending_tx,
+                &sender,
                 &logger,
                 &finished,
-                &safe_workers,
             ) {
                 Stops::Continue => continue,
                 Stops::GracefullStop => {
-                    logger.log(Stops::GracefullStop.log_message(id));
+                    logger.log(Stops::GracefullStop.log_message("new peer conector".to_string()));
+                    return;
                 }
                 Stops::UngracefullStop => {
-                    logger.log(Stops::UngracefullStop.log_message(id));
+                    logger.log(Stops::UngracefullStop.log_message("new peer connector".to_string()));
+                    return;
                 }
             }
         });
 
-        Ok(WorkerManager { thread })
+        Ok(NewPeerConnector { thread, new_workers_receiver: receiver })
+    }
+
+    pub fn recv_timeout(&self, timeout: Duration)->Result<TcpStream,RecvTimeoutError>{
+        self.new_workers_receiver.recv_timeout(timeout)
+    }
+
+    ///Joins the thread of the worker, returning an error if it was not possible to join it.
+    pub fn join_thread(self) -> Result<(), WorkerError> {
+        self.thread.join().map_err(|_| WorkerError::ErrorWorkerPaniced)
     }
 }
 
-fn peer_conection_manager_thread_loop(
+fn new_peer_conector_thread_loop(
     listener: &TcpListener,
     node_version: i32,
     node_address: SocketAddr, 
-    safe_block_headers: &SafeVecHeader,
-    safe_blockchain: &SafeBlockChain,
-    safe_pending_tx: &SafePendingTx,
+    worker_sender: &mpsc::Sender<TcpStream>,
     logger: &Logger, 
-    finished: &FinishedIndicator,
-    safe_workers: &SafeWorkers)-> Stops{
+    finished: &FinishedIndicator)-> Stops{
 
     match finished.lock() {
         Ok(finish) => {
@@ -228,30 +232,29 @@ fn peer_conection_manager_thread_loop(
             if let Err(error) = incoming_handshake(node_version, peer_address, node_address, &mut tcp_stream, &logger){
                 return Stops::UngracefullStop
             }
-            match safe_workers.lock() {
-                Ok(workers) => {
-                    if let Some(a) = {
-                        Worker::new_message_receiver_worker(
-                            tcp_stream,
-                            safe_block_headers.clone(), 
-                            safe_blockchain.clone(), 
-                            safe_pending_tx.clone(), 
-                            logger.clone(), 
-                            finished.clone(), 
-                            workers.len());
-
-                    }
-                }
-                Err(_) => return Stops::UngracefullStop,
-            }
+            /*
+            let new_worker = Worker::new_message_receiver_worker(
+                tcp_stream,
+                safe_block_headers.clone(), 
+                safe_blockchain.clone(), 
+                safe_pending_tx.clone(), 
+                logger.clone(), 
+                finished.clone(), 
+                *worker_id);
+            *worker_id +=1;
+            */
+            if worker_sender.send(tcp_stream).is_err(){
+                logger.log_error(&PeerComunicatorError::ErrorCantReceiveNewPeerConections);
+                return Stops::UngracefullStop;
+            };
         },
         Err(error) => {
             if error.kind() == std::io::ErrorKind::WouldBlock{
                 sleep(NEW_CONECTION_INTERVAL);
-                Stops::Continue
             }else{
-                return Stops::UngracefullStop
+                return Stops::UngracefullStop;
             }
         },
     }
+    Stops::Continue
 }

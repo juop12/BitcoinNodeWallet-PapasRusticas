@@ -58,12 +58,11 @@ impl Node {
         Ok(())
     }
 
-    /// Updates the wallet
+    /// Updates the Node information and communicates it to the wallet
     pub fn update(&mut self, wallet: &mut Wallet) -> Result<(), NodeError> {
         self.update_utxo(&mut wallet.utxos)?;
         wallet.balance = self.balance;
         self.update_pending_tx(wallet)?;
-
         Ok(())
     }
 

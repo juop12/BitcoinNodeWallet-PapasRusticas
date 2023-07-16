@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use crate::node::peer_comunication::workers::Worker;
+
 /// All errors that can occur in the project must implement this trait.
 pub trait BtcError: Debug {
     fn to_string(&self) -> String {
@@ -136,7 +138,6 @@ pub enum NodeError {
     ErrorSendingTransaction,
     ErrorNotEnoughSatoshis,
     ErrorFindingBlock,
-    ErrorCantReceiveNewPeerConections
 }
 
 impl BtcError for NodeError {}
@@ -148,7 +149,15 @@ pub enum PeerComunicatorError {
     ErrorWrokerPaniced,
     ErrorFinishingReceivingMessages,
     ErrorCreatingWorker,
+    ErrorCantReceiveNewPeerConections
 }
+
+#[derive(Debug)]
+pub enum WorkerError{
+    ErrorWorkerPaniced
+}
+
+impl BtcError for WorkerError {}
 
 impl BtcError for PeerComunicatorError {}
 
