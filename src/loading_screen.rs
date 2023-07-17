@@ -1,8 +1,5 @@
 use gtk::prelude::*;
 use gtk::{Application, Box, Builder, Label, ProgressBar, Window};
-use std::thread;
-use std::time::Duration;
-use std::sync::{Arc, Mutex};
 use node::utils::ui_communication_protocol::LoadingScreenInfo;
 
 fn show_block_download_progress(builder: &Builder, total_blocks: usize) {
@@ -18,7 +15,11 @@ fn update_block_download_progress(builder: &Builder, blocks: usize){
     let progress_bar: ProgressBar = builder.object("Block Download Progress Bar").unwrap();
     downloaded_amount_label.set_text(format!("{blocks}").as_str());
     let total_amount: usize = total_amount_label.label().parse::<usize>().unwrap_or(0);
+    if total_amount == 0 {
+        progress_bar.set_fraction(1.0);
+    } else {
     progress_bar.set_fraction(blocks as f64 / total_amount as f64);
+    }
 }
 
 fn hide_block_download_progress(builder: &Builder){
@@ -26,9 +27,6 @@ fn hide_block_download_progress(builder: &Builder){
     block_download_box.hide();
 }
 
-/// Shows the loading screen and starts a thread that reads the node log file
-/// and updates the loading screen every second with the last lines of the log file
-/// for the user to see the progress of the initialization of the node.
 pub fn show_loading_screen(builder: &Builder, app: &Application) {
     let loading_window: Window = builder.object("Loading Screen Window").unwrap();
     let block_download_box: Box = builder.object("Block Downloader Box").unwrap();

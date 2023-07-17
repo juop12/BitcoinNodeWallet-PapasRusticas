@@ -123,7 +123,6 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>)
     match get_saved_wallets_from_disk(&wallet_selector) {
         Ok(wallets) => {
             wallet_selector.set_active(Some(0));
-            //println!("Wallets: {:#?}", wallets);
             sender
                 .send(UIRequest::ChangeWallet(wallets[0][0].to_string()))
                 .expect(SENDER_ERROR);

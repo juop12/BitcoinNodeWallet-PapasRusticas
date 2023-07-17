@@ -136,6 +136,7 @@ pub enum NodeError {
     ErrorSendingTransaction,
     ErrorNotEnoughSatoshis,
     ErrorFindingBlock,
+    ErrorSendingThroughChannel,
 }
 
 impl BtcError for NodeError {}
