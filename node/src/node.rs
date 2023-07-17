@@ -19,7 +19,7 @@ use crate::{
 };
 use std::{
     collections::HashMap,
-    io::{Read, Write},
+    io::{Read, Write, ErrorKind::WouldBlock},
     net::{SocketAddr, TcpStream, ToSocketAddrs, TcpListener},
     sync::{Arc, Mutex, MutexGuard},
     thread::{self, sleep}, 
@@ -220,9 +220,13 @@ impl Drop for Node {
 pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderMessage, NodeError> {
     let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
 
-    if stream.read_exact(&mut header_bytes).is_err() {
-        return Err(NodeError::ErrorReceivingMessageHeader);
-    };
+    stream.read_exact(&mut header_bytes).map_err(|err| {
+        if err.kind() == WouldBlock {
+            NodeError::ErrorPeerTimeout
+        } else {
+            NodeError::ErrorReceivingMessageHeader
+        }
+    })?;
 
     match HeaderMessage::from_bytes(&header_bytes) {
         Ok(header_message) => Ok(header_message),
@@ -248,9 +252,13 @@ pub fn receive_message(
 
     let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
 
-    if stream.read_exact(&mut msg_bytes).is_err() {
-        return Err(NodeError::ErrorReceivingMessage);
-    }
+    stream.read_exact(&mut msg_bytes).map_err(|err| {
+        if err.kind() == WouldBlock {
+            NodeError::ErrorPeerTimeout
+        } else {
+            NodeError::ErrorReceivingMessageHeader
+        }
+    })?;
 
     match block_headers_msg_h.get_command_name().as_str() {
         "ping\0\0\0\0\0\0\0\0" => {

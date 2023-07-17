@@ -138,6 +138,7 @@ pub enum NodeError {
     ErrorSendingTransaction,
     ErrorNotEnoughSatoshis,
     ErrorFindingBlock,
+    ErrorPeerTimeout,
 }
 
 impl BtcError for NodeError {}

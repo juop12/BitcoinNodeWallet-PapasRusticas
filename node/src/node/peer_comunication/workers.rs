@@ -7,7 +7,9 @@ use std::{
 };
 
 use block_downloader::block_downloader_thread_loop;
+use peer_comunicator::worker_manager_loop;
 use peer_comunicator::message_receiver_thread_loop;
+use peer_comunicator::new_peer_conector_thread_loop;
 use peer_comunicator::NEW_CONECTION_INTERVAL;
 
 pub type FinishedIndicator = Arc<Mutex<bool>>;
@@ -49,6 +51,7 @@ impl Worker {
         missed_bundles_sender: mpsc::Sender<Bundle>,
         logger: Logger,
     ) -> Worker {
+
         let thread = thread::spawn(move || loop {
             let stop = block_downloader_thread_loop(
                 id,
@@ -86,6 +89,10 @@ impl Worker {
         finished: FinishedIndicator,
         id: usize,
     ) -> Worker {
+        if (stream.set_write_timeout(Some(PEER_TIMEOUT)).is_err()) || (stream.set_read_timeout(Some(PEER_TIMEOUT)).is_err()){
+            logger.log(format!("Warning, could not set timeout for peer worker {}", id));
+        }
+        
         let thread = thread::spawn(move || loop {
             logger.log(format!("Sigo vivo: {}", id));
             match message_receiver_thread_loop(
@@ -110,38 +117,6 @@ impl Worker {
 
         Worker { thread, _id: id }
     }
-
-    /*
-fn listen_new_conections(&self){
-    let listener = TcpListener::bind(self.address).unwrap();
-    if listener.set_nonblocking(true).is_err(){
-        self.logger.log_error(&NodeError::ErrorCantReceiveNewPeerConections);
-        return;
-    };
-    let logger = self.logger.clone();
-    let version = self.version;
-    let node_address = self.address;
-
-    let thread = thread::spawn(move || loop {
-        match listener.accept(){
-            Ok((mut tcp_stream, peer_address)) => {
-                match incoming_handshake(version, peer_address, node_address, &mut tcp_stream, &logger){
-                    Ok(_) => {
-
-                    },
-                    Err(error) => return Err(error),
-                }
-            },
-            Err(error) => {
-                if error.kind() == std::io::ErrorKind::WouldBlock{
-                    sleep(NEW_CONECTION_INTERVAL);
-                }
-            },
-        }
-    }
-);
-}
-*/
 
     ///Joins the thread of the worker, returning an error if it was not possible to join it.
     pub fn join_thread(self) -> Result<Option<TcpStream>, BlockDownloaderError> {
@@ -210,51 +185,55 @@ impl NewPeerConnector{
     }
 }
 
-fn new_peer_conector_thread_loop(
-    listener: &TcpListener,
-    node_version: i32,
-    node_address: SocketAddr, 
-    worker_sender: &mpsc::Sender<TcpStream>,
-    logger: &Logger, 
-    finished: &FinishedIndicator)-> Stops{
+#[derive(Debug)]
+pub struct PeerComunicatorWorkerManager{
+    thread: thread::JoinHandle<()>
+}
 
-    match finished.lock() {
-        Ok(finish) => {
-            if *finish {
-                return Stops::GracefullStop;
+impl PeerComunicatorWorkerManager{
+    pub fn new(new_peer_conector: Option<NewPeerConnector>,
+        mut workers: Vec<Worker>,
+        safe_blockchain: SafeBlockChain,
+        safe_headers: SafeVecHeader,
+        safe_pending_tx: SafePendingTx,
+        finished: Arc<Mutex<bool>>,
+        logger: Logger)-> PeerComunicatorWorkerManager{
+        let thread = thread::spawn(move || loop {
+            match worker_manager_loop(
+                &new_peer_conector,
+                &mut workers,
+                &safe_blockchain,
+                &safe_headers,
+                &safe_pending_tx,
+                &finished,
+                &logger) {
+                Stops::Continue => continue,
+                Stops::GracefullStop => {
+                    logger.log(Stops::GracefullStop.log_message("peer communicator".to_string()));
+                }
+                Stops::UngracefullStop => {
+                    logger.log(Stops::UngracefullStop.log_message("peer communicator".to_string()));
+                }
             }
-        }
-        Err(_) => return Stops::UngracefullStop,
+            
+            //p
+            if let Some(new_peer_conector) = new_peer_conector{
+                if let Err(error) = new_peer_conector.join_thread(){
+                    logger.log_error(&error);
+                }
+            } 
+            for worker in workers{
+                if let Err(error) = worker.join_thread(){
+                    logger.log_error(&error);
+                }
+            }
+            return;
+        });
+        PeerComunicatorWorkerManager { thread }
     }
 
-    match listener.accept(){
-        Ok((mut tcp_stream, peer_address)) => {
-            if let Err(error) = incoming_handshake(node_version, peer_address, node_address, &mut tcp_stream, &logger){
-                return Stops::UngracefullStop
-            }
-            /*
-            let new_worker = Worker::new_message_receiver_worker(
-                tcp_stream,
-                safe_block_headers.clone(), 
-                safe_blockchain.clone(), 
-                safe_pending_tx.clone(), 
-                logger.clone(), 
-                finished.clone(), 
-                *worker_id);
-            *worker_id +=1;
-            */
-            if worker_sender.send(tcp_stream).is_err(){
-                logger.log_error(&PeerComunicatorError::ErrorCantReceiveNewPeerConections);
-                return Stops::UngracefullStop;
-            };
-        },
-        Err(error) => {
-            if error.kind() == std::io::ErrorKind::WouldBlock{
-                sleep(NEW_CONECTION_INTERVAL);
-            }else{
-                return Stops::UngracefullStop;
-            }
-        },
-    }
-    Stops::Continue
+    ///Joins the thread of the worker, returning an error if it was not possible to join it.
+    pub fn join_thread(self) -> Result<(), WorkerError> {
+        self.thread.join().map_err(|_| WorkerError::ErrorWorkerPaniced)
+}
 }

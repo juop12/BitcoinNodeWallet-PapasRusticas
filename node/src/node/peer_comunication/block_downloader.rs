@@ -65,7 +65,7 @@ pub fn block_downloader_thread_loop(
                     error
                 ));
             }
-
+            
             if let BlockDownloaderError::BundleNotFound = error {
                 logger.log(format!("Worker {id} did not find bundle"));
                 return Stops::Continue;

@@ -41,6 +41,9 @@ fn connect_to_peer(receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> 
             tcp_stream
                 .set_write_timeout(Some(PEER_TIMEOUT))
                 .map_err(|_| NodeError::ErrorConnectingToPeer)?;
+            tcp_stream
+                .set_read_timeout(Some(PEER_TIMEOUT))
+                .map_err(|_| NodeError::ErrorConnectingToPeer)?;
             Ok(tcp_stream)
         }
         Err(_) => Err(NodeError::ErrorConnectingToPeer),
