@@ -124,6 +124,7 @@ mod tests {
         let stream = MockTcpStream::new();
         let logger = Logger::from_path(log_file_path).unwrap();
         let data_handler = NodeDataHandler::new(HEADERS_FILE_PATH, BLOCKS_FILE_PATH).unwrap();
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::_new(
             VERSION,
             LOCAL_HOST,
@@ -131,6 +132,7 @@ mod tests {
             logger,
             data_handler,
             STARTING_BLOCK_TIME,
+            sx,
         );
 
         (stream, node)

@@ -3,7 +3,7 @@ use crate::wallet_persistance::*;
 use crate::UiError;
 use gtk::prelude::*;
 use gtk::{Builder, Button, ComboBoxText, Dialog, Entry, Label};
-use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
+use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
 const PRIV_KEY_LEN_BASE_58: usize = 52;

@@ -1,7 +1,7 @@
 use super::Wallet;
 use crate::node::Node;
 use crate::utils::ui_communication_protocol::{
-    UIToWalletCommunication as UIRequest, WalletInfo, WalletToUICommunication as UIResponse,
+    UIRequest, WalletInfo, UIResponse,
 };
 use crate::utils::NodeError;
 use crate::utils::WalletError;

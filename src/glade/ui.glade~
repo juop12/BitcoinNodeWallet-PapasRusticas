@@ -279,7 +279,7 @@ than the current Balance</property>
                     <property name="can-focus">False</property>
                     <property name="halign">start</property>
                     <property name="hexpand">True</property>
-                    <property name="label" translatable="yes">0</property>
+                    <property name="label" translatable="yes">-1</property>
                   </object>
                   <packing>
                     <property name="left-attach">1</property>

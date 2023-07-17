@@ -39,8 +39,8 @@ impl Node {
     /// Creates the utxo set from the blockchain and returns it.
     /// Logs when error.
     pub fn create_utxo_set(&mut self) -> Result<(), NodeError> {
-        self.logger
-            .log("Initializing UTxO Set creation".to_string());
+        let log_str = "Initializing UTxO Set creation";
+        self.log_and_send_to_ui(log_str, log_str);
 
         let mut utxo_set = HashMap::new();
 

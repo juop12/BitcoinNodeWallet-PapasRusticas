@@ -1,6 +1,6 @@
 use gtk::prelude::*;
 use gtk::{Adjustment, Builder, Button, Dialog, Entry, Label, SpinButton};
-use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
+use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 const ADDRESS_LEN: usize = 34;
 const BITCOIN_TO_SATOSHIS: f64 = 100000000.0;
