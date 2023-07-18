@@ -12,7 +12,7 @@ pub trait Message {
         let header_message = self.get_header_message()?;
         header_message.send_to(receiver_stream)?;
 
-        match receiver_stream.write(self.to_bytes().as_slice()) {
+        match receiver_stream.write_all(self.to_bytes().as_slice()) {
             Ok(_) => Ok(()),
             Err(_) => Err(Self::SENDING_ERROR),
         }

@@ -7,8 +7,9 @@ pub mod utxo_set;
 pub mod wallet_communication;
 
 use self::{
-    data_handler::NodeDataHandler, handle_messages::*, message_receiver::MessageReceiver,
-    peer_comunication::*,
+    data_handler::NodeDataHandler, handle_messages::*, peer_comunicator::PeerComunicator,
+    peer_comunication::*, 
+    handshake::*,
 };
 use crate::{
     blocks::{blockchain::*, proof::*, transaction::TxOut, Outpoint, Transaction},
@@ -17,9 +18,11 @@ use crate::{
 };
 use std::{
     collections::HashMap,
-    io::{Read, Write},
-    net::{SocketAddr, TcpStream, ToSocketAddrs},
+    io::{Read, Write, ErrorKind::WouldBlock},
+    net::{SocketAddr, TcpStream, ToSocketAddrs, TcpListener},
     sync::{Arc, Mutex, MutexGuard},
+    thread::{self, sleep}, 
+    time::Duration,
 };
 use glib::Sender as GlibSender;
 
@@ -33,14 +36,14 @@ pub type SafePendingTx = Arc<Mutex<HashMap<[u8; 32], Transaction>>>;
 /// Struct that represents the bitcoin node
 pub struct Node {
     version: i32,
-    sender_address: SocketAddr,
-    pub tcp_streams: Vec<TcpStream>,
+    address: SocketAddr,
+    pub initial_peers: Vec<TcpStream>,
     data_handler: NodeDataHandler,
     block_headers: SafeVecHeader,
     starting_block_time: u32,
     blockchain: SafeBlockChain,
     utxo_set: HashMap<Outpoint, TxOut>,
-    pub message_receiver: Option<MessageReceiver>,
+    pub peer_comunicator: Option<PeerComunicator>,
     pub balance: i64,
     pub pending_tx: SafePendingTx,
     last_proccesed_block: usize,
@@ -63,13 +66,13 @@ impl Node {
     ) -> Node {
         Node {
             version,
-            sender_address: SocketAddr::from((local_host, local_port)),
-            tcp_streams: Vec::new(),
+            address: SocketAddr::from((local_host, local_port)),
+            initial_peers: Vec::new(),
             block_headers: Arc::new(Mutex::from(Vec::new())),
             starting_block_time,
             blockchain: Arc::new(Mutex::from(HashMap::new())),
             utxo_set: HashMap::new(),
-            message_receiver: None,
+            peer_comunicator: None,
             data_handler,
             pending_tx: Arc::new(Mutex::from(HashMap::new())),
             balance: 0,
@@ -106,26 +109,26 @@ impl Node {
         address_vector.reverse(); // Generally the first nodes are slow, so we reverse the vector to connect to the fastest nodes first
 
         for addr in address_vector {
-            match node.handshake(addr) {
+            match outgoing_handshake(node.version, addr, node.address, &node.logger) {
                 Ok(tcp_stream) => {
-                    node.tcp_streams.push(tcp_stream);
-                    let progress = format!(
+                  node.initial_peers.push(tcp_stream);
+                  let progress = format!(
                         "Amount of peers conected = {}",
                         node.tcp_streams.len()
-                    );
-                    let message_to_ui = LoadingScreenInfo::UpdateLabel(progress);
-                    node.sender_to_ui.send(UIResponse::LoadingScreenUpdate(message_to_ui)).expect("Error sending message to UI");
-                }
+                  );
+                  let message_to_ui = LoadingScreenInfo::UpdateLabel(progress);
+                  node.sender_to_ui.send(UIResponse::LoadingScreenUpdate(message_to_ui)).expect("Error sending message to UI");
+              },
                 Err(error) => node.logger.log_error(&error),
             }
         }
 
         node.logger.log(format!(
             "Amount of peers conected = {}",
-            node.tcp_streams.len()
+            node.initial_peers.len()
         ));
 
-        if node.tcp_streams.is_empty() {
+        if node.initial_peers.is_empty() {
             Err(NodeError::ErrorCreatingNode)
         } else {
             Ok(node)
@@ -179,8 +182,10 @@ impl Node {
 
     /// Creates a threadpool responsable for receiving messages in different threads.
     pub fn start_receiving_messages(&mut self) {
-        self.message_receiver = Some(MessageReceiver::new(
-            &self.tcp_streams,
+        self.peer_comunicator = Some(PeerComunicator::new(
+            self.version,
+            self.address,
+            &self.initial_peers,
             &self.blockchain,
             &self.block_headers,
             &self.pending_tx,
@@ -190,7 +195,7 @@ impl Node {
 
     /// Actual receive_message wrapper. Encapsulates node's parameteres.
     fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError> {
-        let stream = &mut self.tcp_streams[stream_index];
+        let stream = &mut self.initial_peers[stream_index];
         receive_message(
             stream,
             &self.block_headers,
@@ -200,13 +205,14 @@ impl Node {
             ibd,
         )
     }
+
 }
 
 impl Drop for Node {
     fn drop(&mut self) {
         // Finishing every thread gracefully.
-        if let Some(message_receiver) = self.message_receiver.take() {
-            if let Err(error) = message_receiver.finish_receiving() {
+        if let Some(peer_comunicator) = self.peer_comunicator.take() {
+            if let Err(error) = peer_comunicator.end_of_communications() {
                 self.logger.log_error(&error);
             }
         }
@@ -231,9 +237,13 @@ impl Drop for Node {
 pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderMessage, NodeError> {
     let mut header_bytes = [0; MESSAGE_HEADER_SIZE];
 
-    if stream.read_exact(&mut header_bytes).is_err() {
-        return Err(NodeError::ErrorReceivingMessageHeader);
-    };
+    stream.read_exact(&mut header_bytes).map_err(|err| {
+        if err.kind() == WouldBlock {
+            NodeError::ErrorPeerTimeout
+        } else {
+            NodeError::ErrorReceivingMessageHeader
+        }
+    })?;
 
     match HeaderMessage::from_bytes(&header_bytes) {
         Ok(header_message) => Ok(header_message),
@@ -259,9 +269,13 @@ pub fn receive_message(
 
     let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
 
-    if stream.read_exact(&mut msg_bytes).is_err() {
-        return Err(NodeError::ErrorReceivingMessage);
-    }
+    stream.read_exact(&mut msg_bytes).map_err(|err| {
+        if err.kind() == WouldBlock {
+            NodeError::ErrorPeerTimeout
+        } else {
+            NodeError::ErrorReceivingMessageHeader
+        }
+    })?;
 
     match block_headers_msg_h.get_command_name().as_str() {
         "ping\0\0\0\0\0\0\0\0" => {

@@ -1,3 +1,3 @@
 pub mod block_downloader;
-pub mod message_receiver;
+pub mod peer_comunicator;
 pub mod workers;

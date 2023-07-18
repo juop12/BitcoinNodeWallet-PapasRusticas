@@ -57,7 +57,7 @@ impl Node {
     ) -> Result<(), NodeError> {
         let get_block_headers_msg = self.create_get_block_header_message(last_hash);
 
-        let mut stream = &self.tcp_streams[sync_node_index];
+        let mut stream = &self.initial_peers[sync_node_index];
 
         match get_block_headers_msg.send_to(&mut stream) {
             Ok(_) => Ok(()),
@@ -71,7 +71,7 @@ impl Node {
         header_stream_index: usize,
     ) -> Result<BlockDownloader, NodeError> {
         let block_downloader = BlockDownloader::new(
-            &self.tcp_streams,
+            &self.initial_peers,
             header_stream_index,
             &self.block_headers,
             &self.blockchain,
@@ -240,7 +240,7 @@ impl Node {
                 }
             };
             i += 1;
-            if i >= self.tcp_streams.len() {
+            if i >= self.initial_peers.len() {
                 i = 0;
                 peer_time_out += 1;
                 self.logger.log(format!(
@@ -400,7 +400,7 @@ mod tests {
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let mut node = Node::new(config, sx)?;
         let mut block_downloader = BlockDownloader::new(
-            &node.tcp_streams,
+            &node.initial_peers,
             0,
             &node.block_headers,
             &node.blockchain,

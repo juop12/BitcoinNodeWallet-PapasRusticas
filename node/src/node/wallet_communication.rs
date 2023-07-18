@@ -7,6 +7,8 @@ use crate::{
 };
 use secp256k1::PublicKey;
 
+use super::peer_comunication::peer_comunicator;
+
 impl Node {
     /// Returns a vec of TxInfo of all the tx in pending_tx that belong to a certain PubKey
     fn get_pending_tx_info_from(&self, pub_key: &PublicKey) -> Result<Vec<TxInfo>, NodeError> {
@@ -58,12 +60,11 @@ impl Node {
         Ok(())
     }
 
-    /// Updates the wallet
+    /// Updates the Node information and communicates it to the wallet
     pub fn update(&mut self, wallet: &mut Wallet) -> Result<(), NodeError> {
         self.update_utxo(&mut wallet.utxos)?;
         wallet.balance = self.balance;
         self.update_pending_tx(wallet)?;
-
         Ok(())
     }
 
@@ -115,7 +116,7 @@ impl Node {
         transaction: Transaction,
     ) -> Result<(), NodeError> {
         let message = TxMessage::new(transaction);
-        let mut sent = false;
+        /*let mut sent = false;
 
         for (i, stream) in self.tcp_streams.iter_mut().enumerate() {
             self.logger.log(format!("mandando al peer{i}"));
@@ -126,7 +127,11 @@ impl Node {
 
         if !sent {
             return Err(NodeError::ErrorSendingTransaction);
-        }
+        }*/
+        match &self.peer_comunicator{
+            Some(peer_comunicator) => peer_comunicator.send_message(&message).map_err(|_| NodeError::ErrorSendingTransaction)? ,
+            None => return Err(NodeError::ErrorSendingTransaction),
+        };
 
         let transaction = message.tx;
         let transaction_hash = transaction.hash();

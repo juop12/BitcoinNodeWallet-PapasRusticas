@@ -65,7 +65,7 @@ pub fn block_downloader_thread_loop(
                     error
                 ));
             }
-
+            
             if let BlockDownloaderError::BundleNotFound = error {
                 logger.log(format!("Worker {id} did not find bundle"));
                 return Stops::Continue;
@@ -186,7 +186,7 @@ impl BlockDownloader {
             while !joined_a_worker {
                 let worker = self.workers.remove(0);
                 if worker.is_finished() {
-                    let stream_op = worker.join_thread()?;
+                    let stream_op = worker.join_thread().map_err(|_| BlockDownloaderError::ErrorWorkerPaniced)?;
                     if working_peer_conection.is_none() {
                         working_peer_conection = stream_op;
                     };
