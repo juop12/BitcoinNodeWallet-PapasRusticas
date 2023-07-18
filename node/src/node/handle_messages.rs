@@ -1,4 +1,6 @@
 use crate::node::*;
+use crate::node::initial_block_download::HASHEDGENESISBLOCK;
+use crate::node::get_block_headers_message::MAX_QUANTITY_FOR_GET_HEADERS;
 
 use super::peer_comunication::block_downloader::send_get_data_message_for_blocks;
 
@@ -6,6 +8,7 @@ use super::peer_comunication::block_downloader::send_get_data_message_for_blocks
 pub fn handle_block_headers_message(
     msg_bytes: Vec<u8>,
     safe_block_headers: &SafeVecHeader,
+    safe_headers_index: &SafeHeaderIndex
 ) -> Result<(), NodeError> {
     let block_headers_msg = match BlockHeadersMessage::from_bytes(&msg_bytes) {
         Ok(block_headers_message) => block_headers_message,
@@ -14,10 +17,7 @@ pub fn handle_block_headers_message(
 
     let received_block_headers = block_headers_msg.headers;
 
-    match safe_block_headers.lock() {
-        Ok(mut block_headers) => block_headers.extend(received_block_headers),
-        Err(_) => return Err(NodeError::ErrorSharingReference),
-    }
+    insert_new_headers(received_block_headers, &safe_block_headers, &safe_headers_index)?;
 
     Ok(())
 }
@@ -29,6 +29,7 @@ pub fn handle_block_message(
     safe_headers: &SafeVecHeader,
     safe_blockchain: &SafeBlockChain,
     safe_pending_tx: &SafePendingTx,
+    safe_headers_index: &SafeHeaderIndex,
     logger: &Logger,
     ibd: bool,
 ) -> Result<(), NodeError> {
@@ -55,14 +56,7 @@ pub fn handle_block_message(
         logger.log(String::from("Proof of inclusion failed for a block"));
         return Err(NodeError::ErrorValidatingBlock);
     };
-
-    if !ibd {
-        let mut block_headers = safe_headers
-            .lock()
-            .map_err(|_| NodeError::ErrorSharingReference)?;
-        block_headers.push(block_header);
-    }
-
+    
     let mut pending_tx = safe_pending_tx
         .lock()
         .map_err(|_| NodeError::ErrorSharingReference)?;
@@ -70,6 +64,10 @@ pub fn handle_block_message(
         if pending_tx.remove(&tx.hash()).is_some() {
             logger.log(String::from("Transaccion sacada de pending"));
         }
+    }
+
+    if !ibd {
+        insert_new_headers(vec![block_header], safe_headers, safe_headers_index)?;
     }
 
     blockchain.insert(block.header_hash(), block);
@@ -155,13 +153,78 @@ pub fn handle_tx_message(
 ) -> Result<(), NodeError> {
     let tx = match TxMessage::from_bytes(&msg_bytes) {
         Ok(tx_msg) => tx_msg.tx,
-        Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
+        Err(_) => return Err(NodeError::ErrorReceivingTx),
     };
     let mut pending_tx = safe_pending_tx
         .lock()
         .map_err(|_| NodeError::ErrorSharingReference)?;
     pending_tx.insert(tx.hash(), tx);
     Ok(())
+}
+
+pub fn handle_get_headers_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, safe_headers_index: &SafeHeaderIndex, logger: &Logger) -> Result<(), NodeError> {
+    let get_headers_msg = match GetBlockHeadersMessage::from_bytes(&msg_bytes) {
+        Ok(get_headers_msg) => get_headers_msg,
+        Err(_) => return Err(NodeError::ErrorReceivingGetHeaders),
+    };
+    
+    let starting_header_position = match get_starting_header_position(&get_headers_msg, safe_headers_index){
+        Ok(header_position) => {
+            match header_position {
+                Some(header_position) => header_position + 1,
+                None => 0,
+            }
+        },
+        Err(NodeError::ErrorFindingBlock) => return Ok(()),
+        Err(error) => return Err(error),
+    };
+    
+    let headers_to_send = get_headers_to_send(safe_headers, starting_header_position, &get_headers_msg.stopping_hash)?;
+    
+    logger.log(format!("Sending {} headers", headers_to_send.len()));
+    
+    BlockHeadersMessage::new(headers_to_send).send_to(stream).map_err(|_| NodeError::ErrorSendingHeadersMsg)?;
+    
+    logger.log(format!("Sent headers message"));
+
+    Ok(())
+}
+
+fn get_headers_to_send(safe_headers: &SafeVecHeader, starting_header_position: usize, stopping_hash: &[u8;32]) -> Result<Vec<BlockHeader>, NodeError>  {
+    let mut headers_to_send: Vec<BlockHeader> = Vec::new();
+    
+    match safe_headers.lock(){
+        Ok(headers) => {
+            let mut header_iter = headers.iter().skip(starting_header_position);
+
+            while let Some(header) = header_iter.next(){
+                headers_to_send.push(header.clone());
+                if (headers_to_send.len() >= MAX_QUANTITY_FOR_GET_HEADERS) || (header.hash() == *stopping_hash){
+                    break;
+                }
+            }
+        },
+        Err(_) => return Err(NodeError::ErrorSharingReference),
+    };
+
+    Ok(headers_to_send)
+}
+
+fn get_starting_header_position(get_headers_msg: &GetBlockHeadersMessage, safe_headers_index: &SafeHeaderIndex) -> Result<Option<usize>, NodeError>{
+    match safe_headers_index.lock() {
+        Ok(header_index) => {
+            for header_hash in &get_headers_msg.block_header_hashes{
+                if let Some(starting_header_position) = header_index.get(header_hash){
+                    return Ok(Some(*starting_header_position));
+                }
+                if *header_hash == HASHEDGENESISBLOCK{
+                    return Ok(None);
+                };
+            }
+            Err(NodeError::ErrorFindingBlock)
+        },
+        Err(_) => Err(NodeError::ErrorSharingReference),
+    }
 }
 
 /// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
@@ -177,3 +240,5 @@ fn send_get_data_message_for_transactions(
         Err(_) => Err(NodeError::ErrorGettingTx),
     }
 }
+
+

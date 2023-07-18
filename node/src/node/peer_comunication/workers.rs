@@ -86,6 +86,7 @@ impl Worker {
         safe_block_headers: SafeVecHeader,
         safe_block_chain: SafeBlockChain,
         safe_pending_tx: SafePendingTx,
+        safe_headers_index: SafeHeaderIndex,
         logger: Logger,
         finished: FinishedIndicator,
         id: usize,
@@ -103,6 +104,7 @@ impl Worker {
                 &safe_block_headers,
                 &safe_block_chain,
                 &safe_pending_tx,
+                &safe_headers_index,
                 &message_bytes_receiver,
                 &logger,
                 &finished,
@@ -212,6 +214,7 @@ impl PeerComunicatorWorkerManager{
         safe_blockchain: SafeBlockChain,
         safe_headers: SafeVecHeader,
         safe_pending_tx: SafePendingTx,
+        safe_headers_index: SafeHeaderIndex,
         finished: Arc<Mutex<bool>>,
         logger: Logger)-> PeerComunicatorWorkerManager{
         
@@ -224,6 +227,7 @@ impl PeerComunicatorWorkerManager{
                 &safe_blockchain,
                 &safe_headers,
                 &safe_pending_tx,
+                &safe_headers_index,
                 &message_bytes_receiver,
                 &finished,
                 &logger) {
@@ -236,7 +240,6 @@ impl PeerComunicatorWorkerManager{
                 }
             }
             
-            //p
             if let Some(new_peer_conector) = new_peer_conector{
                 if let Err(error) = new_peer_conector.join_thread(){
                     logger.log_error(&error);

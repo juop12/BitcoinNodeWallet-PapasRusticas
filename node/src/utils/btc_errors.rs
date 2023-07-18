@@ -141,6 +141,10 @@ pub enum NodeError {
     ErrorSendingThroughChannel,
     ErrorJoiningThread,
     ErrorPeerTimeout,
+    ErrorSendingHeadersMsg,
+    ErrorReceivingTx,
+    ErrorReceivingGetHeaders,
+    ErrorReceivingGetData,
 }
 
 impl BtcError for NodeError {}
