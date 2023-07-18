@@ -111,22 +111,16 @@ impl Node {
         for addr in address_vector {
             match outgoing_handshake(node.version, addr, node.address, &node.logger) {
                 Ok(tcp_stream) => {
-                  node.initial_peers.push(tcp_stream);
-                  let progress = format!(
+                    node.initial_peers.push(tcp_stream);
+                    let progress = format!(
                         "Amount of peers conected = {}",
-                        node.tcp_streams.len()
-                  );
-                  let message_to_ui = LoadingScreenInfo::UpdateLabel(progress);
-                  node.sender_to_ui.send(UIResponse::LoadingScreenUpdate(message_to_ui)).expect("Error sending message to UI");
-              },
+                        node.initial_peers.len()
+                    );
+                    node.log_and_send_to_ui(&progress);
+                },
                 Err(error) => node.logger.log_error(&error),
             }
         }
-
-        node.logger.log(format!(
-            "Amount of peers conected = {}",
-            node.initial_peers.len()
-        ));
 
         if node.initial_peers.is_empty() {
             Err(NodeError::ErrorCreatingNode)
@@ -135,9 +129,9 @@ impl Node {
         }
     }
 
-    pub fn log_and_send_to_ui(&self, log_str: &str, ui_str: &str) {
-        self.logger.log(log_str.to_string());
-        let ui_message = LoadingScreenInfo::UpdateLabel(ui_str.to_string());
+    pub fn log_and_send_to_ui(&self, message: &str) {
+        self.logger.log(message.to_string());
+        let ui_message = LoadingScreenInfo::UpdateLabel(message.to_string());
         self.sender_to_ui.send(UIResponse::LoadingScreenUpdate(ui_message)).expect("Error sending message to UI");
     }
 

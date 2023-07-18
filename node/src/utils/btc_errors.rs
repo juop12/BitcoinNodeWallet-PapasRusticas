@@ -70,7 +70,7 @@ pub enum BlockDownloaderError {
     ErrorReceivingBlockMessage,
     ErrorSendingMessageBlockDownloader,
     ErrorCreatingWorker,
-    ErrorWorkerPaniced,
+    ErrorWorkerPanicked,
     ErrorValidatingBlock,
     ErrorReceivingNotFoundMessage,
     BundleNotFound,
@@ -149,7 +149,7 @@ impl BtcError for NodeError {}
 pub enum PeerComunicatorError {
     ErrorReceivingMessages,
     ErrorAddingReceivedData,
-    ErrorWrokerPaniced,
+    ErrorWorkerPanicked,
     ErrorFinishingReceivingMessages,
     ErrorCreatingWorker,
     ErrorCantReceiveNewPeerConections,
@@ -160,7 +160,7 @@ impl BtcError for PeerComunicatorError {}
 
 #[derive(Debug)]
 pub enum WorkerError{
-    ErrorWorkerPaniced,
+    ErrorWorkerPanicked,
     ErrorComunicatingBetweenWorkers,
     LostConnectionToManager,
 }

@@ -151,11 +151,11 @@ impl Node {
                 self.starting_block_time,
                 first_downloaded_block_index
             )?;
-            let log_str = format!(
+            let headers_amount_string = format!(
                 "Current amount of downloaded headers = {}",
                 headers_received
             );
-            self.log_and_send_to_ui(&log_str, &log_str);
+            self.log_and_send_to_ui(&headers_amount_string);
         }
         let total_blocks = self.get_block_headers()?.len();
         let mut amount_of_blocks_to_download = 0;
@@ -260,12 +260,12 @@ impl Node {
     /// and then downloads the blocks starting from the given time.
     /// On error returns NodeError
     pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
-        let mut log_str = "Started loading data from disk";
-        self.log_and_send_to_ui(log_str, log_str);
+        let mut progress_str = "Started loading data from disk";
+        self.log_and_send_to_ui(progress_str);
 
         self.load_blocks_and_headers()?;
-        log_str = "Finished loading data from disk";
-        self.log_and_send_to_ui(log_str, log_str);
+        progress_str = "Finished loading data from disk";
+        self.log_and_send_to_ui(progress_str);
 
         let mut aux_len = self.get_block_headers()?.len();
         self.headers_in_disk = aux_len;
@@ -281,12 +281,12 @@ impl Node {
             join.join().map_err(|_| NodeError::ErrorJoiningThread)?;
         }
 
-        log_str = "Started storing headers to disk";
-        self.log_and_send_to_ui(log_str, log_str);
+        progress_str = "Started storing headers to disk";
+        self.log_and_send_to_ui(progress_str);
         
         self.store_headers_in_disk()?;
-        log_str = "Finished storing headers to disk";
-        self.log_and_send_to_ui(log_str, log_str);
+        progress_str = "Finished storing headers to disk";
+        self.log_and_send_to_ui(progress_str);
 
         self.logger.log(format!(
             "Final amount of headers after IBD = {}",
@@ -298,14 +298,13 @@ impl Node {
         ));
         self.sender_to_ui.send(UIResponse::LoadingScreenUpdate(LoadingScreenInfo::FinishedBlockDownload)).map_err(|_| NodeError::ErrorSendingThroughChannel)?;
 
-        log_str = "Started storing blocks to disk";
-        self.log_and_send_to_ui(log_str, log_str);
+        progress_str = "Started storing blocks to disk";
+        self.log_and_send_to_ui(progress_str);
 
         self.store_blocks_in_disk()?;
 
-        log_str = "Finished storing blocks to disk";
-        self.log_and_send_to_ui(log_str, log_str);
-
+        progress_str = "Finished storing blocks to disk";
+        self.log_and_send_to_ui(progress_str);
 
         aux_len = self.get_block_headers()?.len();
         self.headers_in_disk = aux_len;

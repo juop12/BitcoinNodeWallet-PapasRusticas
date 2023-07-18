@@ -66,11 +66,11 @@ impl Worker {
 
             match stop {
                 Stops::GracefullStop => {
-                    logger.log(Stops::GracefullStop.log_message(format!("Wroker {}", id)));
+                    logger.log(Stops::GracefullStop.log_message(format!("Worker {}", id)));
                     return Some(stream);
                 }
                 Stops::UngracefullStop => {
-                    logger.log(Stops::UngracefullStop.log_message(format!("Wroker {}", id)));
+                    logger.log(Stops::UngracefullStop.log_message(format!("Worker {}", id)));
                     return None;
                 }
                 Stops::Continue => continue,
@@ -109,11 +109,11 @@ impl Worker {
                 id,
             ) {
                 Stops::GracefullStop => {
-                    logger.log(Stops::GracefullStop.log_message(format!("Wroker {}", id)));
+                    logger.log(Stops::GracefullStop.log_message(format!("Worker {}", id)));
                     return Some(stream);
                 }
                 Stops::UngracefullStop => {
-                    logger.log(Stops::UngracefullStop.log_message(format!("Wroker {}", id)));
+                    logger.log(Stops::UngracefullStop.log_message(format!("Worker {}", id)));
                     return None;
                 }
                 Stops::Continue => continue,
@@ -127,7 +127,7 @@ impl Worker {
     pub fn join_thread(self) -> Result<Option<TcpStream>, WorkerError> {
         match self.thread.join() {
             Ok(stream) => Ok(stream),
-            Err(_) => Err(WorkerError::ErrorWorkerPaniced),
+            Err(_) => Err(WorkerError::ErrorWorkerPanicked),
         }
     }
 
@@ -195,7 +195,7 @@ impl NewPeerConnector{
 
     ///Joins the thread of the worker, returning an error if it was not possible to join it.
     pub fn join_thread(self) -> Result<(), WorkerError> {
-        self.thread.join().map_err(|_| WorkerError::ErrorWorkerPaniced)
+        self.thread.join().map_err(|_| WorkerError::ErrorWorkerPanicked)
     }
 }
 
@@ -254,7 +254,7 @@ impl PeerComunicatorWorkerManager{
 
     ///Joins the thread of the worker, returning an error if it was not possible to join it.
     pub fn join_thread(self) -> Result<(), WorkerError> {
-        self.thread.join().map_err(|_| WorkerError::ErrorWorkerPaniced)
+        self.thread.join().map_err(|_| WorkerError::ErrorWorkerPanicked)
     }
 
     //Sends a message to all of the workers so they can then send them to their corresponding peers
