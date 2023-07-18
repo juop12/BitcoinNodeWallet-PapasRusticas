@@ -120,7 +120,7 @@ impl Node {
         peer_timeout: u64,
         first_downloaded_block_index: &mut i32,
         starting_block_count: usize,
-    ) -> Result<(), NodeError> {
+    ) -> Result<JoinHandle<()>, NodeError> {
         let mut headers_received = self.get_block_headers()?.len();
         let mut last_hash = HASHEDGENESISBLOCK;
         if !self.get_block_headers()?.is_empty() {
@@ -175,12 +175,12 @@ impl Node {
         {
             return Err(NodeError::ErrorDownloadingBlockBundle);
         }
-        if thread_join.join().is_err() {
-            self.logger.log(format!(
-                "Error joining thread that sends IBD information to UI",
-            ));
-        }
-        Ok(())
+        // if thread_join.join().is_err() {
+        //     self.logger.log(format!(
+        //         "Error joining thread that sends IBD information to UI",
+        //     ));
+        // }
+        Ok(thread_join)
     }
 
     /// Writes the necessary headers into disk, to be able to continue the IBD from the last point.
@@ -221,15 +221,18 @@ impl Node {
     }
 
     /// Downloads block and headers from a given peer.If a problem occurs while downloading headers it continues asking to another peer.
-    fn start_downloading(&mut self, starting_block_count: usize) -> Result<BlockDownloader, NodeError> {
+    fn start_downloading(&mut self, starting_block_count: usize) -> Result<(BlockDownloader, Option<JoinHandle<()>>), NodeError> {
         let mut i = 0;
         let mut block_downloader = self.create_block_downloader(i)?;
         let mut first_downloaded_block_index: i32 = -1;
         let mut peer_time_out = 1;
+        let mut thread_join: Option<JoinHandle<()>> = None;
         while peer_time_out < MAXIMUM_PEER_TIME_OUT {
             println!("\n{i}\n");
             match self.download_headers_and_blocks(&block_downloader, i, peer_time_out, &mut first_downloaded_block_index, starting_block_count) {
-                Ok(_) => break,
+                Ok(join) => {thread_join = Some(join);
+                    break;
+                }
                 Err(error) => {
                     if let NodeError::ErrorDownloadingBlockBundle = error {
                         return Err(error);
@@ -250,7 +253,7 @@ impl Node {
             }
             block_downloader = self.create_block_downloader(i)?;
         }
-        Ok(block_downloader)
+        Ok((block_downloader, thread_join))
     }
 
     /// Asks the node for the block headers starting from the given block hash,
@@ -268,11 +271,15 @@ impl Node {
         self.headers_in_disk = aux_len;
         let starting_block_count = self.get_blockchain()?.len();
 
-        let mut block_downloader = self.start_downloading(starting_block_count)?;
+        let (mut block_downloader, thread_join) = self.start_downloading(starting_block_count)?;
 
         block_downloader
             .finish_downloading()
             .map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
+
+        if let Some(join) = thread_join {
+            join.join().map_err(|_| NodeError::ErrorJoiningThread)?;
+        }
 
         log_str = "Started storing headers to disk";
         self.log_and_send_to_ui(log_str, log_str);

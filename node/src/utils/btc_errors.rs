@@ -137,6 +137,7 @@ pub enum NodeError {
     ErrorNotEnoughSatoshis,
     ErrorFindingBlock,
     ErrorSendingThroughChannel,
+    ErrorJoiningThread,
 }
 
 impl BtcError for NodeError {}
