@@ -3,7 +3,7 @@ use gtk::prelude::*;
 use gtk::{glib, Builder, Button, Dialog, Label, TreeSelection, TreeStore};
 use node::blocks::BlockHeader;
 use node::wallet::get_bytes_from_hex;
-use node::blocks::proof::HashPair;
+use node::blocks::proof::{HashPair, hash_pairs_for_merkle_tree};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
@@ -118,16 +118,19 @@ fn add_merkle_path_rows(builder: &Builder, path: Vec<HashPair>) {
     let mut level = path.len();
     
     for hash_pair in path{
-        let left_hash = format!("Left: {}", get_string_representation_from_bytes(&mut hash_pair.left.to_vec()));
+        let concat_hashes = hash_pairs_for_merkle_tree(hash_pair.left, hash_pair.right);
+        let concat_hashes_str = get_string_representation_from_bytes(&mut concat_hashes.to_vec());
+        let left_hash = format!("Left: {}\n", get_string_representation_from_bytes(&mut hash_pair.left.to_vec()));
         let right_hash = format!("Right: {}", get_string_representation_from_bytes(&mut hash_pair.right.to_vec()));
+        let display_hashes = left_hash + &right_hash;
         let tree_iter = merkle_path_tree_store.append(None);
         merkle_path_tree_store.set_value(
             &tree_iter,
             LEVEL_COLUMN,
             &glib::Value::from(level.to_string()),
         );
-        merkle_path_tree_store.set_value(&tree_iter, HASH_PAIR_COLUMN, &glib::Value::from(left_hash));
-        merkle_path_tree_store.set_value(&tree_iter, RESULTING_HASH_COLUMN, &glib::Value::from(right_hash));
+        merkle_path_tree_store.set_value(&tree_iter, HASH_PAIR_COLUMN, &glib::Value::from(display_hashes));
+        merkle_path_tree_store.set_value(&tree_iter, RESULTING_HASH_COLUMN, &glib::Value::from(concat_hashes_str));
         level -= 1;
     }
    

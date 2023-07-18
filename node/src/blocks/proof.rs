@@ -29,7 +29,7 @@ pub fn validate_proof_of_work(block_header: &BlockHeader) -> bool {
 }
 
 /// Returns a hash of the concatenation of two hashes.
-fn hash_pairs_for_merkle_tree(hash_1: [u8; 32], hash_2: [u8; 32]) -> [u8; 32] {
+pub fn hash_pairs_for_merkle_tree(hash_1: [u8; 32], hash_2: [u8; 32]) -> [u8; 32] {
     let mut total_hash: Vec<u8> = Vec::from(hash_1);
     total_hash.extend(hash_2);
 
