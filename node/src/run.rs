@@ -1,5 +1,5 @@
 use crate::utils::ui_communication_protocol::{
-    UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse,
+    UIRequest, UIResponse,
 };
 use crate::{node::*, utils::config::*, utils::WalletError, wallet::*};
 use glib::Sender as GlibSender;
@@ -7,7 +7,7 @@ use std::sync::mpsc;
 
 /// Creates a new node correctely and sets workers for receiving messages from other peers.
 /// If an error occurs it returns None.
-pub fn initialize_node(args: Vec<String>) -> Option<Node> {
+pub fn initialize_node(args: Vec<String>, sender_to_ui: GlibSender<UIResponse>) -> Option<Node> {
     if args.len() != 2 {
         eprintln!("Cantidad de argumentos inválida");
         return None;
@@ -21,7 +21,7 @@ pub fn initialize_node(args: Vec<String>) -> Option<Node> {
         }
     };
 
-    let mut node = match Node::new(config) {
+    let mut node = match Node::new(config, sender_to_ui) {
         Ok(node) => node,
         Err(error) => {
             eprintln!("Error creando el nodo NodeError: {:?}", error);
@@ -94,7 +94,7 @@ pub fn run(
     sender_to_ui: GlibSender<UIResponse>,
     receiver: mpsc::Receiver<UIRequest>,
 ) {
-    let mut node = match initialize_node(args) {
+    let mut node = match initialize_node(args, sender_to_ui.clone()) {
         Some(node) => node,
         None => return exit_program(sender_to_ui, UIResponse::ErrorInitializingNode),
     };

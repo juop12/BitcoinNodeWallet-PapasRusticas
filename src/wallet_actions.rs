@@ -8,7 +8,7 @@ use crate::wallet_transactions::{add_row, modify_block_header};
 use gtk::prelude::*;
 use gtk::{Application, Builder, Dialog, ListBox, TreeStore};
 use node::utils::ui_communication_protocol::{
-    BlockInfo, UIToWalletCommunication as UIRequest, WalletInfo,
+    BlockInfo, UIRequest, WalletInfo,
 };
 use std::{
     sync::mpsc::Sender,

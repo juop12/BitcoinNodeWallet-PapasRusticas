@@ -14,8 +14,7 @@ use self::{
 use crate::{
     blocks::{blockchain::*, proof::*, transaction::TxOut, Outpoint, Transaction},
     messages::*,
-    utils::btc_errors::NodeError,
-    utils::{config::*, log::*},
+    utils::{btc_errors::NodeError,config::*, log::*, UIResponse, LoadingScreenInfo},
 };
 use std::{
     collections::HashMap,
@@ -25,6 +24,7 @@ use std::{
     thread::{self, sleep}, 
     time::Duration,
 };
+use glib::Sender as GlibSender;
 
 const MESSAGE_HEADER_SIZE: usize = 24;
 const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
@@ -48,9 +48,9 @@ pub struct Node {
     pub pending_tx: SafePendingTx,
     last_proccesed_block: usize,
     wallet_pk_hash: [u8; 20],
-
     headers_in_disk: usize,
     pub logger: Logger,
+    pub sender_to_ui: GlibSender<UIResponse>,
 }
 
 impl Node {
@@ -62,6 +62,7 @@ impl Node {
         logger: Logger,
         data_handler: NodeDataHandler,
         starting_block_time: u32,
+        sender_to_ui: GlibSender<UIResponse>
     ) -> Node {
         Node {
             version,
@@ -79,13 +80,14 @@ impl Node {
             wallet_pk_hash: [0; 20],
             headers_in_disk: 0,
             logger,
+            sender_to_ui,
         }
     }
 
     /// Node constructor, it creates a new node and performs the handshake with the sockets obtained
     /// by doing peer_discovery. If the handshake is successful, it adds the socket to the
     /// tcp_streams vector. Returns the node
-    pub fn new(config: Config) -> Result<Node, NodeError> {
+    pub fn new(config: Config, sender_to_ui: GlibSender<UIResponse>) -> Result<Node, NodeError> {
         let logger = Logger::from_path(config.log_path.as_str())
             .map_err(|_| NodeError::ErrorCreatingNode)?;
 
@@ -99,6 +101,7 @@ impl Node {
             logger,
             data_handler,
             config.begin_time,
+            sender_to_ui,
         );
 
         let mut address_vector =
@@ -107,21 +110,29 @@ impl Node {
 
         for addr in address_vector {
             match outgoing_handshake(node.version, addr, node.address, &node.logger) {
-                Ok(tcp_stream) => node.initial_peers.push(tcp_stream),
+                Ok(tcp_stream) => {
+                    node.initial_peers.push(tcp_stream);
+                    let progress = format!(
+                        "Amount of peers conected = {}",
+                        node.initial_peers.len()
+                    );
+                    node.log_and_send_to_ui(&progress);
+                },
                 Err(error) => node.logger.log_error(&error),
             }
         }
-
-        node.logger.log(format!(
-            "Amount of peers conected = {}",
-            node.initial_peers.len()
-        ));
 
         if node.initial_peers.is_empty() {
             Err(NodeError::ErrorCreatingNode)
         } else {
             Ok(node)
         }
+    }
+
+    pub fn log_and_send_to_ui(&self, message: &str) {
+        self.logger.log(message.to_string());
+        let ui_message = LoadingScreenInfo::UpdateLabel(message.to_string());
+        self.sender_to_ui.send(UIResponse::LoadingScreenUpdate(ui_message)).expect("Error sending message to UI");
     }
 
     /// Receives a dns address as a String and returns a Vector that contains all the addresses
@@ -303,6 +314,7 @@ mod tests {
     fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address() {
         let logger = Logger::from_path(LOG_FILE_PATH).unwrap();
         let data_handler = NodeDataHandler::new(HEADERS_FILE_PATH, BLOCKS_FILE_PATH).unwrap();
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::_new(
             VERSION,
             LOCAL_HOST,
@@ -310,6 +322,7 @@ mod tests {
             logger,
             data_handler,
             STARTING_BLOCK_TIME,
+            sx,
         );
         let address_vector = node.peer_discovery("does_not_exist", DNS_PORT, false);
 
@@ -320,6 +333,7 @@ mod tests {
     fn peer_discovery_test_2_returns_ip_vector_when_receiving_valid_dns() {
         let logger = Logger::from_path(LOG_FILE_PATH).unwrap();
         let data_handler = NodeDataHandler::new(HEADERS_FILE_PATH, BLOCKS_FILE_PATH).unwrap();
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::_new(
             VERSION,
             LOCAL_HOST,
@@ -327,6 +341,7 @@ mod tests {
             logger,
             data_handler,
             STARTING_BLOCK_TIME,
+            sx,
         );
         let address_vector = node.peer_discovery(DNS_ADDRESS, DNS_PORT, false);
 

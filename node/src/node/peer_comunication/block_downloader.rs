@@ -100,8 +100,8 @@ impl BlockDownloader {
         safe_blockchain: &SafeBlockChain,
         logger: &Logger,
     ) -> Result<BlockDownloader, BlockDownloaderError> {
-        let connections_ammount = outbound_connections.len();
-        if connections_ammount == 0 {
+        let connections_amount = outbound_connections.len();
+        if connections_amount == 0 {
             return Err(BlockDownloaderError::ErrorInvalidCreationSize);
         }
 
@@ -109,13 +109,13 @@ impl BlockDownloader {
         let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
 
         let receiver = Arc::new(Mutex::new(receiver));
-        let mut workers = Vec::with_capacity(connections_ammount);
+        let mut workers = Vec::with_capacity(connections_amount);
 
         //No tomamos el tcp stream que se esta usando para descargar headers, porque se usa para descargar headers.
         for (id, stream) in outbound_connections
             .iter()
             .enumerate()
-            .take(connections_ammount)
+            .take(connections_amount)
         {
             if id == header_stream_index {
                 continue;
@@ -186,7 +186,7 @@ impl BlockDownloader {
             while !joined_a_worker {
                 let worker = self.workers.remove(0);
                 if worker.is_finished() {
-                    let stream_op = worker.join_thread().map_err(|_| BlockDownloaderError::ErrorWorkerPaniced)?;
+                    let stream_op = worker.join_thread().map_err(|_| BlockDownloaderError::ErrorWorkerPanicked)?;
                     if working_peer_conection.is_none() {
                         working_peer_conection = stream_op;
                     };

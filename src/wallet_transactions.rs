@@ -4,7 +4,7 @@ use gtk::{glib, Builder, Button, Dialog, Label, TreeSelection, TreeStore};
 use node::blocks::BlockHeader;
 use node::wallet::get_bytes_from_hex;
 
-use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
+use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;

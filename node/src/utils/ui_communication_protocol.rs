@@ -6,13 +6,13 @@ use crate::wallet::Wallet;
 pub const TX_PAGE_LENGTH: usize = 30;
 pub const BLOCK_PAGE_LENGTH: usize = 10;
 
-pub enum UIToWalletCommunication {
+pub enum UIRequest {
     ChangeWallet(/* private key*/ String), //ui se tiene que fijar que las longitudes esten bien, ya sea en hexa o en base 58. La wallet dependiendo de la cantidad lo pasa a array, y cambia la wallet.
     CreateTx(
         /* amount*/ i64,
         /* fee*/ i64,
-        /*addres */ String,
-    ), //ui manda en distintas bases el adrress, se fijan las longitudes
+        /* address */ String,
+    ), //ui manda en distintas bases el address, se fijan las longitudes
     ObtainTxProof(/*txhash */ [u8; 32], /*block number */ usize),
     EndOfProgram,
     UpdateWallet,
@@ -21,15 +21,23 @@ pub enum UIToWalletCommunication {
     PrevBlockInfo,
 }
 
-pub enum WalletToUICommunication {
+pub enum UIResponse {
     WalletInfo(WalletInfo),
     BlockInfo(BlockInfo),
     WalletError(WalletError),
-    ResultOFTXProof(bool),
+    ResultOFTXProof(bool), //p aca hay que adjuntar la proof en si
     FinishedInitializingNode,
     ErrorInitializingNode,
     TxSent,
     WalletFinished,
+    LoadingScreenUpdate(LoadingScreenInfo),
+}
+
+pub enum LoadingScreenInfo {
+    StartedBlockDownload(/*total_blocks*/usize),
+    DownloadedBlocks(usize),
+    UpdateLabel(String),
+    FinishedBlockDownload
 }
 
 pub struct WalletInfo {

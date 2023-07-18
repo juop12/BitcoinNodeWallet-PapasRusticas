@@ -58,8 +58,7 @@ impl Logger {
 
     /// Writes a text to the log, nothing happens on error.
     pub fn log(&self, text: String) {
-        // no lo handeleamos al error porque si falla el log
-        // no queremos cortar la ejecucion del programa principal
+        // If the logger fails, we don't want to stop the program
         _ = self.tx.send(text);
     }
 }

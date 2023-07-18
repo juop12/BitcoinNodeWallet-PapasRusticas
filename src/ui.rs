@@ -1,6 +1,6 @@
 use crate::activate_adjustments;
 use crate::error_handling::*;
-use crate::loading_screen::show_loading_screen;
+use crate::loading_screen::*;
 use crate::wallet_actions::*;
 use crate::wallet_adder::*;
 use crate::wallet_send::{
@@ -12,9 +12,7 @@ use glib::Receiver as GlibReceiver;
 use gtk::prelude::*;
 use gtk::{Application, Builder, Window};
 use node::run::*;
-use node::utils::ui_communication_protocol::{
-    UIToWalletCommunication as UIRequest, WalletToUICommunication as UIResponse,
-};
+use node::utils::ui_communication_protocol::{UIRequest, UIResponse};
 use std::{
     sync::{mpsc, mpsc::Sender, Arc, Mutex},
     thread,
@@ -49,7 +47,7 @@ fn run_app(
         None => return,
     };
     let main_window_running = Arc::new(Mutex::new(false));
-    show_loading_screen(&builder, app, main_window_running.clone());
+    show_loading_screen(&builder, app);
     let sender_clone = sender.clone();
     let builder_clone = builder.clone();
     let app_cloned = app.clone();
@@ -70,6 +68,7 @@ fn run_app(
                 handle_error(&builder, format!("An Error occured: {:#?}", error))
             }
             UIResponse::ErrorInitializingNode => handle_initialization_error(&builder, &app_cloned),
+            UIResponse::LoadingScreenUpdate(progress) => handle_loading_screen_update(&builder, progress),
         }
         glib::Continue(true)
     });

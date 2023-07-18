@@ -3,11 +3,10 @@ mod test {
     use node::run::initialize_node;
     use node::utils::btc_errors::NodeError;
     use node::utils::config::*;
-    use node::utils::ui_communication_protocol::WalletToUICommunication as UIResponse;
+    use node::utils::ui_communication_protocol::UIResponse;
     use node::wallet::Wallet;
 
     const BEGIN_TIME_EPOCH: u32 = 1681084800; // 2023-04-10
-
     #[test]
     fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes(
     ) -> Result<(), NodeError> {
@@ -22,8 +21,8 @@ mod test {
             blocks_path: String::from("tests_txt/blocks.bin"),
             ipv6_enabled: false,
         };
-
-        let node = Node::new(config)?;
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
+        let node = Node::new(config, sx)?;
         assert!(node.tcp_streams.len() > 1);
         Ok(())
     }
@@ -42,8 +41,8 @@ mod test {
 
             ipv6_enabled: false,
         };
-
-        let mut node = Node::new(config)?;
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
+        let mut node = Node::new(config, sx)?;
 
         match node.initial_block_download() {
             Ok(_) => {
@@ -55,8 +54,9 @@ mod test {
 
     #[test]
     fn test3_set_wallet() {
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let mut node =
-            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
+            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()], sx).unwrap();
 
         let wallet =
             Wallet::from("cTcbayZmdiCxNywGxfLXGLqS2Y8uTNzGktbFXZnkNCR3zeN1XMQC".to_string())
@@ -74,8 +74,10 @@ mod test {
 
     #[test]
     fn test4_block_info() {
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let mut node =
-            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
+            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()], sx).unwrap();
+
         let mut wallet =
             Wallet::from("cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string())
                 .unwrap();
@@ -97,8 +99,10 @@ mod test {
 
     #[test]
     fn test5_tx_valida() -> Result<(), NodeError> {
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let mut node =
-            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()]).unwrap();
+            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()], sx).unwrap();
+
         let wallet =
             Wallet::from("cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string())
                 .unwrap();

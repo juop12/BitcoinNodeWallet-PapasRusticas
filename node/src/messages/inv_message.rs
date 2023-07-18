@@ -208,7 +208,7 @@ mod test {
     }
 
     #[test]
-    fn inv_test2_cant_create_from_an_incorrect_ammount_of_bytes() {
+    fn inv_test2_cant_create_from_an_incorrect_amount_of_bytes() {
         let (mut expected_bytes, _hash1, _hash2) = inv_message_expected_bytes(false);
         expected_bytes.push(0);
 

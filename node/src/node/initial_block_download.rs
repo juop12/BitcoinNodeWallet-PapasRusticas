@@ -1,6 +1,9 @@
-use crate::node::*;
+use crate::{node::*, utils::{log, LoadingScreenInfo}};
 use block_downloader::*;
-use std::time::{Duration, Instant};
+use std::{time::{Duration, Instant}, thread::JoinHandle};
+use std::thread;
+use glib::{Sender, Receiver};
+use crate::utils::ui_communication_protocol::UIResponse;
 
 const HASHEDGENESISBLOCK: [u8; 32] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68, 0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
@@ -8,6 +11,33 @@ const HASHEDGENESISBLOCK: [u8; 32] = [
 ];
 const MAX_BLOCK_BUNDLE: usize = 16;
 const MAXIMUM_PEER_TIME_OUT: u64 = 10;
+const REFRESH_BLOCK_DOWNLOAD_PROGRESS_FOR_UI: Duration = Duration::from_secs(1);
+
+fn send_ibd_information_to_ui(sender_to_ui: GlibSender<UIResponse>, blockchain: Arc<Mutex<HashMap<[u8;32], Block>>>, total_blocks: usize, starting_block_count: usize) -> Result<JoinHandle<()>, NodeError>{
+    let message_to_ui = LoadingScreenInfo::StartedBlockDownload(total_blocks);
+    let started_downloading = "Started downloading blocks";
+    sender_to_ui.send(UIResponse::LoadingScreenUpdate(message_to_ui)).expect("Error sending to UI thread");
+    sender_to_ui.send(UIResponse::LoadingScreenUpdate(LoadingScreenInfo::UpdateLabel(started_downloading.to_string()))).expect("Error sending to UI thread");
+    let sender_clone = sender_to_ui.clone();
+
+    let join_handle = thread::spawn(move || { loop {
+        thread::sleep(REFRESH_BLOCK_DOWNLOAD_PROGRESS_FOR_UI);
+        match blockchain.lock() {
+            Ok(blockchain) => {
+                let current_block_count = blockchain.len() - starting_block_count;
+                let message_to_ui = LoadingScreenInfo::DownloadedBlocks(current_block_count);
+                sender_clone.send(UIResponse::LoadingScreenUpdate(message_to_ui)).expect("Error sending to UI thread");
+                if current_block_count == total_blocks {
+                    sender_to_ui.send(UIResponse::LoadingScreenUpdate(LoadingScreenInfo::FinishedBlockDownload)).expect("Error sending to UI thread");
+                    break;
+                }
+            },
+            Err(_) => {},
+        }   
+    }
+    });
+    Ok(join_handle)
+}
 
 impl Node {
     /// Creates a GetBlockHeadersMessage with the given hash
@@ -88,16 +118,16 @@ impl Node {
         block_downloader: &BlockDownloader,
         sync_node_index: usize,
         peer_timeout: u64,
-    ) -> Result<(), NodeError> {
+        first_downloaded_block_index: &mut i32,
+        starting_block_count: usize,
+    ) -> Result<JoinHandle<()>, NodeError> {
         let mut headers_received = self.get_block_headers()?.len();
         let mut last_hash = HASHEDGENESISBLOCK;
         if !self.get_block_headers()?.is_empty() {
             last_hash = self.get_block_headers()?[headers_received - 1].hash();
         }
-
         let mut request_block_hashes_bundle: Vec<[u8; 32]> = Vec::new();
         let mut total_amount_of_blocks = self.get_block_headers()?.len();
-
         while headers_received == self.get_block_headers()?.len() {
             self.ibd_send_get_block_headers_message(last_hash, sync_node_index)?;
 
@@ -119,17 +149,24 @@ impl Node {
                 block_downloader,
                 &mut total_amount_of_blocks,
                 self.starting_block_time,
+                first_downloaded_block_index
             )?;
-            self.logger.log(format!(
-                "Current ammount of downloaded headers = {}",
+            let headers_amount_string = format!(
+                "Current amount of downloaded headers = {}",
                 headers_received
-            ));
+            );
+            self.log_and_send_to_ui(&headers_amount_string);
         }
-
+        let total_blocks = self.get_block_headers()?.len();
+        let mut amount_of_blocks_to_download = 0;
+        if *first_downloaded_block_index != -1 {
+            amount_of_blocks_to_download = total_blocks - ((*first_downloaded_block_index) as usize); // the block in the position 0 is the genesis block so we dont add 1
+        }
         self.logger.log(format!(
-            "Total ammount of blocks = {}",
-            total_amount_of_blocks
+            "Total amount of blocks to download = {}",
+            amount_of_blocks_to_download
         ));
+        let thread_join = send_ibd_information_to_ui(self.sender_to_ui.clone(), self.blockchain.clone(), amount_of_blocks_to_download, starting_block_count)?;
 
         if !request_block_hashes_bundle.is_empty()
             && block_downloader
@@ -138,8 +175,12 @@ impl Node {
         {
             return Err(NodeError::ErrorDownloadingBlockBundle);
         }
-
-        Ok(())
+        // if thread_join.join().is_err() {
+        //     self.logger.log(format!(
+        //         "Error joining thread that sends IBD information to UI",
+        //     ));
+        // }
+        Ok(thread_join)
     }
 
     /// Writes the necessary headers into disk, to be able to continue the IBD from the last point.
@@ -180,15 +221,18 @@ impl Node {
     }
 
     /// Downloads block and headers from a given peer.If a problem occurs while downloading headers it continues asking to another peer.
-    fn start_downloading(&mut self) -> Result<BlockDownloader, NodeError> {
+    fn start_downloading(&mut self, starting_block_count: usize) -> Result<(BlockDownloader, Option<JoinHandle<()>>), NodeError> {
         let mut i = 0;
         let mut block_downloader = self.create_block_downloader(i)?;
-
+        let mut first_downloaded_block_index: i32 = -1;
         let mut peer_time_out = 1;
+        let mut thread_join: Option<JoinHandle<()>> = None;
         while peer_time_out < MAXIMUM_PEER_TIME_OUT {
             println!("\n{i}\n");
-            match self.download_headers_and_blocks(&block_downloader, i, peer_time_out) {
-                Ok(_) => break,
+            match self.download_headers_and_blocks(&block_downloader, i, peer_time_out, &mut first_downloaded_block_index, starting_block_count) {
+                Ok(join) => {thread_join = Some(join);
+                    break;
+                }
                 Err(error) => {
                     if let NodeError::ErrorDownloadingBlockBundle = error {
                         return Err(error);
@@ -209,33 +253,40 @@ impl Node {
             }
             block_downloader = self.create_block_downloader(i)?;
         }
-        Ok(block_downloader)
+        Ok((block_downloader, thread_join))
     }
 
     /// Asks the node for the block headers starting from the given block hash,
     /// and then downloads the blocks starting from the given time.
     /// On error returns NodeError
     pub fn initial_block_download(&mut self) -> Result<(), NodeError> {
-        self.logger
-            .log(String::from("Started loading data from disk"));
+        let mut progress_str = "Started loading data from disk";
+        self.log_and_send_to_ui(progress_str);
+
         self.load_blocks_and_headers()?;
-        self.logger
-            .log(String::from("Finished loading data from disk"));
+        progress_str = "Finished loading data from disk";
+        self.log_and_send_to_ui(progress_str);
 
         let mut aux_len = self.get_block_headers()?.len();
         self.headers_in_disk = aux_len;
+        let starting_block_count = self.get_blockchain()?.len();
 
-        let mut block_downloader = self.start_downloading()?;
+        let (mut block_downloader, thread_join) = self.start_downloading(starting_block_count)?;
 
         block_downloader
             .finish_downloading()
             .map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
 
-        self.logger
-            .log(String::from("Started storing headers to disk"));
+        if let Some(join) = thread_join {
+            join.join().map_err(|_| NodeError::ErrorJoiningThread)?;
+        }
+
+        progress_str = "Started storing headers to disk";
+        self.log_and_send_to_ui(progress_str);
+        
         self.store_headers_in_disk()?;
-        self.logger
-            .log(String::from("Finished storing headers to disk"));
+        progress_str = "Finished storing headers to disk";
+        self.log_and_send_to_ui(progress_str);
 
         self.logger.log(format!(
             "Final amount of headers after IBD = {}",
@@ -245,18 +296,20 @@ impl Node {
             "Final amount of blocks after IBD = {}",
             self.get_blockchain()?.len()
         ));
+        self.sender_to_ui.send(UIResponse::LoadingScreenUpdate(LoadingScreenInfo::FinishedBlockDownload)).map_err(|_| NodeError::ErrorSendingThroughChannel)?;
 
-        self.logger
-            .log(String::from("Started storing blocks to disk"));
+        progress_str = "Started storing blocks to disk";
+        self.log_and_send_to_ui(progress_str);
+
         self.store_blocks_in_disk()?;
-        self.logger
-            .log(String::from("Finished storing blocks to disk"));
+
+        progress_str = "Finished storing blocks to disk";
+        self.log_and_send_to_ui(progress_str);
 
         aux_len = self.get_block_headers()?.len();
         self.headers_in_disk = aux_len;
 
         self.last_proccesed_block = aux_len;
-
         Ok(())
     }
 }
@@ -271,9 +324,13 @@ fn request_blocks(
     block_downloader: &BlockDownloader,
     total_amount_of_blocks: &mut usize,
     starting_block_time: u32,
+    first_downloaded_block_index: &mut i32
 ) -> Result<Vec<[u8; 32]>, NodeError> {
     while i < block_headers.len() {
         if block_headers[i].time > starting_block_time {
+            if *first_downloaded_block_index == -1 {
+                *first_downloaded_block_index = i as i32;
+            }
             *total_amount_of_blocks += 1;
             request_block_hashes_bundle.push(block_headers[i].hash());
             if request_block_hashes_bundle.len() == MAX_BLOCK_BUNDLE {
@@ -313,7 +370,8 @@ mod tests {
             blocks_path: String::from(BLOCKS_FILE_PATH),
             ipv6_enabled: false,
         };
-        let mut node = Node::new(config)?;
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
+        let mut node = Node::new(config, sx)?;
         let mut i = 0;
         node.ibd_send_get_block_headers_message(HASHEDGENESISBLOCK, i)?;
         while let Err(_) = node.receive_headers_message(i, 15) {
@@ -338,8 +396,8 @@ mod tests {
             blocks_path: String::from(BLOCKS_FILE_PATH),
             ipv6_enabled: false,
         };
-
-        let mut node = Node::new(config)?;
+        let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
+        let mut node = Node::new(config, sx)?;
         let mut block_downloader = BlockDownloader::new(
             &node.initial_peers,
             0,

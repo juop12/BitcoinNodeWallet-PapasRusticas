@@ -174,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn config_test_4_invalid_ammount_parameters_cannot_create_config() {
+    fn config_test_4_invalid_amount_parameters_cannot_create_config() {
         let parameters = vec![
             "70015".to_string(),
             "53".to_string(),

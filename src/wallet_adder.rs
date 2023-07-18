@@ -3,7 +3,7 @@ use crate::wallet_persistance::*;
 use crate::UiError;
 use gtk::prelude::*;
 use gtk::{Builder, Button, ComboBoxText, Dialog, Entry, Label};
-use node::utils::ui_communication_protocol::UIToWalletCommunication as UIRequest;
+use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
 const PRIV_KEY_LEN_BASE_58: usize = 52;
@@ -123,7 +123,6 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>)
     match get_saved_wallets_from_disk(&wallet_selector) {
         Ok(wallets) => {
             wallet_selector.set_active(Some(0));
-            //println!("Wallets: {:#?}", wallets);
             sender
                 .send(UIRequest::ChangeWallet(wallets[0][0].to_string()))
                 .expect(SENDER_ERROR);
