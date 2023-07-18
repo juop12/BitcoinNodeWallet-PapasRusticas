@@ -2,6 +2,7 @@ use crate::blocks::BlockHeader;
 use crate::blocks::Outpoint;
 use crate::utils::btc_errors::WalletError;
 use crate::wallet::Wallet;
+use crate::blocks::proof::HashPair;
 
 pub const TX_PAGE_LENGTH: usize = 30;
 pub const BLOCK_PAGE_LENGTH: usize = 10;
@@ -25,7 +26,7 @@ pub enum UIResponse {
     WalletInfo(WalletInfo),
     BlockInfo(BlockInfo),
     WalletError(WalletError),
-    ResultOFTXProof(bool), //p aca hay que adjuntar la proof en si
+    ResultOFTXProof(Option<Vec<HashPair>>),
     FinishedInitializingNode,
     ErrorInitializingNode,
     TxSent,

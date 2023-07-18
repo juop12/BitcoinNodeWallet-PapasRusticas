@@ -3,7 +3,7 @@ use gtk::prelude::*;
 use gtk::{glib, Builder, Button, Dialog, Label, TreeSelection, TreeStore};
 use node::blocks::BlockHeader;
 use node::wallet::get_bytes_from_hex;
-
+use node::blocks::proof::HashPair;
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
@@ -12,6 +12,10 @@ use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 const INDEX_COLUMN: u32 = 0;
 const TX_HASH_COLUMN: u32 = 1;
 const SENDER_ERROR: &str = "Error sending message to Node/Wallet thread";
+
+const LEVEL_COLUMN: u32 = 0;
+const HASH_PAIR_COLUMN: u32 = 1;
+const RESULTING_HASH_COLUMN: u32 = 2;
 
 /// Connects the buttons that allow the user to switch between blocks
 pub fn connect_block_switcher_buttons(builder: &Builder, sender: &Sender<UIRequest>) {
@@ -109,14 +113,36 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
     });
 }
 
+fn add_merkle_path_rows(builder: &Builder, path: Vec<HashPair>) {
+    let merkle_path_tree_store: TreeStore = builder.object("Merkle Path Store").unwrap();
+    let mut level = path.len();
+    
+    for hash_pair in path{
+        let left_hash = format!("Left: {}", get_string_representation_from_bytes(&mut hash_pair.left.to_vec()));
+        let right_hash = format!("Right: {}", get_string_representation_from_bytes(&mut hash_pair.right.to_vec()));
+        let tree_iter = merkle_path_tree_store.append(None);
+        merkle_path_tree_store.set_value(
+            &tree_iter,
+            LEVEL_COLUMN,
+            &glib::Value::from(level.to_string()),
+        );
+        merkle_path_tree_store.set_value(&tree_iter, HASH_PAIR_COLUMN, &glib::Value::from(left_hash));
+        merkle_path_tree_store.set_value(&tree_iter, RESULTING_HASH_COLUMN, &glib::Value::from(right_hash));
+        level -= 1;
+    }
+   
+}
+
+
 /// Handles the result of the merkle proof request, showing a dialog with the result.
-pub fn handle_result_of_tx_proof(builder: &Builder, result: bool) {
+pub fn handle_result_of_tx_proof(builder: &Builder, merkle_path: Option<Vec<HashPair>>) {
     let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
     let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
     activate_buttons(builder);
 
-    if result {
+    if let Some(path) = merkle_path {
         merkle_success_dialog.set_title("Proof of inclusion Success");
+        add_merkle_path_rows(builder, path);
         merkle_success_dialog.run();
         merkle_success_dialog.hide();
     } else {
@@ -133,9 +159,19 @@ fn activate_buttons(builder: &Builder) {
     let failure_dialog_button: Button = builder.object("Merkle Failure Button").unwrap();
     let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
     let success_dialog_button: Button = builder.object("Merkle Success Button").unwrap();
+    let merkle_path_tree_store: TreeStore = builder.object("Merkle Path Store").unwrap();
+
+    let merkle_success_dialog_clone = merkle_success_dialog.clone();
+    let merkle_tree_store_clone = merkle_path_tree_store.clone();
 
     success_dialog_button.connect_clicked(move |_| {
-        merkle_success_dialog.hide();
+        merkle_tree_store_clone.clear();
+        merkle_success_dialog_clone.hide();
+    });
+    
+    merkle_success_dialog.connect_delete_event(move |_, _| {
+        merkle_path_tree_store.clear();
+        Inhibit(false)
     });
 
     failure_dialog_button.connect_clicked(move |_| {

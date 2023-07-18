@@ -23,7 +23,7 @@ mod test {
         };
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::new(config, sx)?;
-        assert!(node.tcp_streams.len() > 1);
+        assert!(node.initial_peers.len() > 1);
         Ok(())
     }
 
@@ -117,7 +117,7 @@ mod test {
             .handle_obtain_tx_proof(&mut node, tx_hash, 2439100)
             .unwrap()
         {
-            assert!(result);
+            assert!(result.is_some());
             return Ok(());
         }
 
