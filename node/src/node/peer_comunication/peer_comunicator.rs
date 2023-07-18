@@ -18,6 +18,7 @@ pub struct PeerComunicator {
     logger: Logger,
 }
 
+///The PeerCommunicator is responsible for handeling all incomming messages, sending any message to the peers and accepting new peer conections
 impl PeerComunicator {
     pub fn new(
         node_version: i32,
@@ -29,7 +30,7 @@ impl PeerComunicator {
         logger: &Logger,
     ) -> PeerComunicator{
         let finished_working_indicator = Arc::new(Mutex::from(false));
-        let workers = PeerComunicator::create_message_receivers(outbound_connections, safe_blockchain, safe_headers, safe_pending_tx, &finished_working_indicator, logger);
+        let workers = PeerComunicator::create_peer_comunicator_workers(outbound_connections, safe_blockchain, safe_headers, safe_pending_tx, &finished_working_indicator, logger);
         let new_peer_conector = NewPeerConnector::new(
             node_version, 
             node_address, 
@@ -54,7 +55,8 @@ impl PeerComunicator {
         }
     }
 
-    fn create_message_receivers(
+    ///Creates a PeerCommunicatorWorker for each stream, making each of them responsible for communicating with their corresponding peer 
+    fn create_peer_comunicator_workers(
         outbound_connections: &Vec<TcpStream>,
         safe_blockchain: &SafeBlockChain,
         safe_headers: &SafeVecHeader,
@@ -76,7 +78,7 @@ impl PeerComunicator {
                     continue;
                 }
             };
-            let worker = Worker::new_message_receiver_worker(
+            let worker = Worker::new_peer_comunicator_worker(
                 current_stream,
                 safe_headers.clone(),
                 safe_blockchain.clone(),
@@ -107,14 +109,23 @@ impl PeerComunicator {
         self.logger.log(String::from("Disconected_from_peers"));
         Ok(())
     }
+
+    ///sends the given bytes to all currently connected peers
+    pub fn send_message<T: Message>(&self, message: &T)->Result<(), PeerComunicatorError>{
+        self.peer_communicator_manager.send_message(message)
+    }
 }
 
+///Main loop for the worker manager, attemps to create a new worker from any new connection the NewPeerConnector
+///might have stablished. Checks if there are any messages to send to the net, and joins any trhead corresponding 
+///to a worker that already finished. 
 pub fn worker_manager_loop(
     new_peer_connector: &Option<NewPeerConnector>,
     workers: &mut Vec<Worker>,
     safe_blockchain: &SafeBlockChain,
     safe_headers: &SafeVecHeader,
     safe_pending_tx: &SafePendingTx,
+    message_bytes_receiver: &mpsc::Receiver<Vec<u8>>,
     finished: &Arc<Mutex<bool>>,
     logger: &Logger)-> Stops{
         
@@ -125,14 +136,13 @@ pub fn worker_manager_loop(
                 }
             }
             Err(_) => return Stops::UngracefullStop,
-
         }
         
         //recivir nuevos peers
         if let Some(new_peer_connector) = new_peer_connector{
             match new_peer_connector.recv_timeout(NEW_CONECTION_INTERVAL){
                 Ok(new_stream) => {
-                    let new_worker = Worker::new_message_receiver_worker(
+                    let new_worker = Worker::new_peer_comunicator_worker(
                         new_stream,
                         safe_headers.clone(), 
                         safe_blockchain.clone(), 
@@ -148,29 +158,48 @@ pub fn worker_manager_loop(
             }
         }
         
-        //sacar peers que hayan terminado
-        let mut i = 0;
-        while i < workers.len() {
-            if workers[i].is_finished() {
-                workers.swap_remove(i);
-            } else {
-                i += 1;
+        match message_bytes_receiver.try_recv() {
+            Ok(message_bytes) => {
+                //sacar peers que hayan terminado
+                let mut i = 0;
+                let mut message_sent = false;
+                while i < workers.len() {
+                    if workers[i].is_finished() {
+                        let removed_worker = workers.swap_remove(i);
+                        if let Err(error) = removed_worker.join_thread(){
+                            logger.log_error(&error);
+                        }
+                    } else {
+                        if workers[i].send_message_bytes(message_bytes.clone()).is_ok(){
+                            message_sent = true;
+                        };
+                        i += 1;
+                    }
+                }
+                if !message_sent{
+                    return Stops::UngracefullStop;
+                }
             }
-        }
+            Err(mpsc::TryRecvError::Empty) => {},
+            _ => return Stops::UngracefullStop,
+        };
         
         Stops::Continue
         //firjarse de mandar mensajes
 }
 
 
-/// Main loop of each message receiver
-pub fn message_receiver_thread_loop(
+/// Main loop for each peer communicator worker, attemps to receive a message form its peer and handles it.
+/// If there is a message to send then it sends it to its peer
+pub fn peer_comunicator_worker_thread_loop(
     stream: &mut TcpStream,
     safe_block_headers: &SafeVecHeader,
     safe_block_chain: &SafeBlockChain,
     safe_pending_tx: &SafePendingTx,
+    message_bytes_receiver: &mpsc::Receiver<Vec<u8>>,
     logger: &Logger,
     finished: &FinishedIndicator,
+    id: usize,
 ) -> Stops {
     match finished.lock() {
         Ok(finish) => {
@@ -194,9 +223,26 @@ pub fn message_receiver_thread_loop(
             _ => return Stops::UngracefullStop,
         }
     }
+
+    match message_bytes_receiver.try_recv(){
+        Ok(message_bytes) => {
+            if stream.write_all(&message_bytes).is_err(){
+                logger.log_error(&PeerComunicatorError::ErrorSendingMessage);
+                return Stops::UngracefullStop;
+            }
+            logger.log(format!("Mandado mensaje al peer: {id}"));
+        },
+        Err(mpsc::TryRecvError::Empty) => {},
+        _ => {
+            logger.log_error(&WorkerError::LostConnectionToManager);
+            return Stops::UngracefullStop
+        }
+    };
     Stops::Continue
 }
 
+/// Checks for new incomming connections, if a successfull handshake is done then it sends the new TcpStream to
+/// the worker manager in orther to make a new PeerConnectoWorker to communicate with the new peer. 
 pub fn new_peer_conector_thread_loop(
     listener: &TcpListener,
     node_version: i32,
@@ -217,7 +263,7 @@ pub fn new_peer_conector_thread_loop(
     match listener.accept(){
         Ok((mut tcp_stream, peer_address)) => {
             logger.log("New peer requested conection".to_string());
-            if let Err(error) = incoming_handshake(node_version, peer_address, node_address, &mut tcp_stream, &logger){
+            if incoming_handshake(node_version, peer_address, node_address, &mut tcp_stream, &logger).is_err(){
                 logger.log("New peer failed handshake".to_string());
                 return Stops::UngracefullStop;
             }

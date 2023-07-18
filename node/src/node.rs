@@ -37,13 +37,13 @@ pub type SafePendingTx = Arc<Mutex<HashMap<[u8; 32], Transaction>>>;
 pub struct Node {
     version: i32,
     address: SocketAddr,
-    pub tcp_streams: Vec<TcpStream>,
+    pub initial_peers: Vec<TcpStream>,
     data_handler: NodeDataHandler,
     block_headers: SafeVecHeader,
     starting_block_time: u32,
     blockchain: SafeBlockChain,
     utxo_set: HashMap<Outpoint, TxOut>,
-    pub message_receiver: Option<PeerComunicator>,
+    pub peer_comunicator: Option<PeerComunicator>,
     pub balance: i64,
     pub pending_tx: SafePendingTx,
     last_proccesed_block: usize,
@@ -66,12 +66,12 @@ impl Node {
         Node {
             version,
             address: SocketAddr::from((local_host, local_port)),
-            tcp_streams: Vec::new(),
+            initial_peers: Vec::new(),
             block_headers: Arc::new(Mutex::from(Vec::new())),
             starting_block_time,
             blockchain: Arc::new(Mutex::from(HashMap::new())),
             utxo_set: HashMap::new(),
-            message_receiver: None,
+            peer_comunicator: None,
             data_handler,
             pending_tx: Arc::new(Mutex::from(HashMap::new())),
             balance: 0,
@@ -107,17 +107,17 @@ impl Node {
 
         for addr in address_vector {
             match outgoing_handshake(node.version, addr, node.address, &node.logger) {
-                Ok(tcp_stream) => node.tcp_streams.push(tcp_stream),
+                Ok(tcp_stream) => node.initial_peers.push(tcp_stream),
                 Err(error) => node.logger.log_error(&error),
             }
         }
 
         node.logger.log(format!(
             "Amount of peers conected = {}",
-            node.tcp_streams.len()
+            node.initial_peers.len()
         ));
 
-        if node.tcp_streams.is_empty() {
+        if node.initial_peers.is_empty() {
             Err(NodeError::ErrorCreatingNode)
         } else {
             Ok(node)
@@ -165,10 +165,10 @@ impl Node {
 
     /// Creates a threadpool responsable for receiving messages in different threads.
     pub fn start_receiving_messages(&mut self) {
-        self.message_receiver = Some(PeerComunicator::new(
+        self.peer_comunicator = Some(PeerComunicator::new(
             self.version,
             self.address,
-            &self.tcp_streams,
+            &self.initial_peers,
             &self.blockchain,
             &self.block_headers,
             &self.pending_tx,
@@ -178,7 +178,7 @@ impl Node {
 
     /// Actual receive_message wrapper. Encapsulates node's parameteres.
     fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError> {
-        let stream = &mut self.tcp_streams[stream_index];
+        let stream = &mut self.initial_peers[stream_index];
         receive_message(
             stream,
             &self.block_headers,
@@ -194,8 +194,8 @@ impl Node {
 impl Drop for Node {
     fn drop(&mut self) {
         // Finishing every thread gracefully.
-        if let Some(message_receiver) = self.message_receiver.take() {
-            if let Err(error) = message_receiver.end_of_communications() {
+        if let Some(peer_comunicator) = self.peer_comunicator.take() {
+            if let Err(error) = peer_comunicator.end_of_communications() {
                 self.logger.log_error(&error);
             }
         }

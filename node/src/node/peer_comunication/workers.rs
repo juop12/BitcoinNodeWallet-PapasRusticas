@@ -8,7 +8,7 @@ use std::{
 
 use block_downloader::block_downloader_thread_loop;
 use peer_comunicator::worker_manager_loop;
-use peer_comunicator::message_receiver_thread_loop;
+use peer_comunicator::peer_comunicator_worker_thread_loop;
 use peer_comunicator::new_peer_conector_thread_loop;
 use peer_comunicator::NEW_CONECTION_INTERVAL;
 
@@ -34,6 +34,7 @@ impl Stops {
 #[derive(Debug)]
 pub struct Worker {
     thread: thread::JoinHandle<Option<TcpStream>>,
+    message_bytes_sender: Option<mpsc::Sender<Vec<u8>>>,
     _id: usize,
 }
 
@@ -76,11 +77,11 @@ impl Worker {
             }
         });
 
-        Worker { _id: id, thread }
+        Worker {thread, message_bytes_sender: None, _id: id }
     }
-
-    /// Creates a worker for a MessageReceiver
-    pub fn new_message_receiver_worker(
+    
+    /// Creates a worker responsible for communicating with a peer
+    pub fn new_peer_comunicator_worker(
         mut stream: TcpStream,
         safe_block_headers: SafeVecHeader,
         safe_block_chain: SafeBlockChain,
@@ -92,16 +93,20 @@ impl Worker {
         if (stream.set_write_timeout(Some(PEER_TIMEOUT)).is_err()) || (stream.set_read_timeout(Some(PEER_TIMEOUT)).is_err()){
             logger.log(format!("Warning, could not set timeout for peer worker {}", id));
         }
-        
+
+        let (message_bytes_sender, message_bytes_receiver) = mpsc::channel();
+
         let thread = thread::spawn(move || loop {
             logger.log(format!("Sigo vivo: {}", id));
-            match message_receiver_thread_loop(
+            match peer_comunicator_worker_thread_loop(
                 &mut stream,
                 &safe_block_headers,
                 &safe_block_chain,
                 &safe_pending_tx,
+                &message_bytes_receiver,
                 &logger,
                 &finished,
+                id,
             ) {
                 Stops::GracefullStop => {
                     logger.log(Stops::GracefullStop.log_message(format!("Wroker {}", id)));
@@ -115,20 +120,28 @@ impl Worker {
             }
         });
 
-        Worker { thread, _id: id }
+        Worker {thread, message_bytes_sender: Some(message_bytes_sender), _id: id }
     }
 
     ///Joins the thread of the worker, returning an error if it was not possible to join it.
-    pub fn join_thread(self) -> Result<Option<TcpStream>, BlockDownloaderError> {
+    pub fn join_thread(self) -> Result<Option<TcpStream>, WorkerError> {
         match self.thread.join() {
             Ok(stream) => Ok(stream),
-            Err(_) => Err(BlockDownloaderError::ErrorWrokerPaniced),
+            Err(_) => Err(WorkerError::ErrorWorkerPaniced),
         }
     }
 
     /// Returns true if the thread has finished its execution.
     pub fn is_finished(&self) -> bool {
         self.thread.is_finished()
+    }
+
+    //sends the given bytes to the workers corresponding peer
+    pub fn send_message_bytes(&self, message_bytes: Vec<u8>)-> Result<(), PeerComunicatorError>{
+        match &self.message_bytes_sender{
+            Some(sender) => sender.send(message_bytes).map_err(|_| PeerComunicatorError::ErrorSendingMessage),
+            None => Err(PeerComunicatorError::ErrorSendingMessage),
+        }
     }
 }
 
@@ -139,7 +152,7 @@ pub struct NewPeerConnector{
 }
 
 impl NewPeerConnector{
-    /// Creates a worker for a MessageReceiver
+    /// Creates a worker responsible for receiving incoming connections from new peers
     pub fn new(
         node_version: i32,
         node_address: SocketAddr, 
@@ -175,6 +188,7 @@ impl NewPeerConnector{
         Ok(NewPeerConnector { thread, new_workers_receiver: receiver })
     }
 
+    ///Receives a new connection, if no new connection is received whithin the duration, then it times out
     pub fn recv_timeout(&self, timeout: Duration)->Result<TcpStream,RecvTimeoutError>{
         self.new_workers_receiver.recv_timeout(timeout)
     }
@@ -187,10 +201,12 @@ impl NewPeerConnector{
 
 #[derive(Debug)]
 pub struct PeerComunicatorWorkerManager{
-    thread: thread::JoinHandle<()>
+    thread: thread::JoinHandle<()>,
+    message_bytes_sender: mpsc::Sender<Vec<u8>>
 }
 
 impl PeerComunicatorWorkerManager{
+    /// Creates a worker responsible for managing all the other peer communicator workers
     pub fn new(new_peer_conector: Option<NewPeerConnector>,
         mut workers: Vec<Worker>,
         safe_blockchain: SafeBlockChain,
@@ -198,6 +214,9 @@ impl PeerComunicatorWorkerManager{
         safe_pending_tx: SafePendingTx,
         finished: Arc<Mutex<bool>>,
         logger: Logger)-> PeerComunicatorWorkerManager{
+        
+        let (message_bytes_sender,message_bytes_receiver) = mpsc::channel();
+
         let thread = thread::spawn(move || loop {
             match worker_manager_loop(
                 &new_peer_conector,
@@ -205,6 +224,7 @@ impl PeerComunicatorWorkerManager{
                 &safe_blockchain,
                 &safe_headers,
                 &safe_pending_tx,
+                &message_bytes_receiver,
                 &finished,
                 &logger) {
                 Stops::Continue => continue,
@@ -229,11 +249,18 @@ impl PeerComunicatorWorkerManager{
             }
             return;
         });
-        PeerComunicatorWorkerManager { thread }
+        PeerComunicatorWorkerManager { thread, message_bytes_sender }
     }
 
     ///Joins the thread of the worker, returning an error if it was not possible to join it.
     pub fn join_thread(self) -> Result<(), WorkerError> {
         self.thread.join().map_err(|_| WorkerError::ErrorWorkerPaniced)
-}
+    }
+
+    //Sends a message to all of the workers so they can then send them to their corresponding peers
+    pub fn send_message<T: Message>(&self, message: &T)-> Result<(), PeerComunicatorError>{
+        let mut message_bytes  = message.get_header_message().map_err(|_| PeerComunicatorError::ErrorSendingMessage)?.to_bytes();
+        message_bytes.extend(message.to_bytes());
+        self.message_bytes_sender.send(message_bytes).map_err(|_| PeerComunicatorError::ErrorSendingMessage)
+    }
 }
