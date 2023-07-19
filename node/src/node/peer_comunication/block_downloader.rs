@@ -85,15 +85,40 @@ pub fn block_downloader_thread_loop(
 pub struct BlockDownloader {
     workers: Vec<Worker>,
     sender: mpsc::Sender<Bundle>,
+    receiver: SafeReceiver,
+    missed_bundles_sender: mpsc::Sender<Bundle>,
+    missed_bundles_receiver: mpsc::Receiver<Bundle>,
     safe_headers: SafeVecHeader,
     safe_blockchain: SafeBlockChain,
-    missed_bundles_receiver: mpsc::Receiver<Bundle>,
+    downloading_headers_peer: Option<TcpStream>,
     logger: Logger,
 }
 
 impl BlockDownloader {
+    fn new(header_stream_index: usize,
+        safe_headers: &SafeVecHeader,
+        safe_blockchain: &SafeBlockChain,
+        logger: &Logger)->BlockDownloader{
+        let (sender, receiver) = mpsc::channel();
+        let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
+
+        let receiver = Arc::new(Mutex::new(receiver));
+        let mut workers = Vec::new();
+        
+        BlockDownloader {
+            workers,
+            sender,
+            receiver,
+            missed_bundles_sender,
+            missed_bundles_receiver,
+            safe_headers: safe_headers.clone(),
+            safe_blockchain: safe_blockchain.clone(),
+            downloading_headers_peer: None,
+            logger: logger.clone()}
+    }
+
     /// Creates a new thread pool with the specified size, it must be greater than zero.
-    pub fn new(
+    pub fn from(
         outbound_connections: &Vec<TcpStream>,
         header_stream_index: usize,
         safe_headers: &SafeVecHeader,
@@ -105,22 +130,11 @@ impl BlockDownloader {
             return Err(BlockDownloaderError::ErrorInvalidCreationSize);
         }
 
-        let (sender, receiver) = mpsc::channel();
-        let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
-
-        let receiver = Arc::new(Mutex::new(receiver));
-        let mut workers = Vec::new();
-
+        let mut id = 0;
+        let mut block_downloader = Self::new(header_stream_index, safe_headers, safe_blockchain, logger);
+        
         //No tomamos el tcp stream que se esta usando para descargar headers, porque se usa para descargar headers.
-        for (id, stream) in outbound_connections
-            .iter()
-            .enumerate()
-            .take(connections_amount)
-        {
-            if id == header_stream_index {
-                continue;
-            }
-
+        for stream in outbound_connections{
             let current_stream = match stream.try_clone() {
                 Ok(stream) => stream,
                 Err(_) => {
@@ -128,28 +142,32 @@ impl BlockDownloader {
                     continue;
                 }
             };
+            
+            if id == header_stream_index {
+                block_downloader.downloading_headers_peer = Some(current_stream);
+                continue;
+            }
 
-            let worker = Worker::new_block_downloader_worker(
-                id,
-                receiver.clone(),
-                current_stream,
-                safe_headers.clone(),
-                safe_blockchain.clone(),
-                missed_bundles_sender.clone(),
-                logger.clone(),
-            );
+            block_downloader.add_worker(current_stream, id);
 
-            workers.push(worker);
+            id+=1;
         }
 
-        Ok(BlockDownloader {
-            workers,
-            sender,
-            safe_headers: safe_headers.clone(),
-            safe_blockchain: safe_blockchain.clone(),
-            missed_bundles_receiver,
-            logger: logger.clone(),
-        })
+        Ok(block_downloader)
+    }
+
+    fn add_worker(&mut self, stream: TcpStream, id: usize){
+        let worker = Worker::new_block_downloader_worker(
+            id,
+            self.receiver.clone(),
+            stream,
+            self.safe_headers.clone(),
+            self.safe_blockchain.clone(),
+            self.missed_bundles_sender.clone(),
+            self.logger.clone(),
+        );
+
+        self.workers.push(worker);
     }
 
     /// Receives a function or closure that receives no parameters and executes them in a diferent thread using workers.x
@@ -167,6 +185,31 @@ impl BlockDownloader {
     /// Writes an empty vector to the channel of the workers, so they can finish their execution. It works as
     /// a way to stop the threads execution. On error, it returns BlockDownloaderError.
     pub fn finish_downloading(&mut self) -> Result<(), BlockDownloaderError> {
+        if let Some(header_peer_stream) = self.downloading_headers_peer.take(){
+            self.add_worker(header_peer_stream, self.workers.len());
+        }
+
+        let working_peer_conection = self.join_workers()?;
+
+        let mut stream = match working_peer_conection {
+            Some(stream) => stream,
+            None => return Err(BlockDownloaderError::ErrorAllWorkersFailed),
+        };
+
+        while let Ok(bundle) = self.missed_bundles_receiver.try_recv() {
+            get_blocks_from_bundle(
+                bundle,
+                &mut stream,
+                &self.safe_headers,
+                &self.safe_blockchain,
+                &self.logger,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn join_workers(&mut self)->Result<Option<TcpStream>,BlockDownloaderError>{
         let cantidad_workers = self.workers.len();
         let mut working_peer_conection = None;
         for _ in 0..cantidad_workers {
@@ -196,23 +239,7 @@ impl BlockDownloader {
                 }
             }
         }
-
-        let mut stream = match working_peer_conection {
-            Some(stream) => stream,
-            None => return Err(BlockDownloaderError::ErrorAllWorkersFailed),
-        };
-
-        while let Ok(bundle) = self.missed_bundles_receiver.try_recv() {
-            get_blocks_from_bundle(
-                bundle,
-                &mut stream,
-                &self.safe_headers,
-                &self.safe_blockchain,
-                &self.logger,
-            )?;
-        }
-
-        Ok(())
+        Ok(working_peer_conection)
     }
 }
 
