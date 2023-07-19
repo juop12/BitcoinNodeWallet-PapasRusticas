@@ -15,8 +15,8 @@ const SENDER_ERROR: &str = "Error sending message to Node/Wallet thread";
 
 /// Connects the buttons that allow the user to switch between blocks
 pub fn connect_block_switcher_buttons(builder: &Builder, sender: &Sender<UIRequest>) {
-    let next_button: Button = builder.object("Next Block Button").unwrap();
-    let previous_button: Button = builder.object("Previous Block Button").unwrap();
+    let next_button: Button = builder.object("Next Block Button").expect("Couldn't find Next Block Button");
+    let previous_button: Button = builder.object("Previous Block Button").expect("Couldn't find Previous Block Button");
     let sender_clone = sender.clone();
     let sender_clone_2 = sender.clone();
     next_button.connect_clicked(move |_| {
@@ -50,12 +50,12 @@ pub fn modify_block_header(
     tx_hashes: &Vec<[u8; 32]>,
     header: &BlockHeader,
 ) {
-    let header_hash_label: Label = builder.object("Header Hash").unwrap();
-    let prev_header_hash_label: Label = builder.object("Previous Header Hash").unwrap();
-    let merkle_root_label: Label = builder.object("Merkle Root").unwrap();
-    let date_label: Label = builder.object("Date").unwrap();
-    let tx_count_label: Label = builder.object("Transaction Count").unwrap();
-    let header_label: Label = builder.object("Block Header Frame Label").unwrap();
+    let header_hash_label: Label = builder.object("Header Hash").expect("Couldn't find Header Hash Label");
+    let prev_header_hash_label: Label = builder.object("Previous Header Hash").expect("Couldn't find Previous Header Hash Label");
+    let merkle_root_label: Label = builder.object("Merkle Root").expect("Couldn't find Merkle Root Label");
+    let date_label: Label = builder.object("Date").expect("Couldn't find Date Label");
+    let tx_count_label: Label = builder.object("Transaction Count").expect("Couldn't find Transaction Count Label");
+    let header_label: Label = builder.object("Block Header Frame Label").expect("Couldn't find Block Header Frame Label");
 
     let header_hash_str = get_string_representation_from_bytes(&mut header.hash().to_vec());
     let prev_header_hash_str = get_string_representation_from_bytes(&mut header.prev_hash.to_vec());
@@ -76,11 +76,11 @@ pub fn modify_block_header(
 /// checking if the user has selected a transaction and converting the hash
 /// to a byte array.
 pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIRequest>) {
-    let merkle_button: Button = builder.object("Merkle Proof Button").unwrap();
-    let tree_selection: TreeSelection = builder.object("Tx Tree Selection").unwrap();
-    let tree_store: TreeStore = builder.object("Tx Tree Store").unwrap();
+    let merkle_button: Button = builder.object("Merkle Proof Button").expect("Couldn't find Merkle Proof Button");
+    let tree_selection: TreeSelection = builder.object("Tx Tree Selection").expect("Couldn't find Tx Tree Selection");
+    let tree_store: TreeStore = builder.object("Tx Tree Store").expect("Couldn't find Tx Tree Store");
 
-    let block_number_label: Label = builder.object("Block Header Frame Label").unwrap();
+    let block_number_label: Label = builder.object("Block Header Frame Label").expect("Couldn't find Block Header Frame Label");
 
     let sender_clone = sender.clone();
     merkle_button.connect_clicked(move |_| {
@@ -111,8 +111,8 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
 
 /// Handles the result of the merkle proof request, showing a dialog with the result.
 pub fn handle_result_of_tx_proof(builder: &Builder, result: bool) {
-    let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
-    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
+    let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").expect("Couldn't find Merkle Success Dialog");
+    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").expect("Couldn't find Merkle Failure Dialog");
     activate_buttons(builder);
 
     if result {
@@ -129,10 +129,10 @@ pub fn handle_result_of_tx_proof(builder: &Builder, result: bool) {
 /// Connects the buttons of the merkle proof result dialogs to the function that
 /// will hide them.
 fn activate_buttons(builder: &Builder) {
-    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
-    let failure_dialog_button: Button = builder.object("Merkle Failure Button").unwrap();
-    let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
-    let success_dialog_button: Button = builder.object("Merkle Success Button").unwrap();
+    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").expect("Couldn't find Merkle Failure Dialog");
+    let failure_dialog_button: Button = builder.object("Merkle Failure Button").expect("Couldn't find Merkle Failure Button");
+    let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").expect("Couldn't find Merkle Success Dialog");
+    let success_dialog_button: Button = builder.object("Merkle Success Button").expect("Couldn't find Merkle Success Button");
 
     success_dialog_button.connect_clicked(move |_| {
         merkle_success_dialog.hide();

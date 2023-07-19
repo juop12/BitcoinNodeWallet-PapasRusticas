@@ -23,7 +23,7 @@ const SATOSHI_TO_BTC: f64 = 100000000.0;
 /// Receives a BlockInfo and it updates the UI with the information of the block
 /// and the transactions in it
 pub fn handle_block_info(block_info: &BlockInfo, builder: &Builder) {
-    let tx_tree_store: TreeStore = builder.object("Tx Tree Store").unwrap();
+    let tx_tree_store: TreeStore = builder.object("Tx Tree Store").expect("Tx Tree Store not found");
     tx_tree_store.clear();
 
     let block_number = block_info.block_number;
@@ -42,7 +42,7 @@ pub fn handle_block_info(block_info: &BlockInfo, builder: &Builder) {
 
 ///receives the hashes of the transactions in the block and it adds them to the UI
 fn add_transaction_hashes(builder: &Builder, transaction_hashes: &Vec<String>) {
-    let tx_tree_store: TreeStore = builder.object("Tx Tree Store").unwrap();
+    let tx_tree_store: TreeStore = builder.object("Tx Tree Store").expect("Tx Tree Store not found");
     let mut i: i32 = 1;
     for transaction_hash in transaction_hashes {
         add_row(&tx_tree_store, transaction_hash, i);
@@ -60,8 +60,8 @@ fn clean_list_box(list_box: &ListBox) {
 /// Receives a WalletInfo and it updates the UI with the information of the wallet
 /// such as balance, utxos and pending transactions
 pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder) {
-    let utxo_list: ListBox = builder.object("Wallet UTxO List").unwrap();
-    let pending_tx_list: ListBox = builder.object("Pending Transactions List").unwrap();
+    let utxo_list: ListBox = builder.object("Wallet UTxO List").expect("UTxO List not found");
+    let pending_tx_list: ListBox = builder.object("Pending Transactions List").expect("Pending Transactions List not found");
     clean_list_box(&utxo_list);
     clean_list_box(&pending_tx_list);
     let available_balance: f64 = wallet_info.available_balance as f64 / SATOSHI_TO_BTC;
@@ -106,11 +106,12 @@ pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<boo
 
 /// Shows the success message of a transaction well sent
 pub fn handle_tx_sent(builder: &Builder) {
-    let tx_sent_dialog: Dialog = builder.object("Succesful Send Dialog").unwrap();
+    let tx_sent_dialog: Dialog = builder.object("Succesful Send Dialog").expect("Succesful Send Dialog not found");
     tx_sent_dialog.set_title("Transaction Sending Success");
     tx_sent_dialog.run();
 }
 
+/// E
 pub fn handle_app_finished(app: &Application, running: Arc<Mutex<bool>>) {
     if let Ok(mut program_running) = running.lock() {
         *program_running = false;

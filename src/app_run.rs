@@ -83,7 +83,7 @@ fn run_app(
 
 /// Closes the initial loading window when the node finishes initializing
 fn close_loading_window(builder: &Builder) {
-    let window: Window = builder.object("Loading Screen Window").unwrap();
+    let window: Window = builder.object("Loading Screen Window").expect("Failed to find main window");
     window.close();
 }
 
@@ -102,7 +102,7 @@ fn start_window(
     }
     initialize_elements(builder, sender);
     close_loading_window(builder);
-    let window: Window = builder.object("Ventana").unwrap();
+    let window: Window = builder.object("Ventana").expect("Failed to find main window");
     window.set_application(Some(app));
     send_ui_update_request(sender, running);
     window.show_all();
