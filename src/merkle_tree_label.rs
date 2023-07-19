@@ -1,64 +1,51 @@
 use node::blocks::proof::{HashPair, hash_pairs_for_merkle_tree};
-use gtk::Label;
 
+/// Constants representing left and right branches in the diagram, and the reporesentation of the merkle root
 static LEFT_BRANCH: &str = " /";
 const RIGHT_BRANCH: &str = "\\ ";
+const MERKLE_ROOT_REPRESENTATION: &str = "MR";
 
-fn build_matrix(hash_pairs: &Vec<HashPair>) -> Vec<Vec<String>>{
-    let height = 2 * (hash_pairs.len()) + 1;
-    let wide = 2 * (hash_pairs.len()) + 4;
-    let mut column: Vec<String> = Vec::with_capacity(wide);
-    for _ in 0..wide {
-        column.push("  ".to_string());
-    }
-    let mut matrix: Vec<Vec<String>> = Vec::with_capacity(height);
-    for _ in 0..height {
-        matrix.push(column.clone());
-    }
-    matrix
+/// This function initializes and returns an empty matrix of strings
+fn build_matrix(height: usize, width: usize) -> Vec<Vec<String>> {
+    let empty = "  ".to_string();
+    vec![vec![empty; width]; height]
 }
 
-pub fn funcion_re_fachera(hash_pairs: &mut Vec<HashPair>) -> String {
+/// This function generates a Merkle proof of inclusion in text format
+pub fn draw_merkle_proof_of_inclusion_tree(hash_pairs: &mut Vec<HashPair>) -> String {
     hash_pairs.reverse();
-    let mut matrix = build_matrix(hash_pairs);
-    let left_hash_pos = hash_pairs.len() + 2;
-    let right_hash_pos = hash_pairs.len() + 4;
-    let mut hashes_positions = vec![left_hash_pos, right_hash_pos];
-    matrix[0][hash_pairs.len() + 2] = String::from("MR");
-    let merkle_root = hash_pairs_for_merkle_tree(hash_pairs[0].left, hash_pairs[0].right);
-    let mut left_hash: [u8; 32] = merkle_root;
-    let mut right_hash: [u8; 32] = merkle_root;
-    let mut current_row = 1;
-    let mut current_pair = 1;
-    for pair in hash_pairs {
-        let left_hash_str = format!("{:?}L", current_pair);
-        let right_hash_str = format!("{:?}R", current_pair);
-        let hashed_pair = hash_pairs_for_merkle_tree(pair.left, pair.right);
-        println!("Hashed pair: {:?}\n", hashed_pair);
-        println!("left pair: {:?}\n", left_hash);
-        println!("right pair: {:?}\n", right_hash);
-        if hashed_pair == left_hash {
-            hashes_positions[0] = hashes_positions[0] - 1;
-            hashes_positions[1] = hashes_positions[1] - 1;
-        } else {
-            hashes_positions[0] = hashes_positions[0] + 1;
-            hashes_positions[1] = hashes_positions[1] + 1;
-        }
-        matrix[current_row][hashes_positions[0]] = LEFT_BRANCH.to_string();
-        matrix[current_row][hashes_positions[1]] = RIGHT_BRANCH.to_string();
-        current_row += 1;
-        matrix[current_row][hashes_positions[0]] = left_hash_str;
-        matrix[current_row][hashes_positions[1]] = right_hash_str;
-        left_hash = pair.left;
-        right_hash = pair.right;
-        current_row += 1;
-        current_pair += 1;
-    }
-    let rows_concatenated: Vec<String> = matrix.iter()
-    .map(|row| row.join(""))
-    .collect();
 
-    // Unir las filas con el carácter de nueva línea
-    let result: String = rows_concatenated.join("\n");  
-    result
-}
+    let height = hash_pairs.len() * 2 + 1;
+    let width = hash_pairs.len() * 2 + 4;
+    let mut matrix = build_matrix(height, width);
+    
+    let mut hashes_positions: Vec<i32> = vec![
+        (hash_pairs.len() + 2) as i32,
+        (hash_pairs.len() + 4) as i32
+    ];
+    
+    matrix[0][(hash_pairs.len() + 2) as usize] = String::from(MERKLE_ROOT_REPRESENTATION);
+    let mut left_hash = hash_pairs_for_merkle_tree(hash_pairs[0].left, hash_pairs[0].right);
+
+    for (i, pair) in hash_pairs.iter().enumerate() {
+        let left_hash_str = format!("{:?}L", i+1);
+        let right_hash_str = format!("{:?}R", i+1);
+        let hashed_pair = hash_pairs_for_merkle_tree(pair.left, pair.right);
+        
+        let shift_direction: i32 = if hashed_pair == left_hash { -1 } else { 1 };
+        hashes_positions = hashes_positions.iter().map(|&x| x + shift_direction).collect();
+        
+        let current_row = i * 2 + 1; // Calculate the current row index based on the current pair index
+
+        matrix[current_row][(hashes_positions[0] as usize)] = LEFT_BRANCH.to_string();
+        matrix[current_row][(hashes_positions[1] as usize)] = RIGHT_BRANCH.to_string();
+        
+        matrix[current_row+1][(hashes_positions[0] as usize)] = left_hash_str;
+        matrix[current_row+1][(hashes_positions[1] as usize)] = right_hash_str;
+        
+        left_hash = pair.left;
+    }
+
+    // Join all the rows with spaces, then join all of those strings together with line breaks
+    matrix.iter().map(|row| row.join(" ")).collect::<Vec<String>>().join("\n")  
+}  

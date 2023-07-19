@@ -7,7 +7,7 @@ use node::blocks::proof::{HashPair, hash_pairs_for_merkle_tree};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
-use crate::merkle_tree_label::funcion_re_fachera;
+use crate::merkle_tree_label::*;
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
 const INDEX_COLUMN: u32 = 0;
@@ -135,7 +135,7 @@ fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>) {
         level -= 1;
     }
     let merkle_tree_label : Label = builder.object("Merkle Tree Label").unwrap();
-    let merkle_tree_text = funcion_re_fachera(&mut path);
+    let merkle_tree_text = draw_merkle_proof_of_inclusion_tree(&mut path);
     merkle_tree_label.set_label(merkle_tree_text.as_str());
    
 }
