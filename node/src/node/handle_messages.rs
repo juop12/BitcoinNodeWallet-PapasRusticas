@@ -162,6 +162,12 @@ pub fn handle_tx_message(
     Ok(())
 }
 
+/// Handles the get_headers_message answearing with a Header message cointaining the headers starting from the
+/// latest block in the blockchain that is shared between the local blockchain and the get_headers_message, and 
+/// stopping when either of the following conditions is met:
+/// -The stopping_hash is found
+/// -The end of the blockchain is reached
+/// -The len of the vector reaches MAX_QUANTITY_FOR_GET_HEADERS 
 pub fn handle_get_headers_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, safe_headers_index: &SafeHeaderIndex, logger: &Logger) -> Result<(), NodeError> {
     let get_headers_msg = match GetBlockHeadersMessage::from_bytes(&msg_bytes) {
         Ok(get_headers_msg) => get_headers_msg,
@@ -190,6 +196,10 @@ pub fn handle_get_headers_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, sa
     Ok(())
 }
 
+/// Returns a vector of Header, filling it from starting_header_position, until either of the following conditions is met
+/// -The stopping_hash is found
+/// -The end of the blockchain is reached
+/// -The len of the vector reaches MAX_QUANTITY_FOR_GET_HEADERS 
 fn get_headers_to_send(safe_headers: &SafeVecHeader, starting_header_position: usize, stopping_hash: &[u8;32]) -> Result<Vec<BlockHeader>, NodeError>  {
     let mut headers_to_send: Vec<BlockHeader> = Vec::new();
     
@@ -210,6 +220,7 @@ fn get_headers_to_send(safe_headers: &SafeVecHeader, starting_header_position: u
     Ok(headers_to_send)
 }
 
+/// Gets the latest block in the blockchain that is shared between the local blockchain and the get_headers_message
 fn get_starting_header_position(get_headers_msg: &GetBlockHeadersMessage, safe_headers_index: &SafeHeaderIndex) -> Result<Option<usize>, NodeError>{
     match safe_headers_index.lock() {
         Ok(header_index) => {
@@ -227,6 +238,8 @@ fn get_starting_header_position(get_headers_msg: &GetBlockHeadersMessage, safe_h
     }
 }
 
+/// Handles get data message. If it receives block hashes it looks for them in the block chain and responds 
+/// with Block messages, each block hash not found in the blocks is then returned through a NotFoundMessage 
 pub fn handle_get_data(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockchain: &SafeBlockChain) -> Result<(), NodeError>{
     let get_data_msg = match GetDataMessage::from_bytes(&msg_bytes) {
         Ok(get_data_msg) => get_data_msg,
@@ -236,25 +249,31 @@ pub fn handle_get_data(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockcha
     let hashes = get_data_msg.get_block_hashes();
 
     let mut block_messages = Vec::new();
-    
+    let mut not_found_blocks = Vec::new();
     match safe_blockchain.lock(){
         Ok(blockchain) => {
             for hash in hashes{
                 match blockchain.get(&hash){
                     Some(block) => block_messages.push(BlockMessage::from(block).map_err(|_| NodeError::ErrorReceivingGetData)?),
-                    None => todo!() //mandar notfound,
+                    None => {
+                        not_found_blocks.push(hash);
+                    }
                 };
             }
         },
         Err(_) => return Err(NodeError::ErrorSharingReference),
     }
-
+    
     for message in block_messages{
         message.send_to(stream).map_err(|_| NodeError::ErrorSendingBlockMessage)?;
     }
     
+    if !not_found_blocks.is_empty(){
+        NotFoundMessage::from_block_hashes(not_found_blocks).send_to(stream).map_err(|_| NodeError::ErrorSendingBlockMessage)?;
+    }
     Ok(())
 }
+
 /// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
 /// Returns an error if it was not possible to send the message.
 fn send_get_data_message_for_transactions(

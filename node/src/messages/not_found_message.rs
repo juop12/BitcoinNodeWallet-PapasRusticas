@@ -29,3 +29,9 @@ impl Message for NotFoundMessage {
         HeaderMessage::new("notfound\0\0\0\0", &self.to_bytes())
     }
 }
+
+impl NotFoundMessage{
+    pub fn from_block_hashes(hashes: Vec<[u8;32]>)-> NotFoundMessage{
+        NotFoundMessage{ inv: InvMessage::create_message_inventory_block_type(hashes) }
+    }
+}
