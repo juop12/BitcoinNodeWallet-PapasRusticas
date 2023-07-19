@@ -7,6 +7,7 @@ use node::blocks::proof::{HashPair, hash_pairs_for_merkle_tree};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
+use crate::merkle_tree_label::funcion_re_fachera;
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
 const INDEX_COLUMN: u32 = 0;
@@ -113,11 +114,11 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
     });
 }
 
-fn add_merkle_path_rows(builder: &Builder, path: Vec<HashPair>) {
+fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>) {
     let merkle_path_tree_store: TreeStore = builder.object("Merkle Path Store").unwrap();
     let mut level = path.len();
     
-    for hash_pair in path{
+    for hash_pair in &path{
         let concat_hashes = hash_pairs_for_merkle_tree(hash_pair.left, hash_pair.right);
         let concat_hashes_str = get_string_representation_from_bytes(&mut concat_hashes.to_vec());
         let left_hash = format!("Left: {}\n", get_string_representation_from_bytes(&mut hash_pair.left.to_vec()));
@@ -133,6 +134,9 @@ fn add_merkle_path_rows(builder: &Builder, path: Vec<HashPair>) {
         merkle_path_tree_store.set_value(&tree_iter, RESULTING_HASH_COLUMN, &glib::Value::from(concat_hashes_str));
         level -= 1;
     }
+    let merkle_tree_label : Label = builder.object("Merkle Tree Label").unwrap();
+    let merkle_tree_text = funcion_re_fachera(&mut path);
+    merkle_tree_label.set_label(merkle_tree_text.as_str());
    
 }
 

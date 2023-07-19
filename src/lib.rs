@@ -9,6 +9,7 @@ pub mod wallet_overview;
 pub mod wallet_persistance;
 pub mod wallet_send;
 pub mod wallet_transactions;
+pub mod merkle_tree_label;
 
 pub use error_handling::*;
 pub use hex_bytes_to_string::*;
@@ -21,3 +22,4 @@ pub use wallet_overview::*;
 pub use wallet_persistance::*;
 pub use wallet_send::*;
 pub use wallet_transactions::*;
+pub use merkle_tree_label::*;
