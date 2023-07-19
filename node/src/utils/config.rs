@@ -12,7 +12,6 @@ const PARAMETER_AMOUNT: usize = 9;
 #[derive(Debug)]
 pub struct Config {
     pub version: i32,
-    pub dns_port: u16,
     pub local_host: [u8; 4],
     pub local_port: u16,
     pub log_path: String,
@@ -20,17 +19,19 @@ pub struct Config {
     pub headers_path: String,
     pub blocks_path: String,
     pub ipv6_enabled: bool,
+    pub dns: Vec<(String, u16)>,
+    pub ips: Vec<([u8; 4], u16)>,
 }
 
 impl Config {
     /// It validates the parameters sent as a String array to see if they can be used for a node's configuration.
     /// On error returns ErrorMismatchedQuantityOfParameters or ErrorMismatchedParameters depending on the circumstances.
-    fn _validate_parameters(config_fields: &Vec<String>) -> Result<(), ConfigError> {
+    fn _validate_parameters(config_fields: &Vec<(String, String)>) -> Result<(), ConfigError> {
         if config_fields.len() != PARAMETER_AMOUNT {
             return Err(ConfigError::ErrorMismatchedQuantityOfParameters);
         }
 
-        let begin_time: u32 = match parse_date(&config_fields[5]) {
+        let begin_time: u32 = match parse_date(&config_fields[5].1) {
             Some(time) => time,
             None => return Err(ConfigError::ErrorParsingDate),
         };
@@ -43,19 +44,32 @@ impl Config {
     }
 
     /// It receives the fields for the configuration and returns a config with those values. In case of error returns None.
-    fn _initialize(config_fields: &Vec<String>) -> Option<Config> {
-        let mut local_host: [u8; 4] = [0; 4];
-        let splitter = (*config_fields)[2].split(',');
+    fn _initialize(config_fields: &Vec<(String, String)>) -> Option<Config> {
+        let local_host = parse_ip_address((*config_fields)[2].1).ok()?;
 
-        for (i, number) in (0_usize..).zip(splitter) {
-            local_host[i] = number.parse::<u8>().ok()?;
+        let begin_time = parse_date(&config_fields[5].
+        1)?;
+
+        let dns = Vec::new();
+        let ips = Vec::new();
+
+        for (field, data) in config_fields.iter().skip(8){
+            
+            let splitted_data: Vec<&str> = field.split(',').collect();
+            let port = config_fields[1].parse::<u16>().ok()?;
+
+            match field{
+                "dns" => dns.push((splitted_line[0].to_string(), port)),
+                "ip" => {
+                    let ip_address = parse_ip_address(splitted_line[0]).ok()?;
+                    dns.push((ip_address, port));
+                },
+                _ => return None,
+            }
         }
-
-        let begin_time = parse_date(&config_fields[5])?;
 
         Some(Config {
             version: config_fields[0].parse::<i32>().ok()?,
-            dns_port: config_fields[1].parse::<u16>().ok()?,
             local_host,
             local_port: config_fields[3].parse::<u16>().ok()?,
             log_path: config_fields[4].to_string(),
@@ -63,12 +77,25 @@ impl Config {
             headers_path: config_fields[6].to_string(),
             blocks_path: config_fields[7].to_string(),
             ipv6_enabled: config_fields[8].parse::<bool>().ok()?,
+            dns,
+            ips,
         })
+    }
+
+    fn parse_ip_address(str_address: &String) -> Option<[u8; 4]>{
+        let mut local_host: [u8; 4] = [0; 4];
+        let splitter = str_address.split(',');
+
+        for (i, number) in (0_usize..).zip(splitter) {
+            local_host[i] = number.parse::<u8>().ok()?;
+        }
+
+        Some(local_host)
     }
 
     /// It receives the fields for the configuration, validates them and returns a Config if they were valid.
     /// On Error returns ErrorMismatchedQuantityOfParameters, ErrorMismatchedParameters or ErrorFillingAttributes depending on the circumstances.
-    fn _from(config_fields: Vec<String>) -> Result<Config, ConfigError> {
+    fn _from(config_fields: Vec<(String, String)>) -> Result<Config, ConfigError> {
         Config::_validate_parameters(&config_fields)?;
 
         match Config::_initialize(&config_fields) {
@@ -94,7 +121,7 @@ impl Config {
             match line {
                 Ok(field) => {
                     let splitted_line: Vec<&str> = field.split('=').collect();
-                    config_fields.push(splitted_line[1].to_string());
+                    config_fields.push((splitted_line[0].to_string(), splitted_line[1].to_string()));
                 }
                 Err(_) => return Err(ConfigError::ErrorReadingFile),
             }
