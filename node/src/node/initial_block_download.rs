@@ -5,7 +5,7 @@ use std::thread;
 use glib::{Sender, Receiver};
 use crate::utils::ui_communication_protocol::UIResponse;
 
-const HASHEDGENESISBLOCK: [u8; 32] = [
+pub const HASHEDGENESISBLOCK: [u8; 32] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68, 0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
     0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1, 0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
 ];
@@ -175,11 +175,6 @@ impl Node {
         {
             return Err(NodeError::ErrorDownloadingBlockBundle);
         }
-        // if thread_join.join().is_err() {
-        //     self.logger.log(format!(
-        //         "Error joining thread that sends IBD information to UI",
-        //     ));
-        // }
         Ok(thread_join)
     }
 
@@ -216,7 +211,9 @@ impl Node {
                 .get_blockchain()?
                 .insert(block.get_header().hash(), block);
         }
-        self.get_block_headers()?.extend(headers);
+
+        insert_new_headers(headers, &self.block_headers, &self.headers_index)?;
+
         Ok(())
     }
 

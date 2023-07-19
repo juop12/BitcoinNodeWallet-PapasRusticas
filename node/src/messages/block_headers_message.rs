@@ -45,8 +45,8 @@ impl Message for BlockHeadersMessage {
 
 impl BlockHeadersMessage {
     /// Creates a new BlockHeadersMessage.
-    pub fn new(headers: Vec<BlockHeader>, count: VarLenInt) -> BlockHeadersMessage {
-        BlockHeadersMessage { count, headers }
+    pub fn new(headers: Vec<BlockHeader>) -> BlockHeadersMessage {
+        BlockHeadersMessage { count: VarLenInt::new(headers.len()), headers }
     }
 
     /// Creates a new BlockHeadersMessage from a slice of bytes.
@@ -66,7 +66,7 @@ impl BlockHeadersMessage {
             headers.push(bloc_header);
             i += 81;
         }
-        Some(BlockHeadersMessage::new(headers, count))
+        Some(BlockHeadersMessage::new(headers))
     }
 }
 
@@ -115,8 +115,7 @@ mod tests {
         block_headers.push(b_h1);
         block_headers.push(b_h2);
 
-        let count = VarLenInt::from_bytes(&expected_bytes).unwrap();
-        let block_headers_message = BlockHeadersMessage::new(block_headers, count);
+        let block_headers_message = BlockHeadersMessage::new(block_headers);
 
         assert_eq!(block_headers_message.to_bytes(), expected_bytes);
         Ok(())
@@ -129,8 +128,7 @@ mod tests {
         block_headers.push(b_h1);
         block_headers.push(b_h2);
 
-        let count = VarLenInt::from_bytes(&expected_bytes).unwrap();
-        let expected_block_headers_message = BlockHeadersMessage::new(block_headers, count);
+        let expected_block_headers_message = BlockHeadersMessage::new(block_headers);
 
         let block_headers_message = BlockHeadersMessage::from_bytes(&mut expected_bytes)?;
         assert_eq!(block_headers_message, expected_block_headers_message);

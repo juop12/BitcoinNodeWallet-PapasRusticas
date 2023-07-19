@@ -23,7 +23,7 @@ mod test {
         };
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::new(config, sx)?;
-        assert!(node.tcp_streams.len() > 1);
+        assert!(node.initial_peers.len() > 1);
         Ok(())
     }
 
@@ -51,6 +51,41 @@ mod test {
             Err(err) => Err(err),
         }
     }
+
+    // #[test]
+    // fn integration_test_3() -> Result<(), NodeError> {
+    //     let config = Config {
+    //         version: 70015,
+    //         dns_port: 18333,
+    //         local_host: [127, 0, 0, 1],
+    //         local_port: 1001,
+    //         log_path: String::from("tests_txt/integration_test_3_log.txt"),
+    //         begin_time: BEGIN_TIME_EPOCH,
+    //         headers_path: String::from("tests_txt/headers.bin"),
+    //         blocks_path: String::from("tests_txt/blocks.bin"),
+    //         ipv6_enabled: false,
+    //     };
+
+    //     let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
+    //     let mut node = Node::new(config, sx)?;
+
+    //     node.initial_block_download()?;
+
+    //     let block_headers = node.get_block_headers()?;
+    //     let header_index_hash = node.get_header_index_hash()?;
+
+    //     let mut i = 0;
+        
+    //     for header in block_headers.iter(){
+    //         let key = header.hash();
+    //         let index = header_index_hash.get(&key).unwrap();
+    //         assert_eq!(*index, i);
+            
+    //         i += 1;
+    //     }
+
+    //     Ok(())
+    // }
 
     #[test]
     fn test3_set_wallet() {
