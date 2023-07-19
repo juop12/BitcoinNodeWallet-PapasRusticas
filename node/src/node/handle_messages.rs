@@ -227,6 +227,34 @@ fn get_starting_header_position(get_headers_msg: &GetBlockHeadersMessage, safe_h
     }
 }
 
+pub fn handle_get_data(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockchain: &SafeBlockChain) -> Result<(), NodeError>{
+    let get_data_msg = match GetDataMessage::from_bytes(&msg_bytes) {
+        Ok(get_data_msg) => get_data_msg,
+        Err(_) => return Err(NodeError::ErrorReceivingGetData),
+    };
+
+    let hashes = get_data_msg.get_block_hashes();
+
+    let mut block_messages = Vec::new();
+    
+    match safe_blockchain.lock(){
+        Ok(blockchain) => {
+            for hash in hashes{
+                match blockchain.get(&hash){
+                    Some(block) => block_messages.push(BlockMessage::from(block).map_err(|_| NodeError::ErrorReceivingGetData)?),
+                    None => todo!() //mandar notfound,
+                };
+            }
+        },
+        Err(_) => return Err(NodeError::ErrorSharingReference),
+    }
+
+    for message in block_messages{
+        message.send_to(stream).map_err(|_| NodeError::ErrorSendingBlockMessage)?;
+    }
+    
+    Ok(())
+}
 /// Sends a getdata message to the stream, requesting the blocks with the specified hashes.
 /// Returns an error if it was not possible to send the message.
 fn send_get_data_message_for_transactions(

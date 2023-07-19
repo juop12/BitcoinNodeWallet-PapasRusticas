@@ -45,4 +45,8 @@ impl GetDataMessage {
             inv: InvMessage::create_message_inventory_transaction_type(inventory_entries),
         }
     }
+
+    pub fn get_block_hashes(&self) -> Vec<[u8; 32]>{
+        self.inv.get_block_hashes()
+    }
 }

@@ -145,6 +145,7 @@ pub enum NodeError {
     ErrorReceivingTx,
     ErrorReceivingGetHeaders,
     ErrorReceivingGetData,
+    ErrorSendingBlockMessage,
 }
 
 impl BtcError for NodeError {}

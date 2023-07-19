@@ -109,7 +109,7 @@ impl BlockDownloader {
         let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
 
         let receiver = Arc::new(Mutex::new(receiver));
-        let mut workers = Vec::with_capacity(connections_amount);
+        let mut workers = Vec::new();
 
         //No tomamos el tcp stream que se esta usando para descargar headers, porque se usa para descargar headers.
         for (id, stream) in outbound_connections

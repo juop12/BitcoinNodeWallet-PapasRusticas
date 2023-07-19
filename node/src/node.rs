@@ -305,6 +305,9 @@ pub fn receive_message(
         "getheaders\0\0" => if !ibd{
                 handle_get_headers_message(stream, msg_bytes, block_headers, headers_index, logger)?;
             },
+        "getdata\0\0\0\0\0" => if !ibd{
+                handle_get_data(stream, msg_bytes, blockchain)?;
+            },
         "tx\0\0\0\0\0\0\0\0\0\0" => handle_tx_message(msg_bytes, pending_tx)?,
         _ => {}
     };

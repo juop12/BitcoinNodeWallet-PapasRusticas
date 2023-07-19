@@ -30,6 +30,12 @@ impl Message for BlockMessage {
     }
 }
 
+impl BlockMessage{
+    pub fn from(block: &Block) -> Result<BlockMessage, MessageError> {
+        BlockMessage::from_bytes(&block.to_bytes())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
