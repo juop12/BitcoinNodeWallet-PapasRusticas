@@ -16,7 +16,7 @@ const SENDER_ERROR: &str = "Error sending message to Node/Wallet thread";
 
 const LEVEL_COLUMN: u32 = 0;
 const HASH_PAIR_COLUMN: u32 = 1;
-const RESULTING_HASH_COLUMN: u32 = 2;
+//const RESULTING_HASH_COLUMN: u32 = 2;
 
 /// Connects the buttons that allow the user to switch between blocks
 pub fn connect_block_switcher_buttons(builder: &Builder, sender: &Sender<UIRequest>) {
@@ -114,16 +114,30 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
     });
 }
 
-fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>) {
-    let merkle_path_tree_store: TreeStore = builder.object("Merkle Path Store").unwrap();
+fn add_merkle_root_for_tree_store(merkle_path_tree_store: &TreeStore, merkle_root: [u8; 32]) {
+    let tree_iter = merkle_path_tree_store.append(None);
+    let merkle_root_string = format!("Merkle Root: {}", get_string_representation_from_bytes(&mut merkle_root.to_vec()));
+    merkle_path_tree_store.set_value(
+        &tree_iter,
+        LEVEL_COLUMN,
+        &glib::Value::from(0.to_string()),
+    );
+    merkle_path_tree_store.set_value(
+        &tree_iter,
+        HASH_PAIR_COLUMN,
+        &glib::Value::from(merkle_root_string),
+    );
+}
+
+fn add_hashes_to_tree_store(merkle_path_tree_store: &TreeStore, path: &Vec<HashPair>) {
     let mut level = path.len();
-    
-    for hash_pair in &path{
-        let concat_hashes = hash_pairs_for_merkle_tree(hash_pair.left, hash_pair.right);
-        let concat_hashes_str = get_string_representation_from_bytes(&mut concat_hashes.to_vec());
+    for hash_pair in path{
+        let resulting_hashes = hash_pairs_for_merkle_tree(hash_pair.left, hash_pair.right);
+        let resulting_hashes_str = get_string_representation_from_bytes(&mut resulting_hashes.to_vec());
         let left_hash = format!("Left: {}\n", get_string_representation_from_bytes(&mut hash_pair.left.to_vec()));
-        let right_hash = format!("Right: {}", get_string_representation_from_bytes(&mut hash_pair.right.to_vec()));
-        let display_hashes = left_hash + &right_hash;
+        let right_hash = format!("Right: {}\n\n", get_string_representation_from_bytes(&mut hash_pair.right.to_vec()));
+        let res_hash = format!("Resulting Hash: {}\n", resulting_hashes_str);
+        let display_hashes = left_hash + &right_hash + &res_hash;
         let tree_iter = merkle_path_tree_store.append(None);
         merkle_path_tree_store.set_value(
             &tree_iter,
@@ -131,8 +145,17 @@ fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>) {
             &glib::Value::from(level.to_string()),
         );
         merkle_path_tree_store.set_value(&tree_iter, HASH_PAIR_COLUMN, &glib::Value::from(display_hashes));
-        merkle_path_tree_store.set_value(&tree_iter, RESULTING_HASH_COLUMN, &glib::Value::from(concat_hashes_str));
         level -= 1;
+    }
+}
+
+fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>, merkle_root: [u8; 32]) {
+    let merkle_path_tree_store: TreeStore = builder.object("Merkle Path Store").unwrap();
+    
+    if path.is_empty(){
+        add_merkle_root_for_tree_store(&merkle_path_tree_store, merkle_root);
+    } else {
+        add_hashes_to_tree_store(&merkle_path_tree_store, &mut path);
     }
     let merkle_tree_label : Label = builder.object("Merkle Tree Label").unwrap();
     let merkle_tree_text = draw_merkle_proof_of_inclusion_tree(&mut path);
@@ -140,16 +163,15 @@ fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>) {
    
 }
 
-
 /// Handles the result of the merkle proof request, showing a dialog with the result.
-pub fn handle_result_of_tx_proof(builder: &Builder, merkle_path: Option<Vec<HashPair>>) {
+pub fn handle_result_of_tx_proof(builder: &Builder, merkle_path: Option<(Vec<HashPair>, [u8; 32])>) {
     let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").unwrap();
     let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").unwrap();
     activate_buttons(builder);
 
-    if let Some(path) = merkle_path {
+    if let Some((path, merkle_root)) = merkle_path {
         merkle_success_dialog.set_title("Proof of inclusion Success");
-        add_merkle_path_rows(builder, path);
+        add_merkle_path_rows(builder, path, merkle_root);
         merkle_success_dialog.run();
         merkle_success_dialog.hide();
     } else {

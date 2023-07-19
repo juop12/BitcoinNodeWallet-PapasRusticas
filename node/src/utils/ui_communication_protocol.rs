@@ -26,7 +26,7 @@ pub enum UIResponse {
     WalletInfo(WalletInfo),
     BlockInfo(BlockInfo),
     WalletError(WalletError),
-    ResultOFTXProof(Option<Vec<HashPair>>),
+    ResultOFTXProof(Option<(Vec<HashPair>, [u8; 32])>),
     FinishedInitializingNode,
     ErrorInitializingNode,
     TxSent,

@@ -97,7 +97,7 @@ impl Worker {
         let (message_bytes_sender, message_bytes_receiver) = mpsc::channel();
 
         let thread = thread::spawn(move || loop {
-            logger.log(format!("Sigo vivo: {}", id));
+            logger.log(format!("Worker {} continues execution", id));
             match peer_comunicator_worker_thread_loop(
                 &mut stream,
                 &safe_block_headers,
@@ -164,7 +164,7 @@ impl NewPeerConnector{
         let (sender, receiver) = mpsc::channel();
         
         let thread = thread::spawn(move || loop {
-            logger.log(format!("Peer connectorSigo vivo"));
+            logger.log(format!("Peer connector continues execution"));
             match new_peer_conector_thread_loop(
                 &listener,
                 node_version,

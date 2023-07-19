@@ -165,6 +165,6 @@ impl Wallet {
             return Ok(UIResponse::ResultOFTXProof(None));
         }
 
-        Ok(UIResponse::ResultOFTXProof(Some(merkle_proof)))
+        Ok(UIResponse::ResultOFTXProof(Some((merkle_proof, merkle_root))))
     }
 }
