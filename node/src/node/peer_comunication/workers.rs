@@ -53,6 +53,10 @@ impl Worker {
         logger: Logger,
     ) -> Worker {
 
+        if (stream.set_write_timeout(Some(PEER_TIMEOUT)).is_err()) || (stream.set_read_timeout(Some(PEER_TIMEOUT)).is_err()){
+            logger.log(format!("Warning, could not set timeout for peer worker {}", id));
+        }
+
         let thread = thread::spawn(move || loop {
             let stop = block_downloader_thread_loop(
                 id,
