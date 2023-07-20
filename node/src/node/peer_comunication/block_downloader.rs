@@ -1,5 +1,5 @@
 use crate::{
-    messages::{get_data_message::*, message_trait::Message},
+    messages::{get_data_message::*, message_trait::MessageTrait},
     node::{handshake::PEER_TIMEOUT, *},
     utils::btc_errors::BlockDownloaderError,
 };
@@ -255,7 +255,7 @@ fn receive_block(
     let pending_tx_dummy = Arc::new(Mutex::from(HashMap::new()));
     let headers_index_dummy = Arc::new(Mutex::from(HashMap::new()));
     while start_time.elapsed() < PEER_TIMEOUT {
-        match receive_message(
+        match recieve_and_handle(
             stream,
             safe_headers,
             safe_blockchain,

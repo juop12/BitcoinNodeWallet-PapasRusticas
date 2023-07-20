@@ -6,7 +6,7 @@ pub struct NotFoundMessage {
     inv: InvMessage,
 }
 
-impl Message for NotFoundMessage {
+impl MessageTrait for NotFoundMessage {
     type MessageType = NotFoundMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingNotFoundMessage;
 

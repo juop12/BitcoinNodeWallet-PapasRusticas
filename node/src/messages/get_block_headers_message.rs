@@ -13,7 +13,7 @@ pub struct GetBlockHeadersMessage {
     pub stopping_hash: [u8; 32],
 }
 
-impl Message for GetBlockHeadersMessage {
+impl MessageTrait for GetBlockHeadersMessage {
     type MessageType = GetBlockHeadersMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingGetBlockHeadersMessage;
 

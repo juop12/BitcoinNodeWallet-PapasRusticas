@@ -19,7 +19,7 @@ pub struct InvMessage {
     inventory: Vec<Entry>,
 }
 
-impl Message for InvMessage {
+impl MessageTrait for InvMessage {
     type MessageType = InvMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingInvMessage;
 

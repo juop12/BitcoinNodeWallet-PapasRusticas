@@ -7,7 +7,7 @@ pub struct TxMessage {
     pub tx: Transaction,
 }
 
-impl Message for TxMessage {
+impl MessageTrait for TxMessage {
     type MessageType = TxMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingTxMessage;
 

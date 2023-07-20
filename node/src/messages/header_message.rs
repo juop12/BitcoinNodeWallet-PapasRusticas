@@ -15,7 +15,7 @@ pub struct HeaderMessage {
     checksum: [u8; 4],
 }
 
-impl Message for HeaderMessage {
+impl MessageTrait for HeaderMessage {
     type MessageType = HeaderMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingHeaderMessage;
 

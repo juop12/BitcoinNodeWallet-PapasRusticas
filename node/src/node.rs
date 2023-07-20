@@ -13,7 +13,7 @@ use self::{
 };
 use crate::{
     blocks::{blockchain::*, proof::*, transaction::TxOut, Outpoint, Transaction},
-    messages::*,
+    messages::{*, message_trait::MessageError},
     utils::{btc_errors::NodeError,config::*, log::*, UIResponse, LoadingScreenInfo},
 };
 use std::{
@@ -218,7 +218,7 @@ impl Node {
     /// Actual receive_message wrapper. Encapsulates node's parameteres.
     fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError> {
         let stream = &mut self.initial_peers[stream_index];
-        receive_message(
+        recieve_and_handle(
             stream,
             &self.block_headers,
             &self.blockchain,
@@ -274,6 +274,42 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderM
     }
 }
 
+fn _receive_message(stream: &mut TcpStream, logger: &Logger,)->Result<(Message,String), NodeError>{
+    let block_headers_msg_h = receive_message_header(stream)?;
+
+    logger.log(format!(
+        "Received message: {}",
+        block_headers_msg_h.get_command_name()
+    ));
+
+    let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
+
+    stream.read_exact(&mut msg_bytes).map_err(|err| {
+        if err.kind() == WouldBlock {
+            NodeError::ErrorPeerTimeout
+        } else {
+            NodeError::ErrorReceivingMessageHeader
+        }
+    })?;
+    
+    let msg = Message::from_bytes(msg_bytes, block_headers_msg_h.get_command_name()).map_err(|msg_error| NodeError::ErrorMessage(msg_error))?;
+    Ok((msg, block_headers_msg_h.get_command_name()))
+}
+
+pub fn recieve_and_handle(
+    stream: &mut TcpStream,
+    block_headers: &SafeVecHeader,
+    blockchain: &SafeBlockChain,
+    pending_tx: &SafePendingTx,
+    headers_index: &SafeHeaderIndex,
+    logger: &Logger,
+    ibd: bool)-> Result<String, NodeError>{
+
+    let (msg, command_name) = _receive_message(stream, logger)?;
+    handle_message(msg, stream, block_headers, blockchain, pending_tx, headers_index, logger, ibd)?;
+    Ok(command_name)
+}
+/*
 /// Generic receive message function, receives a header and its payload, and calls the corresponding handler. Returns the command name in the received header
 pub fn receive_message(
     stream: &mut TcpStream,
@@ -285,14 +321,14 @@ pub fn receive_message(
     ibd: bool,
 ) -> Result<String, NodeError> {
     let block_headers_msg_h = receive_message_header(stream)?;
-
+    
     logger.log(format!(
         "Received message: {}",
         block_headers_msg_h.get_command_name()
     ));
 
     let mut msg_bytes = vec![0; block_headers_msg_h.get_payload_size() as usize];
-
+    
     stream.read_exact(&mut msg_bytes).map_err(|err| {
         if err.kind() == WouldBlock {
             NodeError::ErrorPeerTimeout
@@ -326,12 +362,13 @@ pub fn receive_message(
         "getdata\0\0\0\0\0" => if !ibd{
                 handle_get_data(stream, msg_bytes, blockchain)?;
             },
-        "tx\0\0\0\0\0\0\0\0\0\0" => handle_tx_message(msg_bytes, pending_tx)?,
+            "tx\0\0\0\0\0\0\0\0\0\0" => handle_tx_message(msg_bytes, pending_tx)?,
         _ => {}
     };
 
     Ok(block_headers_msg_h.get_command_name())
 }
+*/
 
 pub fn insert_new_headers(headers: Vec<BlockHeader>, safe_block_headers: &SafeVecHeader, safe_headers_index: &SafeHeaderIndex) -> Result<(), NodeError>{
 

@@ -264,7 +264,7 @@ impl PeerComunicatorWorkerManager{
     }
 
     //Sends a message to all of the workers so they can then send them to their corresponding peers
-    pub fn send_message<T: Message>(&self, message: &T)-> Result<(), PeerComunicatorError>{
+    pub fn send_message<T: MessageTrait>(&self, message: &T)-> Result<(), PeerComunicatorError>{
         let mut message_bytes  = message.get_header_message().map_err(|_| PeerComunicatorError::ErrorSendingMessage)?.to_bytes();
         message_bytes.extend(message.to_bytes());
         self.message_bytes_sender.send(message_bytes).map_err(|_| PeerComunicatorError::ErrorSendingMessage)

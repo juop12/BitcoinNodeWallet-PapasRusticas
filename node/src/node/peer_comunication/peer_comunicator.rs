@@ -115,7 +115,7 @@ impl PeerComunicator {
     }
 
     ///sends the given bytes to all currently connected peers
-    pub fn send_message<T: Message>(&self, message: &T)->Result<(), PeerComunicatorError>{
+    pub fn send_message<T: MessageTrait>(&self, message: &T)->Result<(), PeerComunicatorError>{
         self.peer_communicator_manager.send_message(message)
     }
 }
@@ -217,7 +217,7 @@ pub fn peer_comunicator_worker_thread_loop(
         Err(_) => return Stops::UngracefullStop,
     }
 
-    if let Err(error) = receive_message(
+    if let Err(error) = recieve_and_handle(
         stream,
         safe_block_headers,
         safe_block_chain,
