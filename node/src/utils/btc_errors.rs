@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-use crate::node::peer_comunication::workers::Worker;
-
 /// All errors that can occur in the project must implement this trait.
 pub trait BtcError: Debug {
     fn to_string(&self) -> String {

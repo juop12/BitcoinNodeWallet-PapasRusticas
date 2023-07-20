@@ -1,8 +1,7 @@
-use crate::{node::*, utils::{log, LoadingScreenInfo}};
+use crate::{node::*, utils::LoadingScreenInfo};
 use block_downloader::*;
 use std::{time::{Duration, Instant}, thread::JoinHandle};
 use std::thread;
-use glib::{Sender, Receiver};
 use crate::utils::ui_communication_protocol::UIResponse;
 
 pub const HASHEDGENESISBLOCK: [u8; 32] = [

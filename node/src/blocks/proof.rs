@@ -29,7 +29,7 @@ pub fn validate_proof_of_work(block_header: &BlockHeader) -> bool {
 }
 
 /// Returns a hash of the concatenation of two hashes.
-fn hash_pairs_for_merkle_tree(hash_1: [u8; 32], hash_2: [u8; 32]) -> [u8; 32] {
+pub fn hash_pairs_for_merkle_tree(hash_1: [u8; 32], hash_2: [u8; 32]) -> [u8; 32] {
     let mut total_hash: Vec<u8> = Vec::from(hash_1);
     total_hash.extend(hash_2);
 
@@ -75,21 +75,27 @@ pub fn validate_block_proof_of_inclusion(block: &Block) -> bool {
 }
 
 pub struct HashPair {
-    left: [u8; 32],
-    right: [u8; 32],
+    pub left: [u8; 32],
+    pub right: [u8; 32],
+    path_comes_from: Side,
+}
+
+enum Side{
+    Left,
+    Right
 }
 
 impl HashPair {
-    fn new(left: [u8; 32], right: [u8; 32]) -> HashPair {
-        HashPair { left, right }
+    fn new(left: [u8; 32], right: [u8; 32], side: Side) -> HashPair {
+        HashPair { left, right, path_comes_from: side }
     }
 
-    /// Returns true if either hash is equal to the received hash
-    pub fn contains(&self, hash: [u8; 32]) -> bool {
-        if (self.left == hash) || (self.right == hash) {
-            return true;
+    /// Returns true if the hash is equal to the correct side of the HashPair
+    pub fn equals_path_side(&self, hash: [u8; 32]) -> bool {
+        match self.path_comes_from{
+            Side::Left => self.left == hash,
+            Side::Right => self.right == hash,
         }
-        false
     }
 
     /// Hashes the result of concatenating, left and right
@@ -131,11 +137,13 @@ pub fn proof_of_transaction_included_in(
             HashPair::new(
                 current_level[level_position],
                 current_level[level_position + 1],
+                Side::Left
             )
         } else {
             HashPair::new(
                 current_level[level_position - 1],
                 current_level[level_position],
+                Side::Right
             )
         };
         merkle_proof.push(hash_pair);

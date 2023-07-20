@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn handshake_test_3_send_verack_message() -> Result<(), NodeError> {
-        let (mut stream, node) = initiate("tests_txt/test_log.txt");
+        let (mut stream, _node) = initiate("tests_txt/test_log.txt");
 
         let expected_verack_msg = VerACKMessage::new().unwrap();
         let verack_hm = expected_verack_msg.get_header_message().unwrap();

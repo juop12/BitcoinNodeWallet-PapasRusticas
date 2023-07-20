@@ -152,7 +152,7 @@ mod test {
             .handle_obtain_tx_proof(&mut node, tx_hash, 2439100)
             .unwrap()
         {
-            assert!(result);
+            assert!(result.is_some());
             return Ok(());
         }
 

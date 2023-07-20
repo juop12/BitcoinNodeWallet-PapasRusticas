@@ -153,18 +153,18 @@ impl Wallet {
 
         let mut prev_hash = tx_hash;
 
-        for hash_pair in merkle_proof {
-            if hash_pair.contains(prev_hash) {
+        for hash_pair in &merkle_proof {
+            if hash_pair.equals_path_side(prev_hash) {
                 prev_hash = hash_pair.hash();
             } else {
-                return Ok(UIResponse::ResultOFTXProof(false));
+                return Ok(UIResponse::ResultOFTXProof(None));
             }
         }
 
         if prev_hash != merkle_root {
-            return Ok(UIResponse::ResultOFTXProof(false));
+            return Ok(UIResponse::ResultOFTXProof(None));
         }
 
-        Ok(UIResponse::ResultOFTXProof(true))
+        Ok(UIResponse::ResultOFTXProof(Some((merkle_proof, merkle_root))))
     }
 }

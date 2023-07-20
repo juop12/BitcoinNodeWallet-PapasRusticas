@@ -1,13 +1,12 @@
 use crate::{
     blocks::{proof_of_transaction_included_in, HashPair, Transaction},
-    messages::{message_trait::*, TxMessage},
+    messages::TxMessage,
     node::Node,
     utils::{btc_errors::NodeError, ui_communication_protocol::TxInfo, BlockInfo},
     wallet::Wallet,
 };
 use secp256k1::PublicKey;
 
-use super::peer_comunication::peer_comunicator;
 
 impl Node {
     /// Returns a vec of TxInfo of all the tx in pending_tx that belong to a certain PubKey

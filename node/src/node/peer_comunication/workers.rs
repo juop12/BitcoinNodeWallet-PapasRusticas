@@ -1,4 +1,4 @@
-use crate::{node::*, utils::{btc_errors::BlockDownloaderError, log, PeerComunicatorError, WorkerError}};
+use crate::{node::*, utils::{PeerComunicatorError, WorkerError}};
 
 use std::{
     net::TcpStream,
@@ -10,7 +10,6 @@ use block_downloader::block_downloader_thread_loop;
 use peer_comunicator::worker_manager_loop;
 use peer_comunicator::peer_comunicator_worker_thread_loop;
 use peer_comunicator::new_peer_conector_thread_loop;
-use peer_comunicator::NEW_CONECTION_INTERVAL;
 
 pub type FinishedIndicator = Arc<Mutex<bool>>;
 
@@ -102,7 +101,7 @@ impl Worker {
         let (message_bytes_sender, message_bytes_receiver) = mpsc::channel();
 
         let thread = thread::spawn(move || loop {
-            logger.log(format!("Sigo vivo: {}", id));
+            logger.log(format!("Worker {} continues execution", id));
             match peer_comunicator_worker_thread_loop(
                 &mut stream,
                 &safe_block_headers,
@@ -170,7 +169,7 @@ impl NewPeerConnector{
         let (sender, receiver) = mpsc::channel();
         
         let thread = thread::spawn(move || loop {
-            logger.log(format!("Peer connectorSigo vivo"));
+            logger.log(format!("Peer connector continues execution"));
             match new_peer_conector_thread_loop(
                 &listener,
                 node_version,
