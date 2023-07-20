@@ -17,8 +17,8 @@ pub enum WalletAdderError {
 /// Initializes the wallet selector, which lets the user add a wallet introducing a Name
 /// and a private key
 pub fn activate_wallet_adder(builder: &Builder) {
-    let button: Button = builder.object("Wallet Adder").unwrap();
-    let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
+    let button: Button = builder.object("Wallet Adder").expect("Couldn't find Wallet Adder button");
+    let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").expect("Couldn't find Wallet Adder Dialog");
     wallet_adder.set_title("Add Wallet");
     button.connect_clicked(move |_| {
         wallet_adder.show_all();
@@ -30,8 +30,8 @@ pub fn activate_wallet_adder(builder: &Builder) {
 /// Reads the private key and returns a Result representing if ti was possible to add
 /// the wallet or not.
 fn add_wallet(builder: &Builder) -> Result<(), WalletAdderError> {
-    let name: Entry = builder.object("Wallet Adder Name Entry").unwrap();
-    let priv_key: Entry = builder.object("Wallet Adder Private Key Entry").unwrap();
+    let name: Entry = builder.object("Wallet Adder Name Entry").expect("Couldn't find Wallet Adder Name Entry");
+    let priv_key: Entry = builder.object("Wallet Adder Private Key Entry").expect("Couldn't find Wallet Adder Private Key Entry");
     let priv_key_text = priv_key.text();
     let name_text = name.text();
 
@@ -47,8 +47,8 @@ fn add_wallet(builder: &Builder) -> Result<(), WalletAdderError> {
 /// Handles the error cases that could happen when adding a wallet and displays them
 /// in a dialog.
 fn show_wallet_adder_error(builder: &Builder, error: WalletAdderError) {
-    let wallet_adder_error_dialog: Dialog = builder.object("Wallet Adder Error Dialog").unwrap();
-    let wallet_adder_error_label: Label = builder.object("Wallet Adder Error Label").unwrap();
+    let wallet_adder_error_dialog: Dialog = builder.object("Wallet Adder Error Dialog").expect("Couldn't find Wallet Adder Error Dialog");
+    let wallet_adder_error_label: Label = builder.object("Wallet Adder Error Label").expect("Couldn't find Wallet Adder Error Label");
     wallet_adder_error_dialog.set_title("Error Adding Wallet");
     match error {
         WalletAdderError::ErrorInvalidPrivateKey => {
@@ -67,13 +67,13 @@ fn show_wallet_adder_error(builder: &Builder, error: WalletAdderError) {
 /// involves adding the wallet to the combo box and changing the active wallet to the new one.
 fn handle_success_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     let wallet_adder_success_dialog: Dialog =
-        builder.object("Wallet Adder Success Dialog").unwrap();
+        builder.object("Wallet Adder Success Dialog").expect("Couldn't find Wallet Adder Success Dialog");
     wallet_adder_success_dialog.set_title("Success Adding Wallet");
     let wallet_adder_success_button: Button =
-        builder.object("Wallet Adder Success Button").unwrap();
-    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
-    let priv_key: Entry = builder.object("Wallet Adder Private Key Entry").unwrap();
-    let name: Entry = builder.object("Wallet Adder Name Entry").unwrap();
+        builder.object("Wallet Adder Success Button").expect("Couldn't find Wallet Adder Success Button");
+    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").expect("Couldn't find Wallet Switcher");
+    let priv_key: Entry = builder.object("Wallet Adder Private Key Entry").expect("Couldn't find Wallet Adder Private Key Entry");
+    let name: Entry = builder.object("Wallet Adder Name Entry").expect("Couldn't find Wallet Adder Name Entry");
     let priv_key_text = priv_key.text().to_string();
     let priv_key_text_clone = priv_key_text.clone();
     let name_text = name.text().to_string();
@@ -108,17 +108,17 @@ fn handle_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
 }
 
 /// Shows the initial login screen where there are no wallets saved in disk.
-fn handle_initial_login(builder: &Builder) {
-    let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
-    wallet_adder.set_title("Initial Login");
-    wallet_adder.show_all();
-    wallet_adder.run();
+fn handle_initial_login(adder_dialog: &Dialog) {
+    adder_dialog.set_title("Initial Login");
+    adder_dialog.show_all();
+    adder_dialog.run();
 }
 
 /// Loads the wallets saved in disk and creates the combobx object with them so
 /// the user can select one and change wallets to already existing ones.
 pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>) {
-    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
+    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").expect("Couldn't find Wallet Switcher");
+    let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").expect("Couldn't find Wallet Adder Dialog");
 
     match get_saved_wallets_from_disk(&wallet_selector) {
         Ok(wallets) => {
@@ -131,7 +131,7 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>)
         }
         Err(error) => {
             match error {
-                UiError::WalletsCSVWasEmpty => handle_initial_login(builder),
+                UiError::WalletsCSVWasEmpty => handle_initial_login(&wallet_adder),
                 _ => handle_error(builder, format!("An Error occured: {:#?}", error)),
             };
         }
@@ -140,13 +140,13 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>)
 
 /// Initializes the actions for the wallet adder dialog.
 pub fn initialize_wallet_adder_actions(builder: &Builder, sender: &Sender<UIRequest>) {
-    let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").unwrap();
-    let cancel_button: Button = builder.object("Wallet Adder Cancel Button").unwrap();
-    let add_button: Button = builder.object("Wallet Adder Add Button").unwrap();
-    let invalid_wallet_button: Button = builder.object("Wallet Adder Error Button").unwrap();
-    let invalid_wallet_dialog: Dialog = builder.object("Wallet Adder Error Dialog").unwrap();
-    let success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").unwrap();
-    let success_button: Button = builder.object("Wallet Adder Success Button").unwrap();
+    let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").expect("Couldn't find Wallet Adder Dialog");
+    let cancel_button: Button = builder.object("Wallet Adder Cancel Button").expect("Couldn't find Wallet Adder Cancel Button");
+    let add_button: Button = builder.object("Wallet Adder Add Button").expect("Couldn't find Wallet Adder Add Button");
+    let invalid_wallet_button: Button = builder.object("Wallet Adder Error Button").expect("Couldn't find Wallet Adder Error Button");
+    let invalid_wallet_dialog: Dialog = builder.object("Wallet Adder Error Dialog").expect("Couldn't find Wallet Adder Error Dialog");
+    let success_dialog: Dialog = builder.object("Wallet Adder Success Dialog").expect("Couldn't find Wallet Adder Success Dialog");
+    let success_button: Button = builder.object("Wallet Adder Success Button").expect("Couldn't find Wallet Adder Success Button");
 
     success_dialog.set_title("Success Adding Wallet");
     invalid_wallet_dialog.set_title("Error Adding Wallet");
@@ -173,7 +173,7 @@ pub fn initialize_wallet_adder_actions(builder: &Builder, sender: &Sender<UIRequ
 
 /// Initializes the actions for the wallet selector dialog.
 pub fn initialize_change_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
-    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").unwrap();
+    let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").expect("Couldn't find Wallet Switcher");
 
     let sender_clone = sender.clone();
     wallet_selector.connect_changed(move |combo_box| {

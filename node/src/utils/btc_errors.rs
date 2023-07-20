@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-use crate::node::peer_comunication::workers::Worker;
-
 /// All errors that can occur in the project must implement this trait.
 pub trait BtcError: Debug {
     fn to_string(&self) -> String {
@@ -99,11 +97,17 @@ impl BtcError for NodeDataHandlerError {}
 #[derive(Debug)]
 pub enum ConfigError {
     ErrorReadingFile,
-    ErrorFillingAttributes,
     ErrorMismatchedFileName,
     ErrorMismatchedQuantityOfParameters,
-    ErrorMismatchedParameters,
+    ErrorParsingVersion,
+    ErrorParsingIP,
+    ErrorParsingPort,
     ErrorParsingDate,
+    ErrorInvalidDate,
+    ErrorParsingIPV6Bool,
+    ErrorInvalidParameter,
+    ErrorNoExternalAddressGiven,
+    ErrorParameterNotFound,
 }
 
 impl BtcError for ConfigError {}
