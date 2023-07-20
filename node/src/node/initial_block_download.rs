@@ -350,23 +350,40 @@ fn request_blocks(
 mod tests {
     use super::*;
 
+    const VERSION: i32 = 70015;
+    const LOCAL_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 1001);
     const STARTING_BLOCK_TIME: u32 = 1681084800;
     const HEADERS_FILE_PATH: &str = "tests_txt/ibd_test_headers.bin";
     const BLOCKS_FILE_PATH: &str = "tests_txt/ibd_test_blocks.bin";
+    const DNS_HOST: &str = "seed.testnet.bitcoin.sprovoost.nl";
+    const DNS_PORT: u16 = 18333;
 
-    #[test]
-    fn ibd_test_1_can_download_headers() -> Result<(), NodeError> {
-        let config = Config {
-            version: 70015,
-            dns_port: 18333,
-            local_host: [127, 0, 0, 3],
-            local_port: 1003,
-            log_path: String::from("tests_txt/ibd_test_1_log.txt"),
+
+    // Auxiliar functions
+    //=================================================================
+
+    fn create_config(log_path: &str) -> Config{
+        Config {
+            version: VERSION,
+            local_address: LOCAL_ADDRESS,
+            log_path: String::from(log_path),
             begin_time: STARTING_BLOCK_TIME,
             headers_path: String::from(HEADERS_FILE_PATH),
             blocks_path: String::from(BLOCKS_FILE_PATH),
             ipv6_enabled: false,
-        };
+            dns: vec![(DNS_HOST.to_string(), DNS_PORT)],
+            external_addresses: vec![],
+        }
+    }
+
+    // Tests
+    //=================================================================
+
+
+    #[test]
+    fn ibd_test_1_can_download_headers() -> Result<(), NodeError> {
+        let config = create_config("tests_txt/ibd_test_1_log.txt");
+
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let mut node = Node::new(config, sx)?;
         let mut i = 0;
@@ -382,17 +399,8 @@ mod tests {
 
     #[test]
     fn ibd_test_2_can_download_2000_blocks() -> Result<(), NodeError> {
-        let config = Config {
-            version: 70015,
-            dns_port: 18333,
-            local_host: [127, 0, 0, 2],
-            local_port: 1002,
-            log_path: String::from("tests_txt/ibd_test_2_log.txt"),
-            begin_time: STARTING_BLOCK_TIME,
-            headers_path: String::from(HEADERS_FILE_PATH),
-            blocks_path: String::from(BLOCKS_FILE_PATH),
-            ipv6_enabled: false,
-        };
+        let config = create_config("tests_txt/ibd_test_2_log.txt");
+
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let mut node = Node::new(config, sx)?;
         let mut block_downloader = BlockDownloader::new(
