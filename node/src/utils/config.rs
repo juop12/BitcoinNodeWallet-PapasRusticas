@@ -132,7 +132,9 @@ fn _open_config_handler(path: &str) -> Result<File, ConfigError> {
 fn get_handler(config_fields: &HashMap<String, String>, field: &str) -> Result<String, ConfigError>{
     match config_fields.get(field){
         Some(data) => Ok(data.to_string()),
-        None => Err(ConfigError::ErrorParameterNotFound),
+        None => {
+            return Err(ConfigError::ErrorParameterNotFound);
+        },
     }
 }
 
@@ -194,6 +196,7 @@ fn parse_ip_address(address: &str) -> Result<[u8; 4], ConfigError> {
     let splitter = address.split(IP_DELIMETER);
 
     for (i, number) in (0_usize..).zip(splitter) {
+
         local_host[i] = number.parse::<u8>().map_err(|_| ConfigError::ErrorParsingIP)?;
     }
 
@@ -225,7 +228,7 @@ fn parse_ipv6_enabled(data: &str) -> Result<bool, ConfigError>{
 mod tests {
     use super::*;
 
-    const BEGIN_TIME: &str = "2023-04-10";
+    const STARTING_TIME: &str = "2023-04-10";
     const LOG_FILE_PATH: &str = "tests_txt/config_test_log.txt";
     const HEADERS_FILE_PATH: &str = "tests_txt/headers.bin";
     const BLOCKS_FILE_PATH: &str = "tests_txt/blocks.bin";
@@ -234,7 +237,7 @@ mod tests {
     // Auxiliar functions
     //=================================================================
 
-    fn create_parameters(version: &str, begin_time: &str, local_address: &str, ipv6_enabled: bool, dns_vector: &str, ext_addr_vector: &str) -> HashMap<String, String>{
+    fn create_parameters(version: &str, local_address: &str, begin_time: &str, ipv6_enabled: bool, dns_vector: &str, ext_addr_vector: &str) -> HashMap<String, String>{
         let mut paramenters = HashMap::new();
 
         paramenters.insert(VERSION.to_string(), version.to_string());
@@ -256,7 +259,7 @@ mod tests {
 
     #[test]
     fn config_test_1_valid_file_creates_config() {
-        assert!(Config::from_path("src/nodo.conf").is_ok());
+        assert!(Config::from_path("nodo.conf").is_ok());
     }
 
     #[test]
@@ -269,7 +272,7 @@ mod tests {
         let parameters = create_parameters(
             "70015",
             "127,0,0,1:1001",
-            BEGIN_TIME,
+            STARTING_TIME,
             false,
             "dns.first.example:18333;dns.second.example:18334",
             "127,0,0,2:18335;127,0,0,3:18333",
@@ -277,7 +280,7 @@ mod tests {
 
         let expected_local_address = ([127, 0, 0, 1], 1001);
         let expected_begin_time_timestamp: u32 = 1681084800;
-        let expected_dns = vec![("dns.first.example".to_string(), 18335), ("dns.second.exampl".to_string(), 18333)];
+        let expected_dns = vec![("dns.first.example".to_string(), 18333), ("dns.second.example".to_string(), 18334)];
         let expected_external_addresses = vec![([127, 0, 0, 2], 18335), ([127, 0, 0, 3], 18333)];
 
         let config =
@@ -299,7 +302,7 @@ mod tests {
         let mut parameters = create_parameters(
             "70015",
             "127,0,0,1:1001",
-            BEGIN_TIME,
+            STARTING_TIME,
             false,
             "dns_vector:1",
             "1,2,3,4:2",
@@ -315,7 +318,7 @@ mod tests {
         let parameters = create_parameters(
             "70015",
             "127,0,0,1:this should be a u16",
-            BEGIN_TIME,
+            STARTING_TIME,
             true,
             "dns_vector:1",
             "1,2,3,4:2",
@@ -339,11 +342,11 @@ mod tests {
     }
 
     #[test]
-    fn config_test_7_no_DNS_parameter_can_create_config_correctly() {
+    fn config_test_7_no_dns_parameter_can_create_config_correctly() {
         let parameters = create_parameters(
             "70015",
             "127,0,0,1:1001",
-            BEGIN_TIME,
+            STARTING_TIME,
             true,
             "",
             "1,2,3,4:1",
@@ -370,11 +373,11 @@ mod tests {
     }
 
     #[test]
-    fn config_test_8_no_extAddr_parameter_can_create_config() {
+    fn config_test_8_no_ext_addr_parameter_can_create_config() {
         let parameters = create_parameters(
             "70015",
             "127,0,0,1:1001",
-            BEGIN_TIME,
+            STARTING_TIME,
             true,
             "dns_vector:1",
             "",
@@ -382,7 +385,7 @@ mod tests {
 
         let expected_local_address = ([127, 0, 0, 1], 1001);
         let expected_begin_time_timestamp: u32 = 1681084800;
-        let expected_dns = vec![("dns_vector:1".to_string(), 1)];
+        let expected_dns = vec![("dns_vector".to_string(), 1)];
         let expected_external_addresses = vec![];
 
 
@@ -401,11 +404,11 @@ mod tests {
     }
 
     #[test]
-    fn config_test_9_no_DNS_and_extAddr_parameter_cannot_create_config() {
+    fn config_test_9_no_dns_and_ext_addr_parameter_cannot_create_config() {
         let parameters = create_parameters(
             "70015",
             "127,0,0,1:1001",
-            BEGIN_TIME,
+            STARTING_TIME,
             true,
             "",
             "",

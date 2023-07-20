@@ -333,13 +333,13 @@ mod tests {
     use crate::utils::mock_tcp_stream::*;
 
     const LOCAL_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 1001);
+    const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
     const DNS_PORT: u16 = 18333;
     const VERSION: i32 = 70015;
     const STARTING_BLOCK_TIME: u32 = 1681084800;
     const LOG_FILE_PATH: &str = "tests_txt/test_log.txt";
     const HEADERS_FILE_PATH: &str = "tests_txt/headers.bin";
     const BLOCKS_FILE_PATH: &str = "tests_txt/blocks.bin";
-    const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
 
     #[test]
     fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address() {

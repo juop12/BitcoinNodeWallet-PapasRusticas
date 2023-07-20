@@ -131,8 +131,7 @@ mod tests {
     use bitcoin_hashes::{sha256d, Hash};
 
     const VERSION: i32 = 70015;
-    const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
-    const LOCAL_PORT: u16 = 1001;
+    const LOCAL_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 1001);
     const STARTING_BLOCK_TIME: u32 = 1681084800;
     const HEADERS_FILE_PATH: &str = "data/headers.bin";
     const BLOCKS_FILE_PATH: &str = "data/blocks.bin";
@@ -147,8 +146,7 @@ mod tests {
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::_new(
             VERSION,
-            LOCAL_HOST,
-            LOCAL_PORT,
+            LOCAL_ADDRESS,
             logger,
             data_handler,
             STARTING_BLOCK_TIME,

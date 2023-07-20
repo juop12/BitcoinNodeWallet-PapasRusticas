@@ -6,41 +6,55 @@ mod test {
     use node::utils::ui_communication_protocol::UIResponse;
     use node::wallet::Wallet;
 
+    const VERSION: i32 = 70015;
+    const LOCAL_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 1001);
     const BEGIN_TIME_EPOCH: u32 = 1681084800; // 2023-04-10
-    #[test]
-    fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes(
-    ) -> Result<(), NodeError> {
-        let config = Config {
-            version: 70015,
-            dns_port: 18333,
-            local_host: [127, 0, 0, 1],
-            local_port: 1001,
-            log_path: String::from("tests_txt/integration_test_1_log.txt"),
+    const DNS_HOST: &str = "seed.testnet.bitcoin.sprovoost.nl";
+    const DNS_PORT: u16 = 18333;
+
+    // Auxiliar functions
+    //=================================================================
+
+    fn create_config(log_path: &str, dns: Vec<(String, u16)>, external_addresses: Vec<([u8; 4], u16)>) -> Config{
+        Config {
+            version: VERSION,
+            local_address: LOCAL_ADDRESS,
+            log_path: String::from(log_path),
             begin_time: BEGIN_TIME_EPOCH,
             headers_path: String::from("tests_txt/headers.bin"),
             blocks_path: String::from("tests_txt/blocks.bin"),
             ipv6_enabled: false,
-        };
+            dns,
+            external_addresses,
+        }
+    }
+
+    // Tests
+    //=================================================================
+
+    #[test]
+    fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes() -> Result<(), NodeError> {
+        let config = create_config(
+            "tests_txt/integration_test_1_log.txt",
+            vec![(DNS_HOST.to_string(), DNS_PORT)],
+            vec![]
+            );
+
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::new(config, sx)?;
+
         assert!(node.initial_peers.len() > 1);
         Ok(())
     }
 
     #[test]
     fn integration_test_2_initial_block_download_does_not_fail() -> Result<(), NodeError> {
-        let config = Config {
-            version: 70015,
-            dns_port: 18333,
-            local_host: [127, 0, 0, 1],
-            local_port: 1001,
-            log_path: String::from("tests_txt/integration_test_2_log.txt"),
-            begin_time: BEGIN_TIME_EPOCH,
-            headers_path: String::from("data/headers.bin"),
-            blocks_path: String::from("data/blocks.bin"),
+        let config = create_config(
+            "tests_txt/integration_test_2_log.txt",
+            vec![(DNS_HOST.to_string(), DNS_PORT)],
+            vec![]
+            );
 
-            ipv6_enabled: false,
-        };
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let mut node = Node::new(config, sx)?;
 
