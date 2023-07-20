@@ -75,8 +75,8 @@ pub fn validate_block_proof_of_inclusion(block: &Block) -> bool {
 }
 
 pub struct HashPair {
-    left: [u8; 32],
-    right: [u8; 32],
+    pub left: [u8; 32],
+    pub right: [u8; 32],
     path_comes_from: Side,
 }
 

@@ -40,11 +40,11 @@ pub fn draw_merkle_proof_of_inclusion_tree(hash_pairs: &mut Vec<HashPair>) -> St
         
         let current_row = i * 2 + 1; // Calculate the current row index based on the current pair index
 
-        matrix[current_row][(hashes_positions[0] as usize)] = LEFT_BRANCH.to_string();
-        matrix[current_row][(hashes_positions[1] as usize)] = RIGHT_BRANCH.to_string();
+        matrix[current_row][hashes_positions[0] as usize] = LEFT_BRANCH.to_string();
+        matrix[current_row][hashes_positions[1] as usize] = RIGHT_BRANCH.to_string();
         
-        matrix[current_row+1][(hashes_positions[0] as usize)] = left_hash_str;
-        matrix[current_row+1][(hashes_positions[1] as usize)] = right_hash_str;
+        matrix[current_row+1][hashes_positions[0] as usize] = left_hash_str;
+        matrix[current_row+1][hashes_positions[1] as usize] = right_hash_str;
         
         left_hash = pair.left;
     }

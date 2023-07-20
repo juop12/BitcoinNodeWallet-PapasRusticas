@@ -16,31 +16,15 @@ pub fn update_balance(balance: &Builder, amount: &str) {
 
 /// Updates the total amount balance according to the amount passed as argument
 fn update_total_amount(builder: &Builder) {
-    let total_amount_label: Label = builder.object("Total Amount Label").unwrap();
-    let send_amount: SpinButton = builder.object("Send Amount").unwrap();
-    let fee_amount: SpinButton = builder.object("Fee Amount").unwrap();
+    let total_amount_label: Label = builder.object("Total Amount Label").expect("Couldn't find total amount label");
+    let send_amount: SpinButton = builder.object("Send Amount").expect("Couldn't find send amount spin button");
+    let fee_amount: SpinButton = builder.object("Fee Amount").expect("Couldn't find fee amount spin button");
 
     let sth_amount = (send_amount.value() * BITCOIN_TO_SATOSHIS).round()
         + (fee_amount.value() * BITCOIN_TO_SATOSHIS).round();
     let total_amount = sth_amount / BITCOIN_TO_SATOSHIS;
 
     total_amount_label.set_label(&total_amount.to_string());
-}
-
-/// Connects the signals of the send amount and fee amount spin buttons to the update_total_amount function.
-/// This function is called when the user changes the value of the spin buttons.
-pub fn activate_adjustments(builder: &Builder) {
-    let send_amount: SpinButton = builder.object("Send Amount").unwrap();
-    let fee_amount: SpinButton = builder.object("Fee Amount").unwrap();
-    let mut builder_clone = builder.clone();
-    send_amount.connect_value_changed(move |_| {
-        update_total_amount(&builder_clone);
-    });
-
-    builder_clone = builder.clone();
-    fee_amount.connect_value_changed(move |_| {
-        update_total_amount(&builder_clone);
-    });
 }
 
 /// Updates the sending value of the wallet according to the available balance
@@ -51,6 +35,58 @@ fn use_available_balance(available_balance_label: &SpinButton, balance_amount: &
         Err(_) => return,
     };
     available_balance_label.set_value(new_value);
+}
+
+/// Handles the transaction sending process. It checks if the address is valid and if the amount is valid.
+/// If the fields are not correct, it shows an error dialog.
+/// If the fields are correct, it sends a CreateTx message to the wallet.
+fn handle_transaction_sending(
+    builder: &Builder,
+    address: &str,
+    amount: f64,
+    fee: f64,
+    balance: f64,
+    sender: &Sender<UIRequest>,
+) {
+    if address.len() != ADDRESS_LEN {
+        let error_dialog: Dialog = builder.object("Invalid Address Dialog").expect("Couldn't find invalid address dialog");
+        error_dialog.set_title("Address Error");
+        error_dialog.run();
+        error_dialog.hide();
+        return;
+    }
+    if amount + fee > balance {
+        let error_dialog: Dialog = builder.object("Invalid Amount Dialog").expect("Couldn't find invalid amount dialog");
+        error_dialog.set_title("Amount Error");
+        error_dialog.run();
+        error_dialog.hide();
+        return;
+    }
+    let amount_in_sth = (amount * BITCOIN_TO_SATOSHIS).round() as i64;
+    let fee_in_sth = (fee * BITCOIN_TO_SATOSHIS).round() as i64;
+    sender
+        .send(UIRequest::CreateTx(
+            amount_in_sth,
+            fee_in_sth,
+            address.to_string(),
+        ))
+        .unwrap();
+}
+
+/// Connects the signals of the send amount and fee amount spin buttons to the update_total_amount function.
+/// This function is called when the user changes the value of the spin buttons.
+pub fn activate_adjustments(builder: &Builder) {
+    let send_amount: SpinButton = builder.object("Send Amount").expect("Couldn't find send amount spin button");
+    let fee_amount: SpinButton = builder.object("Fee Amount").expect("Couldn't find fee amount spin button");
+    let mut builder_clone = builder.clone();
+    send_amount.connect_value_changed(move |_| {
+        update_total_amount(&builder_clone);
+    });
+
+    builder_clone = builder.clone();
+    fee_amount.connect_value_changed(move |_| {
+        update_total_amount(&builder_clone);
+    });
 }
 
 /// Connects the signal of the use available balance button to the use_available_balance function.
@@ -98,58 +134,22 @@ pub fn activate_clear_all_button(builder: &Builder) {
     });
 }
 
-/// Handles the transaction sending process. It checks if the address is valid and if the amount is valid.
-/// If the fields are not correct, it shows an error dialog.
-/// If the fields are correct, it sends a CreateTx message to the wallet.
-fn handle_transaction_sending(
-    builder: &Builder,
-    address: &str,
-    amount: f64,
-    fee: f64,
-    balance: f64,
-    sender: &Sender<UIRequest>,
-) {
-    if address.len() != ADDRESS_LEN {
-        let error_dialog: Dialog = builder.object("Invalid Address Dialog").unwrap();
-        error_dialog.set_title("Address Error");
-        error_dialog.run();
-        error_dialog.hide();
-        return;
-    }
-    if amount + fee > balance {
-        let error_dialog: Dialog = builder.object("Invalid Amount Dialog").unwrap();
-        error_dialog.set_title("Amount Error");
-        error_dialog.run();
-        error_dialog.hide();
-        return;
-    }
-    let amount_in_sth = (amount * BITCOIN_TO_SATOSHIS).round() as i64;
-    let fee_in_sth = (fee * BITCOIN_TO_SATOSHIS).round() as i64;
-    sender
-        .send(UIRequest::CreateTx(
-            amount_in_sth,
-            fee_in_sth,
-            address.to_string(),
-        ))
-        .unwrap();
-}
-
 /// Connects the signal of the dialogs to the hide function for each one
 fn activate_dialogs(builder: &Builder) {
-    let error_address_dialog: Dialog = builder.object("Invalid Address Dialog").unwrap();
-    let error_adress_button: Button = builder.object("Invalid Address Button").unwrap();
+    let error_address_dialog: Dialog = builder.object("Invalid Address Dialog").expect("Couldn't find invalid address dialog");
+    let error_adress_button: Button = builder.object("Invalid Address Button").expect("Couldn't find invalid address button");
     error_adress_button.connect_clicked(move |_| {
         error_address_dialog.hide();
     });
 
-    let error_amount_dialog: Dialog = builder.object("Invalid Amount Dialog").unwrap();
-    let error_amount_button: Button = builder.object("Invalid Amount Button").unwrap();
+    let error_amount_dialog: Dialog = builder.object("Invalid Amount Dialog").expect("Couldn't find invalid amount dialog");
+    let error_amount_button: Button = builder.object("Invalid Amount Button").expect("Couldn't find invalid amount button");
     error_amount_button.connect_clicked(move |_| {
         error_amount_dialog.hide();
     });
 
-    let succesful_send_dialog: Dialog = builder.object("Succesful Send Dialog").unwrap();
-    let succesful_send_button: Button = builder.object("Succesful Send Button").unwrap();
+    let succesful_send_dialog: Dialog = builder.object("Succesful Send Dialog").expect("Couldn't find succesful send dialog");
+    let succesful_send_button: Button = builder.object("Succesful Send Button").expect("Couldn't find succesful send button");
     succesful_send_button.connect_clicked(move |_| {
         succesful_send_dialog.hide();
     });
@@ -157,11 +157,11 @@ fn activate_dialogs(builder: &Builder) {
 
 /// Connects the signal of the send button to the handle_transaction_sending function.
 pub fn activate_send_button(builder: &Builder, sender: &Sender<UIRequest>) {
-    let address_entry: Entry = builder.object("Pay To Entry").unwrap();
-    let amount: SpinButton = builder.object("Send Amount").unwrap();
-    let fee: SpinButton = builder.object("Fee Amount").unwrap();
-    let send_button: Button = builder.object("Send Button").unwrap();
-    let balance_label: Label = builder.object("Balance Amount").unwrap();
+    let address_entry: Entry = builder.object("Pay To Entry").expect("Couldn't find pay to entry");
+    let amount: SpinButton = builder.object("Send Amount").expect("Couldn't find send amount spin button");
+    let fee: SpinButton = builder.object("Fee Amount").expect("Couldn't find fee amount spin button");
+    let send_button: Button = builder.object("Send Button").expect("Couldn't find send button");
+    let balance_label: Label = builder.object("Balance Amount").expect("Couldn't find balance label");
     let builder_clone = builder.clone();
     let sender_clone = sender.clone();
     send_button.connect_clicked(move |_| {

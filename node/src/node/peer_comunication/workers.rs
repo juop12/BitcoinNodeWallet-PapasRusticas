@@ -1,4 +1,4 @@
-use crate::{node::*, utils::{btc_errors::BlockDownloaderError, log, PeerComunicatorError, WorkerError}};
+use crate::{node::*, utils::{PeerComunicatorError, WorkerError}};
 
 use std::{
     net::TcpStream,
@@ -10,7 +10,6 @@ use block_downloader::block_downloader_thread_loop;
 use peer_comunicator::worker_manager_loop;
 use peer_comunicator::peer_comunicator_worker_thread_loop;
 use peer_comunicator::new_peer_conector_thread_loop;
-use peer_comunicator::NEW_CONECTION_INTERVAL;
 
 pub type FinishedIndicator = Arc<Mutex<bool>>;
 
