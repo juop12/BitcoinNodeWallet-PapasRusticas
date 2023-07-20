@@ -27,10 +27,11 @@ impl PeerComunicator {
         safe_blockchain: &SafeBlockChain,
         safe_headers: &SafeVecHeader,
         safe_pending_tx: &SafePendingTx,
+        safe_headers_index: &SafeHeaderIndex,
         logger: &Logger,
     ) -> PeerComunicator{
         let finished_working_indicator = Arc::new(Mutex::from(false));
-        let workers = PeerComunicator::create_peer_comunicator_workers(outbound_connections, safe_blockchain, safe_headers, safe_pending_tx, &finished_working_indicator, logger);
+        let workers = PeerComunicator::create_peer_comunicator_workers(outbound_connections, safe_blockchain, safe_headers, safe_pending_tx, safe_headers_index, &finished_working_indicator, logger);
         let new_peer_conector = NewPeerConnector::new(
             node_version, 
             node_address, 
@@ -45,6 +46,7 @@ impl PeerComunicator {
             safe_blockchain.clone(),
             safe_headers.clone(),
             safe_pending_tx.clone(),
+            safe_headers_index.clone(),
             finished_working_indicator.clone(),
             logger.clone());
 
@@ -61,6 +63,7 @@ impl PeerComunicator {
         safe_blockchain: &SafeBlockChain,
         safe_headers: &SafeVecHeader,
         safe_pending_tx: &SafePendingTx,
+        safe_headers_index: &SafeHeaderIndex,
         finished_working_indicator: &Arc<Mutex<bool>>,
         logger: &Logger,
     ) -> Vec<Worker> {
@@ -83,6 +86,7 @@ impl PeerComunicator {
                 safe_headers.clone(),
                 safe_blockchain.clone(),
                 safe_pending_tx.clone(),
+                safe_headers_index.clone(),
                 logger.clone(),
                 finished_working_indicator.clone(),
                 id,
@@ -125,6 +129,7 @@ pub fn worker_manager_loop(
     safe_blockchain: &SafeBlockChain,
     safe_headers: &SafeVecHeader,
     safe_pending_tx: &SafePendingTx,
+    safe_headers_index: &SafeHeaderIndex,
     message_bytes_receiver: &mpsc::Receiver<Vec<u8>>,
     finished: &Arc<Mutex<bool>>,
     logger: &Logger)-> Stops{
@@ -147,6 +152,7 @@ pub fn worker_manager_loop(
                         safe_headers.clone(), 
                         safe_blockchain.clone(), 
                         safe_pending_tx.clone(), 
+                        safe_headers_index.clone(),
                         logger.clone(), 
                         finished.clone(), 
                         workers.len());
@@ -196,6 +202,7 @@ pub fn peer_comunicator_worker_thread_loop(
     safe_block_headers: &SafeVecHeader,
     safe_block_chain: &SafeBlockChain,
     safe_pending_tx: &SafePendingTx,
+    safe_headers_index: &SafeHeaderIndex,
     message_bytes_receiver: &mpsc::Receiver<Vec<u8>>,
     logger: &Logger,
     finished: &FinishedIndicator,
@@ -215,6 +222,7 @@ pub fn peer_comunicator_worker_thread_loop(
         safe_block_headers,
         safe_block_chain,
         safe_pending_tx,
+        safe_headers_index,
         logger,
         false,
     ){

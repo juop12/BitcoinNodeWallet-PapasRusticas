@@ -21,7 +21,7 @@ use std::{
     io::{Read, Write, ErrorKind::WouldBlock},
     net::{SocketAddr, TcpStream, ToSocketAddrs, TcpListener},
     sync::{Arc, Mutex, MutexGuard},
-    thread::{self, sleep}, 
+    thread::sleep, 
     time::Duration,
 };
 use glib::Sender as GlibSender;
@@ -32,6 +32,7 @@ const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
 pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
 pub type SafeVecHeader = Arc<Mutex<Vec<BlockHeader>>>;
 pub type SafePendingTx = Arc<Mutex<HashMap<[u8; 32], Transaction>>>;
+pub type SafeHeaderIndex = Arc<Mutex<HashMap<[u8; 32], usize>>>;
 
 /// Struct that represents the bitcoin node
 pub struct Node {
@@ -40,6 +41,7 @@ pub struct Node {
     pub initial_peers: Vec<TcpStream>,
     data_handler: NodeDataHandler,
     block_headers: SafeVecHeader,
+    headers_index: SafeHeaderIndex,
     starting_block_time: u32,
     blockchain: SafeBlockChain,
     utxo_set: HashMap<Outpoint, TxOut>,
@@ -69,6 +71,7 @@ impl Node {
             address: SocketAddr::from((local_host, local_port)),
             initial_peers: Vec::new(),
             block_headers: Arc::new(Mutex::from(Vec::new())),
+            headers_index: Arc::new(Mutex::from(HashMap::new())),
             starting_block_time,
             blockchain: Arc::new(Mutex::from(HashMap::new())),
             utxo_set: HashMap::new(),
@@ -174,6 +177,12 @@ impl Node {
             .map_err(|_| NodeError::ErrorSharingReference)
     }
 
+    pub fn get_header_index(&self) -> Result<MutexGuard<HashMap<[u8; 32], usize>>, NodeError> {
+        self.headers_index
+            .lock()
+            .map_err(|_| NodeError::ErrorSharingReference)
+    }
+
     /// Creates a threadpool responsable for receiving messages in different threads.
     pub fn start_receiving_messages(&mut self) {
         self.peer_comunicator = Some(PeerComunicator::new(
@@ -183,6 +192,7 @@ impl Node {
             &self.blockchain,
             &self.block_headers,
             &self.pending_tx,
+            &self.headers_index,
             &self.logger,
         ));
     }
@@ -195,6 +205,7 @@ impl Node {
             &self.block_headers,
             &self.blockchain,
             &self.pending_tx,
+            &self.headers_index,
             &self.logger,
             ibd,
         )
@@ -251,6 +262,7 @@ pub fn receive_message(
     block_headers: &SafeVecHeader,
     blockchain: &SafeBlockChain,
     pending_tx: &SafePendingTx,
+    headers_index: &SafeHeaderIndex,
     logger: &Logger,
     ibd: bool,
 ) -> Result<String, NodeError> {
@@ -285,15 +297,35 @@ pub fn receive_message(
             block_headers,
             blockchain,
             pending_tx,
+            headers_index,
             logger,
             ibd,
         )?,
-        "headers\0\0\0\0\0" => handle_block_headers_message(msg_bytes, block_headers)?,
+        "headers\0\0\0\0\0" => handle_block_headers_message(msg_bytes, block_headers, headers_index)?,
+        "getheaders\0\0" => if !ibd{
+                handle_get_headers_message(stream, msg_bytes, block_headers, headers_index, logger)?;
+            },
+        "getdata\0\0\0\0\0" => if !ibd{
+                handle_get_data(stream, msg_bytes, blockchain)?;
+            },
         "tx\0\0\0\0\0\0\0\0\0\0" => handle_tx_message(msg_bytes, pending_tx)?,
         _ => {}
     };
 
     Ok(block_headers_msg_h.get_command_name())
+}
+
+pub fn insert_new_headers(headers: Vec<BlockHeader>, safe_block_headers: &SafeVecHeader, safe_headers_index: &SafeHeaderIndex) -> Result<(), NodeError>{
+
+    let mut block_headers = safe_block_headers.lock().map_err(|_| NodeError::ErrorSharingReference)?;
+    let mut headers_index = safe_headers_index.lock().map_err(|_| NodeError::ErrorSharingReference)?;
+    
+    for header in headers{
+        headers_index.insert(header.hash(), block_headers.len());
+        block_headers.push(header);
+    }
+    
+    Ok(())
 }
 
 #[cfg(test)]

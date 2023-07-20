@@ -109,7 +109,7 @@ impl BlockDownloader {
         let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
 
         let receiver = Arc::new(Mutex::new(receiver));
-        let mut workers = Vec::with_capacity(connections_amount);
+        let mut workers = Vec::new();
 
         //No tomamos el tcp stream que se esta usando para descargar headers, porque se usa para descargar headers.
         for (id, stream) in outbound_connections
@@ -225,12 +225,14 @@ fn receive_block(
 ) -> Result<(), BlockDownloaderError> {
     let start_time = Instant::now();
     let pending_tx_dummy = Arc::new(Mutex::from(HashMap::new()));
+    let headers_index_dummy = Arc::new(Mutex::from(HashMap::new()));
     while start_time.elapsed() < PEER_TIMEOUT {
         match receive_message(
             stream,
             safe_headers,
             safe_blockchain,
             &pending_tx_dummy,
+            &headers_index_dummy,
             logger,
             true,
         ) {

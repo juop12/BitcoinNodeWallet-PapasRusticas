@@ -2,14 +2,15 @@ use super::message_trait::*;
 use crate::utils::variable_length_integer::VarLenInt;
 
 const MINIMUM_ANOMUNT_OF_BYTES: usize = 37;
+pub const MAX_QUANTITY_FOR_GET_HEADERS: usize = 2000;
 
 /// Message used to request a block header from a node.
 #[derive(Debug, PartialEq)]
 pub struct GetBlockHeadersMessage {
     version: u32,
     hash_count: VarLenInt,              //Que pasa si es 0?
-    block_header_hashes: Vec<[u8; 32]>, //Que pasa si su cantidad es distinta de hash_count?
-    stopping_hash: [u8; 32],
+    pub block_header_hashes: Vec<[u8; 32]>, //Que pasa si su cantidad es distinta de hash_count?
+    pub stopping_hash: [u8; 32],
 }
 
 impl Message for GetBlockHeadersMessage {
