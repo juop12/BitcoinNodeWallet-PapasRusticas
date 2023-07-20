@@ -104,8 +104,9 @@ impl Node {
             sender_to_ui,
         );
 
-        let mut address_vector =
-            node.peer_discovery(config.dns, config.ipv6_enabled);
+        let mut address_vector = node.peer_discovery(config.dns, config.ipv6_enabled);
+        address_vector.extend(node.add_external_addresses(config.external_addresses));
+
         address_vector.reverse(); // Generally the first nodes are slow, so we reverse the vector to connect to the fastest nodes first
 
         for addr in address_vector {
@@ -129,17 +130,18 @@ impl Node {
         }
     }
 
+    ///-
     pub fn log_and_send_to_ui(&self, message: &str) {
         self.logger.log(message.to_string());
         let ui_message = LoadingScreenInfo::UpdateLabel(message.to_string());
         self.sender_to_ui.send(UIResponse::LoadingScreenUpdate(ui_message)).expect("Error sending message to UI");
     }
 
-    /// Receives a dns address as a String and returns a Vector that contains all the addresses
-    /// returned by the dns. If an error occured (for example, the dns address is not valid), it
-    /// returns an empty Vector.
-    /// The socket address requires a dns and a DNS_PORT, which is set to 18333 because it is
-    /// the port used by the bitcoin core testnet.
+    /// Receives a vector of dns address as a (String, u16) each and returns a 
+    /// Vector that contains all the addresses returned by the dns. 
+    /// If an error occured (for example, the dns address is not valid), it returns an empty Vector.
+    /// The socket address requires a dns and a DNS_PORT. 
+    /// (DNS_PORT is set to 18333 because it is the port used by the bitcoin core testnet).
     fn peer_discovery(&self, dns_vector: Vec<(String, u16)>, ipv6_enabled: bool) -> Vec<SocketAddr> {
         let mut socket_address_vector = Vec::new();
 
@@ -152,6 +154,23 @@ impl Node {
                 }
             }
         }
+
+        socket_address_vector
+    }
+
+    /// Receives a vector of addresses as a ([u8; 4], u16) each and returns a Vector 
+    /// that contains all the addresses converted to SocketAddr. 
+    /// If an error occured (for example, all addresses are not valid), it returns an empty Vector.
+    /// The socket address requires an IP and a PORT. 
+    /// (PORT is set to 18333 because it is the port used by the bitcoin core testnet).
+    fn add_external_addresses(&self, addresses: Vec<([u8; 4], u16)>) -> Vec<SocketAddr>{
+        let mut socket_address_vector = Vec::new();
+
+        for address in addresses{
+            let socket_address = SocketAddr::from(address);
+            socket_address_vector.push(socket_address); //p Si el usuario quiere poner IPv6 puede. El booleano solo cuenta para las DNS
+        }
+
         socket_address_vector
     }
 
