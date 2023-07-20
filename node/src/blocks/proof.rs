@@ -75,21 +75,27 @@ pub fn validate_block_proof_of_inclusion(block: &Block) -> bool {
 }
 
 pub struct HashPair {
-    pub left: [u8; 32],
-    pub right: [u8; 32],
+    left: [u8; 32],
+    right: [u8; 32],
+    path_comes_from: Side,
+}
+
+enum Side{
+    Left,
+    Right
 }
 
 impl HashPair {
-    fn new(left: [u8; 32], right: [u8; 32]) -> HashPair {
-        HashPair { left, right }
+    fn new(left: [u8; 32], right: [u8; 32], side: Side) -> HashPair {
+        HashPair { left, right, path_comes_from: side }
     }
 
-    /// Returns true if either hash is equal to the received hash
-    pub fn contains(&self, hash: [u8; 32]) -> bool {
-        if (self.left == hash) || (self.right == hash) {
-            return true;
+    /// Returns true if the hash is equal to the correct side of the HashPair
+    pub fn equals_path_side(&self, hash: [u8; 32]) -> bool {
+        match self.path_comes_from{
+            Side::Left => self.left == hash,
+            Side::Right => self.right == hash,
         }
-        false
     }
 
     /// Hashes the result of concatenating, left and right
@@ -131,11 +137,13 @@ pub fn proof_of_transaction_included_in(
             HashPair::new(
                 current_level[level_position],
                 current_level[level_position + 1],
+                Side::Left
             )
         } else {
             HashPair::new(
                 current_level[level_position - 1],
                 current_level[level_position],
+                Side::Right
             )
         };
         merkle_proof.push(hash_pair);
