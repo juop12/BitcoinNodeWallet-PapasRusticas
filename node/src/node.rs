@@ -27,7 +27,6 @@ use std::{
 use glib::Sender as GlibSender;
 
 const MESSAGE_HEADER_SIZE: usize = 24;
-const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
 
 pub type SafeBlockChain = Arc<Mutex<HashMap<[u8; 32], Block>>>;
 pub type SafeVecHeader = Arc<Mutex<Vec<BlockHeader>>>;
@@ -59,8 +58,7 @@ impl Node {
     /// It creates and returns a Node with the default values
     fn _new(
         version: i32,
-        local_host: [u8; 4],
-        local_port: u16,
+        local_address: ([u8; 4], u16),
         logger: Logger,
         data_handler: NodeDataHandler,
         starting_block_time: u32,
@@ -68,7 +66,7 @@ impl Node {
     ) -> Node {
         Node {
             version,
-            address: SocketAddr::from((local_host, local_port)),
+            address: SocketAddr::from(local_address),
             initial_peers: Vec::new(),
             block_headers: Arc::new(Mutex::from(Vec::new())),
             headers_index: Arc::new(Mutex::from(HashMap::new())),
@@ -99,8 +97,7 @@ impl Node {
 
         let mut node = Node::_new(
             config.version,
-            config.local_host,
-            config.local_port,
+            config.local_address,
             logger,
             data_handler,
             config.begin_time,
@@ -108,7 +105,7 @@ impl Node {
         );
 
         let mut address_vector =
-            node.peer_discovery(DNS_ADDRESS, config.dns_port, config.ipv6_enabled);
+            node.peer_discovery(config.dns, config.ipv6_enabled);
         address_vector.reverse(); // Generally the first nodes are slow, so we reverse the vector to connect to the fastest nodes first
 
         for addr in address_vector {
@@ -143,13 +140,15 @@ impl Node {
     /// returns an empty Vector.
     /// The socket address requires a dns and a DNS_PORT, which is set to 18333 because it is
     /// the port used by the bitcoin core testnet.
-    fn peer_discovery(&self, dns: &str, dns_port: u16, ipv6_enabled: bool) -> Vec<SocketAddr> {
+    fn peer_discovery(&self, dns_vector: Vec<(String, u16)>, ipv6_enabled: bool) -> Vec<SocketAddr> {
         let mut socket_address_vector = Vec::new();
 
-        if let Ok(address_iter) = (dns, dns_port).to_socket_addrs() {
-            for address in address_iter {
-                if address.is_ipv4() || ipv6_enabled {
-                    socket_address_vector.push(address);
+        for dns in dns_vector{
+            if let Ok(address_iter) = dns.to_socket_addrs() {
+                for address in address_iter {
+                    if address.is_ipv4() || ipv6_enabled {
+                        socket_address_vector.push(address);
+                    }
                 }
             }
         }
@@ -333,14 +332,14 @@ mod tests {
     use super::*;
     use crate::utils::mock_tcp_stream::*;
 
-    const LOCAL_HOST: [u8; 4] = [127, 0, 0, 1];
-    const LOCAL_PORT: u16 = 1001;
+    const LOCAL_ADDRESS: ([u8; 4], u16) = ([127, 0, 0, 1], 1001);
     const DNS_PORT: u16 = 18333;
     const VERSION: i32 = 70015;
     const STARTING_BLOCK_TIME: u32 = 1681084800;
     const LOG_FILE_PATH: &str = "tests_txt/test_log.txt";
     const HEADERS_FILE_PATH: &str = "tests_txt/headers.bin";
     const BLOCKS_FILE_PATH: &str = "tests_txt/blocks.bin";
+    const DNS_ADDRESS: &str = "seed.testnet.bitcoin.sprovoost.nl";
 
     #[test]
     fn peer_discovery_test_1_fails_when_receiving_invalid_dns_address() {
@@ -349,14 +348,16 @@ mod tests {
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::_new(
             VERSION,
-            LOCAL_HOST,
-            LOCAL_PORT,
+            LOCAL_ADDRESS,
             logger,
             data_handler,
             STARTING_BLOCK_TIME,
             sx,
         );
-        let address_vector = node.peer_discovery("does_not_exist", DNS_PORT, false);
+
+        let invalid_dns_address = vec![("does_not_exist".to_string(), DNS_PORT)];
+
+        let address_vector = node.peer_discovery(invalid_dns_address, false);
 
         assert!(address_vector.is_empty());
     }
@@ -368,14 +369,16 @@ mod tests {
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::_new(
             VERSION,
-            LOCAL_HOST,
-            LOCAL_PORT,
+            LOCAL_ADDRESS,
             logger,
             data_handler,
             STARTING_BLOCK_TIME,
             sx,
         );
-        let address_vector = node.peer_discovery(DNS_ADDRESS, DNS_PORT, false);
+
+        let valid_dns_address = vec![(DNS_ADDRESS.to_string(), DNS_PORT)];
+
+        let address_vector = node.peer_discovery(valid_dns_address, false);
 
         assert!(!address_vector.is_empty());
     }

@@ -99,11 +99,17 @@ impl BtcError for NodeDataHandlerError {}
 #[derive(Debug)]
 pub enum ConfigError {
     ErrorReadingFile,
-    ErrorFillingAttributes,
     ErrorMismatchedFileName,
     ErrorMismatchedQuantityOfParameters,
-    ErrorMismatchedParameters,
+    ErrorParsingVersion,
+    ErrorParsingIP,
+    ErrorParsingPort,
     ErrorParsingDate,
+    ErrorInvalidDate,
+    ErrorParsingIPV6Bool,
+    ErrorInvalidParameter,
+    ErrorNoExternalAddressGiven,
+    ErrorParameterNotFound,
 }
 
 impl BtcError for ConfigError {}
