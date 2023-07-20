@@ -55,7 +55,7 @@ pub fn block_downloader_thread_loop(
     }
 
     let aux_bundle = bundle.clone();
-
+    logger.log(format!("sigo vivo {id}"));
     match get_blocks_from_bundle(bundle, stream, safe_headers, safe_block_chain, logger) {
         Ok(blocks) => blocks,
         Err(error) => {
@@ -90,7 +90,7 @@ pub struct BlockDownloader {
     missed_bundles_receiver: mpsc::Receiver<Bundle>,
     safe_headers: SafeVecHeader,
     safe_blockchain: SafeBlockChain,
-    downloading_headers_peer: Option<TcpStream>,
+    downloading_headers_peer: Option<(TcpStream, usize)>,
     logger: Logger,
 }
 
@@ -143,16 +143,17 @@ impl BlockDownloader {
                 }
             };
             
-            if id == header_stream_index {
-                block_downloader.downloading_headers_peer = Some(current_stream);
-                continue;
+            if id == header_stream_index{
+                block_downloader.downloading_headers_peer = Some((current_stream, id));
+            }else{
+                block_downloader.add_worker(current_stream, id);
             }
 
-            block_downloader.add_worker(current_stream, id);
 
             id+=1;
         }
 
+        println!("{}", block_downloader.workers.len());
         Ok(block_downloader)
     }
 
@@ -185,8 +186,8 @@ impl BlockDownloader {
     /// Writes an empty vector to the channel of the workers, so they can finish their execution. It works as
     /// a way to stop the threads execution. On error, it returns BlockDownloaderError.
     pub fn finish_downloading(&mut self) -> Result<(), BlockDownloaderError> {
-        if let Some(header_peer_stream) = self.downloading_headers_peer.take(){
-            self.add_worker(header_peer_stream, self.workers.len());
+        if let Some((header_peer_stream, worker_id)) = self.downloading_headers_peer.take(){
+            self.add_worker(header_peer_stream, worker_id);
         }
 
         let working_peer_conection = self.join_workers()?;
