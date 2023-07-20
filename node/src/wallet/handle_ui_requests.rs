@@ -130,6 +130,9 @@ impl Wallet {
         fee: i64,
         receiver_address: String,
     ) -> Result<UIResponse, WalletError> {
+        if (amount + fee <= 0){
+            return Err(WalletError::InvalidAmount);
+        }
         let address_bytes = bs58::decode(receiver_address)
             .into_vec()
             .map_err(|_| WalletError::ErrorSendingTx)?;

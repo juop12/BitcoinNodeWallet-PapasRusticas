@@ -190,6 +190,7 @@ pub enum WalletError {
     ErrorObtainingTxProof,
     ErrorReceivingFromUI,
     ErrorUpdatingWallet,
+    InvalidAmount,
 }
 
 impl BtcError for WalletError {}

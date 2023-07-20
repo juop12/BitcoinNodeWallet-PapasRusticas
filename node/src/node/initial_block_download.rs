@@ -69,7 +69,7 @@ impl Node {
         &self,
         header_stream_index: usize,
     ) -> Result<BlockDownloader, NodeError> {
-        let block_downloader = BlockDownloader::new(
+        let block_downloader = BlockDownloader::from(
             &self.initial_peers,
             header_stream_index,
             &self.block_headers,
@@ -402,7 +402,7 @@ mod tests {
 
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let mut node = Node::new(config, sx)?;
-        let mut block_downloader = BlockDownloader::new(
+        let mut block_downloader = BlockDownloader::from(
             &node.initial_peers,
             0,
             &node.block_headers,
