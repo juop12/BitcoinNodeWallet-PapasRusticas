@@ -161,12 +161,13 @@ impl BtcError for NodeError {
 #[derive(Debug)]
 pub enum PeerComunicatorError {
     ErrorReceivingMessages,
-    ErrorAddingReceivedData,
     ErrorWorkerPanicked,
     ErrorFinishingReceivingMessages,
     ErrorCreatingWorker,
     ErrorCantReceiveNewPeerConections,
-    ErrorSendingMessage
+    ErrorSendingMessage,
+    ErrorPropagating,
+    LostConnectionToManager,
 }
 
 impl BtcError for PeerComunicatorError {}
@@ -175,7 +176,6 @@ impl BtcError for PeerComunicatorError {}
 pub enum WorkerError{
     ErrorWorkerPanicked,
     ErrorComunicatingBetweenWorkers,
-    LostConnectionToManager,
 }
 
 impl BtcError for WorkerError {}

@@ -274,7 +274,7 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderM
     }
 }
 
-fn _receive_message(stream: &mut TcpStream, logger: &Logger,)->Result<(Message,String), NodeError>{
+fn receive_message(stream: &mut TcpStream, logger: &Logger,)->Result<(Message,String), NodeError>{
     let block_headers_msg_h = receive_message_header(stream)?;
 
     logger.log(format!(
@@ -305,7 +305,7 @@ pub fn recieve_and_handle(
     logger: &Logger,
     ibd: bool)-> Result<String, NodeError>{
 
-    let (msg, command_name) = _receive_message(stream, logger)?;
+    let (msg, command_name) = receive_message(stream, logger)?;
     handle_message(msg, stream, block_headers, blockchain, pending_tx, headers_index, logger, ibd)?;
     Ok(command_name)
 }
