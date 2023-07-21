@@ -188,14 +188,16 @@ pub fn peer_comunicator_worker_thread_loop(
             _ => return Stops::UngracefullStop,
         },
     };
-
+    //logger.log("recibi mensaje".to_string());
     if propagate_messages(&msg, propagation_channel, safe_block_chain, safe_pending_tx).is_err(){
         return Stops::UngracefullStop;
     };
-
+    //logger.log("propague mensaje".to_string());
+    
     if handle_message(msg, stream, safe_block_headers, safe_block_chain, safe_pending_tx, safe_headers_index, logger, false).is_err(){
         return Stops::UngracefullStop;
     };
+    //logger.log("handelee mensaje".to_string());
     
     match try_to_send_message(message_bytes_receiver, stream){
         Ok(()) => logger.log(format!("Mandado mensaje al peer: {id}")),
@@ -204,12 +206,19 @@ pub fn peer_comunicator_worker_thread_loop(
             return Stops::UngracefullStop
         },
     };
+    //logger.log("try send mensaje".to_string());
 
     Stops::Continue
 }
 
 fn try_to_send_message(message_bytes_receiver: &mpsc::Receiver<Vec<u8>>, stream: &mut TcpStream)->Result<(),PeerComunicatorError>{
-    let message_bytes = message_bytes_receiver.try_recv().map_err(|_| PeerComunicatorError::LostConnectionToManager)?;
+    let message_bytes = match message_bytes_receiver.try_recv(){
+        Ok(message_bytes) => message_bytes,
+        Err(error) => match error{
+            mpsc::TryRecvError::Empty => return Ok(()),
+            mpsc::TryRecvError::Disconnected => return Err(PeerComunicatorError::ErrorPropagating),
+        },
+    };
     stream.write_all(&message_bytes).map_err(|_| PeerComunicatorError::ErrorSendingMessage)?;
     Ok(())
 }
@@ -223,7 +232,9 @@ fn propagate_messages(msg: &Message, propagation_channel: &mpsc::Sender<Vec<u8>>
                 Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
             };  
             if new_block{
-                propagation_channel.send(block_msg.to_bytes()).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+                let mut msg_bytes = block_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
+                msg_bytes.extend(block_msg.to_bytes());
+                propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
             }
         },
         Message::Tx(tx_msg) => {
@@ -233,7 +244,9 @@ fn propagate_messages(msg: &Message, propagation_channel: &mpsc::Sender<Vec<u8>>
                 Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
             };
             if new_tx{
-                propagation_channel.send(tx_msg.to_bytes()).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+                let mut msg_bytes = tx_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
+                msg_bytes.extend(tx_msg.to_bytes());
+                propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
             }
         },
         _ => {},
