@@ -59,6 +59,7 @@ pub enum MessageError {
     ErrorSendingPingMessage,
     ErrorCreatingPongMessage,
     ErrorSendingPongMessage,
+    UnknownMessage
 }
 
 impl BtcError for MessageError {}

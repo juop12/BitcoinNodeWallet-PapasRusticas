@@ -34,7 +34,7 @@ impl Stops {
 pub struct Worker {
     thread: thread::JoinHandle<Option<TcpStream>>,
     message_bytes_sender: Option<mpsc::Sender<Vec<u8>>>,
-    _id: usize,
+    pub _id: usize,
 }
 
 pub type Bundle = Vec<[u8; 32]>;
