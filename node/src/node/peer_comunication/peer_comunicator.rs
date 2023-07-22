@@ -1,4 +1,4 @@
-use crate::{node::*, utils::{btc_errors::PeerComunicatorError, WorkerError}};
+use crate::{node::*, utils::btc_errors::PeerComunicatorError};
 
 use std::{
     net::TcpStream,
@@ -31,7 +31,6 @@ impl PeerComunicator {
         logger: &Logger,
     ) -> PeerComunicator{
         let finished_working_indicator = Arc::new(Mutex::from(false));
-        //let workers = PeerComunicator::create_peer_comunicator_workers(outbound_connections, safe_blockchain, safe_headers, safe_pending_tx, safe_headers_index, &finished_working_indicator, logger);
         let new_peer_conector = NewPeerConnector::new(
             node_version, 
             node_address, 
@@ -79,6 +78,10 @@ impl PeerComunicator {
     pub fn send_message<T: MessageTrait>(&self, message: &T)->Result<(), PeerComunicatorError>{
         self.peer_communicator_manager.send_message(message)
     }
+
+    pub fn disconected(&self)->bool{
+        self.peer_communicator_manager.disconected()
+    }
 }
 
 ///Main loop for the worker manager, attemps to create a new worker from any new connection the NewPeerConnector
@@ -95,9 +98,6 @@ pub fn worker_manager_loop(
     propagation_channel: &mpsc::Sender<Vec<u8>>,
     finished: &Arc<Mutex<bool>>,
     logger: &Logger)-> Stops{
-        
-        logger.log(format!("\n manager tienen {}\n", workers.len()));
-
         match finished.lock() {
             Ok(finish) => {
                 if *finish {
@@ -121,7 +121,6 @@ pub fn worker_manager_loop(
                         logger.clone(), 
                         finished.clone(), 
                         workers.len());
-                        logger.log(format!("\n\n id {} \n\n", workers.len()));
                     workers.push(new_worker);
                 },
                 Err(error) => if let RecvTimeoutError::Disconnected = error{
@@ -130,42 +129,48 @@ pub fn worker_manager_loop(
             }
         }
         
-        match message_bytes_receiver.try_recv() {
-            Ok(message_bytes) => {
-                //sacar peers que hayan terminado
-                let mut i = 0;
-                let mut message_sent = false;
-                /*while i < workers.len() {
-                    if workers[i].is_finished() {
-                        let removed_worker = workers.swap_remove(i);
-                        if let Err(error) = removed_worker.join_thread(){
-                            logger.log_error(&error);
-                        }
-                    } else {
-                        if workers[i].send_message_bytes(message_bytes.clone()).is_ok(){
-                            message_sent = true;
-                        };
-                        i += 1;
-                    }
-                }*/
-                for worker in workers{
-                    if worker.send_message_bytes(message_bytes.clone()).is_ok(){
-                        logger.log(format!("manager sent message to {}\n", worker._id));
-                        message_sent = true;
-                    }
-                }
-                if !message_sent{
-                    return Stops::UngracefullStop;
-                }
-            }
-            Err(mpsc::TryRecvError::Empty) => {},
-            _ => return Stops::UngracefullStop,
+        if let Err(error) = process_existing_workers(workers, message_bytes_receiver, logger){
+            logger.log_error(&error);
+            return Stops::UngracefullStop;
         };
-        
+        if workers.is_empty(){
+            return Stops::GracefullStop;
+        }
         Stops::Continue
         //firjarse de mandar mensajes
 }
 
+/// Processes existing workers by removing any that may have ungracefully finished, and sending the message bytes 
+/// to each one of themif any message needs to be broadcasted to the hole net.
+fn process_existing_workers(workers: &mut Vec<Worker>, message_bytes_receiver: &mpsc::Receiver<Vec<u8>>, logger: &Logger)-> Result<(), PeerComunicatorError>{
+    match message_bytes_receiver.try_recv() {
+        Ok(message_bytes) => {
+            //sacar peers que hayan terminado
+            let mut i = 0;
+            let mut message_sent = false;
+            while i < workers.len() {
+                if workers[i].is_finished() {
+                    let removed_worker = workers.swap_remove(i);
+                    logger.log("removing_desconected_peer".to_string());
+                    if let Err(error) = removed_worker.join_thread(){
+                        logger.log_error(&error);
+                    }
+                } else {
+                    if workers[i].send_message_bytes(message_bytes.clone()).is_ok(){
+                        message_sent = true;
+                    };
+                    i += 1;
+                }
+            }
+            if !message_sent{
+                return Err(PeerComunicatorError::ErrorSendingMessage);
+            }
+        }
+        Err(mpsc::TryRecvError::Empty) => {},
+        _ => return Err(PeerComunicatorError::ErrorSendingMessage),
+    };
+    Ok(())
+}
 
 /// Main loop for each peer communicator worker, attemps to receive a message form its peer and handles it.
 /// If there is a message to send then it sends it to its peer
@@ -192,40 +197,34 @@ pub fn peer_comunicator_worker_thread_loop(
 
     match receive_message(stream, logger){
         Ok((msg,_command_name)) => {
-            if propagate_messages(&msg, propagation_channel, safe_block_chain, safe_pending_tx, logger).is_err(){
+            if propagate_messages(&msg, propagation_channel, safe_block_chain, safe_pending_tx).is_err(){
                 return Stops::UngracefullStop;
             };
-            //logger.log("propague mensaje".to_string());
             
             if handle_message(msg, stream, safe_block_headers, safe_block_chain, safe_pending_tx, safe_headers_index, logger, false).is_err(){
                 return Stops::UngracefullStop;
             };
-            //logger.log("handelee mensaje".to_string());
         },
         Err(error) => match error{
             NodeError::ErrorPeerTimeout => {},
             _ => return Stops::UngracefullStop,
         },
     };
-    //logger.log("recibi mensaje".to_string());
-   
     
     match try_to_send_message(message_bytes_receiver, stream){
         Ok(sent) => if sent{
             logger.log(format!("Mandado mensaje al peer: {id}"));
-        }else{
-            logger.log(format!("Intento pero no mando: {id}"));
         },
         Err(error) => {
             logger.log_error(&error);
             return Stops::UngracefullStop
         },
     };
-    //logger.log("try send mensaje".to_string());
 
     Stops::Continue
 }
 
+/// Atempts to send any message bytes that may be received trough the message_bytes_receiver to the given stream
 fn try_to_send_message(message_bytes_receiver: &mpsc::Receiver<Vec<u8>>, stream: &mut TcpStream)->Result<bool,PeerComunicatorError>{
     let message_bytes = match message_bytes_receiver.try_recv(){
         Ok(message_bytes) => message_bytes,
@@ -239,7 +238,7 @@ fn try_to_send_message(message_bytes_receiver: &mpsc::Receiver<Vec<u8>>, stream:
     Ok(true)
 }
 
-fn propagate_messages(msg: &Message, propagation_channel: &mpsc::Sender<Vec<u8>>, safe_block_chain: &SafeBlockChain, safe_pending_tx: &SafePendingTx, logger: &Logger)->Result<(), PeerComunicatorError>{
+fn propagate_messages(msg: &Message, propagation_channel: &mpsc::Sender<Vec<u8>>, safe_block_chain: &SafeBlockChain, safe_pending_tx: &SafePendingTx)->Result<(), PeerComunicatorError>{
     match msg{
         Message::Block(block_msg) => {
             let hash = block_msg.block.header_hash();
@@ -248,7 +247,6 @@ fn propagate_messages(msg: &Message, propagation_channel: &mpsc::Sender<Vec<u8>>
                 Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
             };  
             if new_block{
-                logger.log("\n\n BLOQUEEEEEEE \n\n".to_string());
                 let mut msg_bytes = block_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
                 msg_bytes.extend(block_msg.to_bytes());
                 propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
@@ -261,7 +259,6 @@ fn propagate_messages(msg: &Message, propagation_channel: &mpsc::Sender<Vec<u8>>
                 Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
             };
             if new_tx{
-                logger.log("\n\n TXXXXXXXXx \n\n".to_string());
                 let mut msg_bytes = tx_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
                 msg_bytes.extend(tx_msg.to_bytes());
                 propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;

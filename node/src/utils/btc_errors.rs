@@ -146,6 +146,7 @@ pub enum NodeError {
     ErrorPeerTimeout,
     ErrorReceivingMessageHeader,
     DoubleHeader,
+    ErrorDisconectedFromBlockchain,
     ErrorMessage(MessageError),
 }
 

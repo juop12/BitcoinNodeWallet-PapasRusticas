@@ -24,7 +24,7 @@ pub fn handle_message(
             Message::GetData(msg) => if !ibd{
                 handle_get_data(stream, msg, blockchain)?;
             },
-            Message::Header(msg) => return Err(NodeError::DoubleHeader),
+            Message::Header(_) => return Err(NodeError::DoubleHeader),
             Message::Inv(msg) => if !ibd{
                 handle_inv_message(stream, msg, blockchain, pending_tx)?;
             },

@@ -1,6 +1,5 @@
 use super::message_trait::*;
 use crate::blocks::Transaction;
-use crate::messages::*;
 
 /// Struct that represents a block message.
 pub struct TxMessage {

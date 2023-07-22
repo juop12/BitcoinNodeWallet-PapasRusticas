@@ -95,7 +95,7 @@ pub struct BlockDownloader {
 }
 
 impl BlockDownloader {
-    fn new(header_stream_index: usize,
+    fn new(
         safe_headers: &SafeVecHeader,
         safe_blockchain: &SafeBlockChain,
         logger: &Logger)->BlockDownloader{
@@ -103,10 +103,9 @@ impl BlockDownloader {
         let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
 
         let receiver = Arc::new(Mutex::new(receiver));
-        let mut workers = Vec::new();
         
         BlockDownloader {
-            workers,
+            workers: Vec::new(),
             sender,
             receiver,
             missed_bundles_sender,
@@ -131,7 +130,7 @@ impl BlockDownloader {
         }
 
         let mut id = 0;
-        let mut block_downloader = Self::new(header_stream_index, safe_headers, safe_blockchain, logger);
+        let mut block_downloader = Self::new( safe_headers, safe_blockchain, logger);
         
         //No tomamos el tcp stream que se esta usando para descargar headers, porque se usa para descargar headers.
         for stream in outbound_connections{
@@ -148,7 +147,6 @@ impl BlockDownloader {
             }else{
                 block_downloader.add_worker(current_stream, id);
             }
-
 
             id+=1;
         }

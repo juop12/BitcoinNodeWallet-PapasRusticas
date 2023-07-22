@@ -65,24 +65,6 @@ impl Message{
         };
         Ok(mensaje)
     }
-
-    pub fn send_to<T: Read + Write>(&self, receiver_stream: &mut T)-> Result<(), MessageError>{
-        match self{
-            Message::BlockHeaders(msg) => msg.send_to(receiver_stream),
-            Message::Block(msg) => msg.send_to(receiver_stream),
-            Message::GetBlockHeaders(msg) => msg.send_to(receiver_stream),
-            Message::GetData(msg) => msg.send_to(receiver_stream),
-            Message::Header(msg) => msg.send_to(receiver_stream),
-            Message::Inv(msg) => msg.send_to(receiver_stream),
-            Message::NotFound(msg) => msg.send_to(receiver_stream),
-            Message::Tx(msg) => msg.send_to(receiver_stream),
-            Message::VerACK(msg) => msg.send_to(receiver_stream),
-            Message::Version(msg) => msg.send_to(receiver_stream),
-            Message::Ping(msg) => msg.send_to(receiver_stream),
-            Message::Pong(msg) => msg.send_to(receiver_stream),
-            Message::UnknownMessage => Err(MessageError::UnknownMessage),
-        }
-    }
 }
 
 

@@ -29,7 +29,7 @@ impl Stops {
     }
 }
 
-/// Struct that represents a worker thread in the thread pool.
+/// Struct that represents a worker thread in a thread pool.
 #[derive(Debug)]
 pub struct Worker {
     thread: thread::JoinHandle<Option<TcpStream>>,
@@ -41,7 +41,7 @@ pub type Bundle = Vec<[u8; 32]>;
 pub type SafeReceiver = Arc<Mutex<mpsc::Receiver<Bundle>>>;
 
 impl Worker {
-    ///Creates a worker which attempts to execute tasks received trough the channel in a loop
+    ///Creates a worker which attempts to ask for and download blocks to a peer trough the given stream
     pub fn new_block_downloader_worker(
         id: usize,
         receiver: SafeReceiver,
@@ -237,6 +237,7 @@ impl PeerComunicatorWorkerManager{
             &logger);
 
         let thread = thread::spawn(move || loop {
+            logger.log(format!("Wormer manager managing {} workers", workers.len()));
             match worker_manager_loop(
                 &new_peer_conector,
                 &mut workers,
@@ -256,7 +257,9 @@ impl PeerComunicatorWorkerManager{
                     logger.log(Stops::UngracefullStop.log_message("peer communicator".to_string()));
                 }
             }
-            
+            if let Ok(mut finished) = finished.lock(){
+                *finished = true;
+            }
             if let Some(new_peer_conector) = new_peer_conector{
                 if let Err(error) = new_peer_conector.join_thread(){
                     logger.log_error(&error);
@@ -282,6 +285,10 @@ impl PeerComunicatorWorkerManager{
         let mut message_bytes  = message.get_header_message().map_err(|_| PeerComunicatorError::ErrorSendingMessage)?.to_bytes();
         message_bytes.extend(message.to_bytes());
         self.message_bytes_sender.send(message_bytes).map_err(|_| PeerComunicatorError::ErrorSendingMessage)
+    }
+
+    pub fn disconected(&self)->bool{
+        self.thread.is_finished()
     }
 }
 

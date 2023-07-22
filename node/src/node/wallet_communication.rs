@@ -7,6 +7,8 @@ use crate::{
 };
 use secp256k1::PublicKey;
 
+use super::peer_comunication;
+
 
 impl Node {
     /// Returns a vec of TxInfo of all the tx in pending_tx that belong to a certain PubKey
@@ -61,6 +63,12 @@ impl Node {
 
     /// Updates the Node information and communicates it to the wallet
     pub fn update(&mut self, wallet: &mut Wallet) -> Result<(), NodeError> {
+        match &self.peer_comunicator{
+            Some(peer_communicator) => if peer_communicator.disconected(){
+                return Err(NodeError::ErrorDisconectedFromBlockchain);
+            },
+            None => return Err(NodeError::ErrorDisconectedFromBlockchain),
+        }
         self.update_utxo(&mut wallet.utxos)?;
         wallet.balance = self.balance;
         self.update_pending_tx(wallet)?;
