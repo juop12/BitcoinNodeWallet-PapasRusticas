@@ -11,7 +11,7 @@ pub struct BlockHeadersMessage {
     pub headers: Vec<BlockHeader>,
 }
 
-impl Message for BlockHeadersMessage {
+impl MessageTrait for BlockHeadersMessage {
     type MessageType = BlockHeadersMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingBlockHeadersMessage;
 

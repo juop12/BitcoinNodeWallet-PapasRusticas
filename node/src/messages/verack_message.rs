@@ -4,7 +4,7 @@ use super::message_trait::*;
 #[derive(Debug, PartialEq)]
 pub struct VerACKMessage {}
 
-impl Message for VerACKMessage {
+impl MessageTrait for VerACKMessage {
     type MessageType = VerACKMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingHeaderMessage;
 
