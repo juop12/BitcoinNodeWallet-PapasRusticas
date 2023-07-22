@@ -197,6 +197,7 @@ pub enum WalletError {
     ErrorReceivingFromUI,
     ErrorUpdatingWallet,
     InvalidAmount,
+    ErrorDisconectedFromBlockchain
 }
 
 impl BtcError for WalletError {}

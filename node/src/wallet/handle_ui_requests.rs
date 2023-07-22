@@ -58,7 +58,11 @@ impl Wallet {
     /// returns ErrorUpdatingWallet.
     pub fn handle_update_wallet(&mut self, node: &mut Node) -> Result<UIResponse, WalletError> {
         node.update(self)
-            .map_err(|_| WalletError::ErrorUpdatingWallet)?;
+            .map_err(|error| 
+                match error{
+                    NodeError::ErrorDisconectedFromBlockchain => WalletError::ErrorDisconectedFromBlockchain,
+                    _ => WalletError::ErrorUpdatingWallet,
+            })?;
 
         let wallet_info = WalletInfo::from(self);
 
