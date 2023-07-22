@@ -109,6 +109,10 @@ pub fn worker_manager_loop(
 
         //recivir nuevos peers
         if let Some(new_peer_connector) = new_peer_connector{
+            let id = match workers.last(){
+                Some(worker) => worker._id + 1,
+                None => 0,
+            };
             match new_peer_connector.recv_timeout(NEW_CONECTION_INTERVAL){
                 Ok(new_stream) => {
                     let new_worker = Worker::new_peer_comunicator_worker(
@@ -120,7 +124,7 @@ pub fn worker_manager_loop(
                         propagation_channel.clone(),
                         logger.clone(), 
                         finished.clone(), 
-                        workers.len());
+                        id);
                     workers.push(new_worker);
                 },
                 Err(error) => if let RecvTimeoutError::Disconnected = error{
@@ -143,32 +147,33 @@ pub fn worker_manager_loop(
 /// Processes existing workers by removing any that may have ungracefully finished, and sending the message bytes 
 /// to each one of themif any message needs to be broadcasted to the hole net.
 fn process_existing_workers(workers: &mut Vec<Worker>, message_bytes_receiver: &mpsc::Receiver<Vec<u8>>, logger: &Logger)-> Result<(), PeerComunicatorError>{
-    match message_bytes_receiver.try_recv() {
-        Ok(message_bytes) => {
-            //sacar peers que hayan terminado
-            let mut i = 0;
-            let mut message_sent = false;
-            while i < workers.len() {
-                if workers[i].is_finished() {
-                    let removed_worker = workers.swap_remove(i);
-                    logger.log("removing_desconected_peer".to_string());
-                    if let Err(error) = removed_worker.join_thread(){
-                        logger.log_error(&error);
-                    }
-                } else {
-                    if workers[i].send_message_bytes(message_bytes.clone()).is_ok(){
-                        message_sent = true;
-                    };
-                    i += 1;
-                }
-            }
-            if !message_sent{
-                return Err(PeerComunicatorError::ErrorSendingMessage);
-            }
-        }
-        Err(mpsc::TryRecvError::Empty) => {},
+    let message_bytes = match message_bytes_receiver.try_recv() {
+        Ok(message_bytes) => Some(message_bytes),
+        Err(mpsc::TryRecvError::Empty) => None,
         _ => return Err(PeerComunicatorError::ErrorSendingMessage),
     };
+
+    let mut i = 0;
+    let mut message_sent = false;
+    while i < workers.len() {
+        if workers[i].is_finished() {
+            let removed_worker = workers.swap_remove(i);
+            logger.log("removing_desconected_peer".to_string());
+            if let Err(error) = removed_worker.join_thread(){
+                logger.log_error(&error);
+            }
+        } else {
+            if let Some(bytes) = &message_bytes{
+                if workers[i].send_message_bytes(bytes.clone()).is_ok(){
+                    message_sent = true;
+                };
+            }
+            i += 1;
+        }
+    }
+    if message_bytes.is_some() && !message_sent{
+        return Err(PeerComunicatorError::ErrorSendingMessage);
+    }
     Ok(())
 }
 
