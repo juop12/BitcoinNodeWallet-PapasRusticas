@@ -26,24 +26,18 @@ fn ui_response_to_message(builder: Builder,
     app: Application,
     sender: &Sender<UIRequest>,
     window_running: Arc<Mutex<bool>>,
-    update_wallet_join_handle: Arc<Mutex<Option<JoinHandle<()>>>>
 ){
     match action {
         UIResponse::ResultOFTXProof(result) => handle_result_of_tx_proof(&builder, result),
         UIResponse::WalletInfo(wallet_info) => handle_wallet_info(&wallet_info, &builder),
         UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
         UIResponse::FinishedInitializingNode => {
-            match start_window(&app, &builder, &sender, window_running.clone()){
-                Ok(join_handle) => {
-                    update_wallet_join_handle.lock().unwrap().replace(join_handle);
-                },
-                Err(error) => {
-                    handle_ui_error(&builder, error);
-                    return;
-                }
+            if let Err(error) = start_window(&app, &builder, &sender, window_running.clone()) {
+                handle_ui_error(&builder, error);
+                return;
             }    
         }
-        UIResponse::WalletFinished => handle_app_finished(&app, window_running.clone()),
+        UIResponse::WalletFinished => handle_app_finished(&builder, &app, window_running.clone()),
         UIResponse::TxSent => handle_tx_sent(&builder),
         UIResponse::WalletError(error) => handle_wallet_error(&builder, error, window_running),
         UIResponse::ErrorInitializingNode => handle_initialization_error(&builder, &app),
@@ -60,6 +54,7 @@ fn run_app(
     glade_src: &str,
     sender: Sender<UIRequest>,
     safe_receiver: SafeGlibReceiver,
+    main_window_running: Arc<Mutex<bool>>,
 ) {
     // Create Window
     let builder = Builder::from_string(glade_src);
@@ -72,15 +67,12 @@ fn run_app(
         Some(receiver) => receiver,
         None => return,
     };
-    let main_window_running = Arc::new(Mutex::new(false));
     show_loading_screen(&builder, app);
     let sender_clone = sender.clone();
     let builder_clone = builder.clone();
     let app_cloned = app.clone();
-    let update_wallet_join_handle: Arc<Mutex<Option<JoinHandle<()>>>> = Arc::new(Mutex::from(None));
-    let join_handle_for_finishing = update_wallet_join_handle.clone();
     glib_receiver.attach(None, move |action| {
-        ui_response_to_message(builder.clone(), action, app_cloned.clone(), &sender, main_window_running.clone(), update_wallet_join_handle.clone());
+        ui_response_to_message(builder.clone(), action, app_cloned.clone(), &sender, main_window_running.clone());
         glib::Continue(true)
     });
     
@@ -88,14 +80,6 @@ fn run_app(
         if sender_clone.send(UIRequest::EndOfProgram).is_ok() {
             let window = builder_clone.object::<Window>("Main Window").expect("Couldn't find main window");
             window.close();
-            match join_handle_for_finishing.lock().unwrap().take() {
-                Some(join_handle) => {
-                    if let Err(error) = join_handle.join() {
-                        eprintln!("Error joining thread: {:#?}", error);
-                    };
-                }
-                None => (),
-            }
         };
     });
 }
@@ -109,12 +93,13 @@ fn close_loading_window(builder: &Builder) {
 /// Starts the main elemente of the UI and shows the main window of the program
 /// after the node has finished initializing, this window is the one that
 /// the user sees
-fn start_window(
+fn 
+start_window(
     app: &Application,
     builder: &Builder,
     sender: &Sender<UIRequest>,
     running: Arc<Mutex<bool>>,
-) -> Result<JoinHandle<()>, UiError> {
+) -> Result<(), UiError> {
     match running.lock() {
         Ok(mut running) => *running = true,
         Err(_) => return Err(UiError::FailedToBuildUi)
@@ -124,7 +109,7 @@ fn start_window(
     let window: Window = builder.object("Main Window").expect("Failed to find main window");
     window.set_application(Some(app));
     window.show_all();
-    Ok(send_ui_update_request(sender, running))
+    Ok(())
 }
 
 /// Defines the important signals and actions of the UI elements, such as buttons, sliders,
@@ -147,19 +132,26 @@ fn initialize_elements(builder: &Builder, sender: &Sender<UIRequest>) {
 pub fn start_app(args: Vec<String>) {
     let glade_src = include_str!("glade/ui.glade");
     let application = Application::builder().build();
-
+    
     let (glib_sender, glib_receiver) =
         glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
     let safe_receiver: SafeGlibReceiver = Arc::new(Mutex::from(Some(glib_receiver)));
     let (sender, receiver) = mpsc::channel::<UIRequest>();
-    let join_handle = thread::spawn(move || run(args, glib_sender.clone(), receiver));
+    let sender_for_update_wallet = sender.clone();
+    let node_join_handle = thread::spawn(move || run(args, glib_sender.clone(), receiver));
 
-    application.connect_activate(move |app| run_app(app, glade_src, sender.clone(), safe_receiver.clone()));
+    let main_window_running = Arc::new(Mutex::new(false));
+    let window_running_for_update_wallet = main_window_running.clone();
+    let update_wallet_join_handle = send_ui_update_request(&sender_for_update_wallet, window_running_for_update_wallet); 
+    application.connect_activate(move |app| run_app(app, glade_src, sender.clone(), safe_receiver.clone(), main_window_running.clone()));
 
     let vector: Vec<String> = Vec::new();
     application.run_with_args(&vector);
 
-    if let Err(error) = join_handle.join() {
+    if let Err(error) = node_join_handle.join() {
+        eprintln!("Error joining thread: {:#?}", error);
+    };
+    if let Err(error) = update_wallet_join_handle.join() {
         eprintln!("Error joining thread: {:#?}", error);
     };
 }

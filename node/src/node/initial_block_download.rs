@@ -267,6 +267,9 @@ impl Node {
         self.headers_in_disk = aux_len;
         let starting_block_count = self.get_blockchain()?.len();
 
+        progress_str = "Started downloading headers";
+        self.log_and_send_to_ui(progress_str);
+
         let (mut block_downloader, thread_join) = self.start_downloading(starting_block_count)?;
 
         block_downloader

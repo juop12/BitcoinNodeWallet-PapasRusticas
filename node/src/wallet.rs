@@ -51,7 +51,12 @@ impl Wallet {
                 bytes.truncate(bytes.len() - 5);
                 bytes
             }
-            HEX_CHAR_PRIV_KEY_LENGTH => get_bytes_from_hex(priv_key_string),
+            HEX_CHAR_PRIV_KEY_LENGTH => {
+                match get_bytes_from_hex(priv_key_string) {
+                    Ok(bytes) => bytes,
+                    Err(_) => return Err(WalletError::ErrorHandlingPrivKey),
+                }
+            }
             _ => return Err(WalletError::ErrorHandlingPrivKey),
         };
 
@@ -121,10 +126,12 @@ impl Wallet {
 }
 
 /// Returns a vec of u8, interpreting the characters of the string as hex.
-pub fn get_bytes_from_hex(hex_string: String) -> Vec<u8> {
-    hex_string
-        .as_bytes()
-        .chunks(2)
-        .map(|chunk| u8::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16).unwrap())
-        .collect::<Vec<u8>>()
+pub fn get_bytes_from_hex(hex_string: String) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let mut result = Vec::new();
+    for chunk in hex_string.as_bytes().chunks(2) {
+        let str_chunk = std::str::from_utf8(chunk)?;
+        let value = u8::from_str_radix(str_chunk, 16)?;
+        result.push(value);
+    }
+    Ok(result)
 }

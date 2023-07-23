@@ -117,7 +117,10 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
             Ok(hash) => hash,
             Err(_) => return,
         };
-        let mut hash_bytes = get_bytes_from_hex(hash);
+        let mut hash_bytes = match get_bytes_from_hex(hash) {
+            Ok(hash_bytes) => hash_bytes,
+            Err(_) => return,
+        };
         hash_bytes.reverse();
         let transaction_hash: [u8; 32] = match hash_bytes.try_into() {
             Ok(transaction_hash) => transaction_hash,

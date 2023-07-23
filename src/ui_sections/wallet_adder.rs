@@ -2,7 +2,7 @@ use crate::error_handling::*;
 use crate::wallet_persistance::*;
 use crate::UiError;
 use gtk::prelude::*;
-use gtk::{Window,Builder, Button, ComboBoxText, Dialog, Entry, Label};
+use gtk::{Builder, Button, ComboBoxText, Dialog, Entry, Label};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
