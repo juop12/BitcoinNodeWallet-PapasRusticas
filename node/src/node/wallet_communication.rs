@@ -7,9 +7,6 @@ use crate::{
 };
 use secp256k1::PublicKey;
 
-use super::peer_comunication;
-
-
 impl Node {
     /// Returns a vec of TxInfo of all the tx in pending_tx that belong to a certain PubKey
     fn get_pending_tx_info_from(&self, pub_key: &PublicKey) -> Result<Vec<TxInfo>, NodeError> {
