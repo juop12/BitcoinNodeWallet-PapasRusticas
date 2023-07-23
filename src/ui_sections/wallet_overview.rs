@@ -27,8 +27,15 @@ fn update_total_balance(builder: &Builder) {
     let available_label: Label = builder.object("Available Quantity").expect("Couldn't find available balance label");
     let receiving_pending_label: Label = builder.object("Receiving Pending Quantity ").expect("Couldn't find receiving pending balance label");
 
-    let available_amount: f64 = available_label.label().parse::<f64>().unwrap();
-    let receiving_pending_amount: f64 = receiving_pending_label.label().parse::<f64>().unwrap();
+    let available_amount: f64 = match available_label.label().parse::<f64>() {
+        Ok(value) => value,
+        Err(_) => 0.0,
+    };
+    
+    let receiving_pending_amount: f64 = match receiving_pending_label.label().parse::<f64>() {
+        Ok(value) => value,
+        Err(_) => 0.0,
+    };
     let total_amount = available_amount + receiving_pending_amount;
 
     total_label.set_label(total_amount.to_string().as_str())

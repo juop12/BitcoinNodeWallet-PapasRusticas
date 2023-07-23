@@ -2,7 +2,7 @@ use crate::error_handling::*;
 use crate::wallet_persistance::*;
 use crate::UiError;
 use gtk::prelude::*;
-use gtk::{Builder, Button, ComboBoxText, Dialog, Entry, Label};
+use gtk::{Window,Builder, Button, ComboBoxText, Dialog, Entry, Label};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
@@ -92,7 +92,10 @@ fn handle_success_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
         wallet_adder_success_dialog.hide();
     });
     wallet_selector.append(Some(&priv_key_text_clone), &name_text);
-    let num_wallets = wallet_selector.model().unwrap().iter_n_children(None);
+    let num_wallets = match wallet_selector.model() {
+        Some(model) => model.iter_n_children(None),
+        None => 0,
+    };
     wallet_selector.set_active(Some((num_wallets - 1) as u32));
     if save_wallet_in_disk(&priv_key_text_clone, &name_text).is_err() {
         println!("Error saving wallet in disk");
@@ -108,18 +111,23 @@ fn handle_add_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
 }
 
 /// Shows the initial login screen where there are no wallets saved in disk.
-fn handle_initial_login(adder_dialog: &Dialog) {
+fn handle_initial_login(builder: &Builder) {
+    let adder_dialog: Dialog = builder.object("Wallet Adder Dialog").expect("Couldn't find Wallet Adder Dialog");
     adder_dialog.set_title("Initial Login");
     adder_dialog.show_all();
     adder_dialog.run();
+    let adder_dialog_clone = adder_dialog.clone();
+    adder_dialog.connect_delete_event(move |_, _| {
+        adder_dialog_clone.hide();
+        Inhibit(true)
+    });
 }
 
 /// Loads the wallets saved in disk and creates the combobx object with them so
 /// the user can select one and change wallets to already existing ones.
 pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>) {
     let wallet_selector: ComboBoxText = builder.object("Wallet Switcher").expect("Couldn't find Wallet Switcher");
-    let wallet_adder: Dialog = builder.object("Wallet Adder Dialog").expect("Couldn't find Wallet Adder Dialog");
-
+    
     match get_saved_wallets_from_disk(&wallet_selector) {
         Ok(wallets) => {
             wallet_selector.set_active(Some(0));
@@ -131,7 +139,7 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>)
         }
         Err(error) => {
             match error {
-                UiError::WalletsCSVWasEmpty => handle_initial_login(&wallet_adder),
+                UiError::WalletsCSVWasEmpty => handle_initial_login(&builder),
                 _ => handle_error(builder, format!("An Error occured: {:#?}", error)),
             };
         }
@@ -179,7 +187,10 @@ pub fn initialize_change_wallet(builder: &Builder, sender: &Sender<UIRequest>) {
     wallet_selector.connect_changed(move |combo_box| {
         if combo_box.active_text().is_some() {
             match sender_clone.send(UIRequest::ChangeWallet(
-                combo_box.active_id().unwrap().to_string(),
+                match combo_box.active_id() {
+                    Some(id) => id.to_string(),
+                    None => return,
+                },
             )) {
                 Ok(_) => {}
                 Err(e) => println!("Error sending ChangeWallet request: {:?}", e),

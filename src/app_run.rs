@@ -18,6 +18,8 @@ use std::{
     thread,
 };
 
+type SafeGlibReceiver = Arc<Mutex<Option<GlibReceiver<UIResponse>>>>;
+
 /// Enum that represents the possible errors that can happen in the UI
 #[derive(Debug)]
 pub enum UiError {
@@ -28,6 +30,31 @@ pub enum UiError {
     WalletsCSVWasEmpty,
 }
 
+fn ui_response_to_message(builder: Builder,
+    action: UIResponse,
+    app: Application,
+    sender: &Sender<UIRequest>,
+    window_running: Arc<Mutex<bool>>)
+    {
+    match action {
+        UIResponse::ResultOFTXProof(result) => handle_result_of_tx_proof(&builder, result),
+        UIResponse::WalletInfo(wallet_info) => handle_wallet_info(&wallet_info, &builder),
+        UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
+        UIResponse::FinishedInitializingNode => {
+            start_window(&app, &builder, &sender, window_running.clone())
+        }
+        UIResponse::WalletFinished => {
+            handle_app_finished(&app, window_running.clone())
+        }
+        UIResponse::TxSent => handle_tx_sent(&builder),
+        UIResponse::WalletError(error) => {
+            handle_error(&builder, format!("An Error occured: {:#?}", error))
+        }
+        UIResponse::ErrorInitializingNode => handle_initialization_error(&builder, &app),
+        UIResponse::LoadingScreenUpdate(progress) => handle_loading_screen_update(&builder, progress),
+    }
+}
+
 /// Called by the main program, it initializes the UI and starts the main loop
 /// creating a thread for the node and running the UI in the main thread, and
 /// creating glib channels for the node to communicate with the UI and mpsc
@@ -36,12 +63,15 @@ fn run_app(
     app: &Application,
     glade_src: &str,
     sender: Sender<UIRequest>,
-    a: Arc<Mutex<Option<GlibReceiver<UIResponse>>>>,
+    safe_receiver: SafeGlibReceiver,
 ) {
     // Create Window
     let builder = Builder::from_string(glade_src);
 
-    let glib_receiver = a.lock().unwrap().take();
+    let glib_receiver = match safe_receiver.lock() {
+        Ok(mut receiver) => receiver.take(),
+        Err(_) => return,
+    };
     let glib_receiver = match glib_receiver {
         Some(receiver) => receiver,
         None => return,
@@ -53,29 +83,13 @@ fn run_app(
     let app_cloned = app.clone();
 
     glib_receiver.attach(None, move |action| {
-        match action {
-            UIResponse::ResultOFTXProof(result) => handle_result_of_tx_proof(&builder, result),
-            UIResponse::WalletInfo(wallet_info) => handle_wallet_info(&wallet_info, &builder),
-            UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
-            UIResponse::FinishedInitializingNode => {
-                start_window(&app_cloned, &builder, &sender, main_window_running.clone())
-            }
-            UIResponse::WalletFinished => {
-                handle_app_finished(&app_cloned, main_window_running.clone())
-            }
-            UIResponse::TxSent => handle_tx_sent(&builder),
-            UIResponse::WalletError(error) => {
-                handle_error(&builder, format!("An Error occured: {:#?}", error))
-            }
-            UIResponse::ErrorInitializingNode => handle_initialization_error(&builder, &app_cloned),
-            UIResponse::LoadingScreenUpdate(progress) => handle_loading_screen_update(&builder, progress),
-        }
+        ui_response_to_message(builder.clone(), action, app_cloned.clone(), &sender, main_window_running.clone());
         glib::Continue(true)
     });
 
     app.connect_shutdown(move |_| {
         if sender_clone.send(UIRequest::EndOfProgram).is_ok() {
-            let window = builder_clone.object::<Window>("Ventana").unwrap();
+            let window = builder_clone.object::<Window>("Ventana").expect("Couldn't find main window");
             window.close();
         };
     });
@@ -131,11 +145,11 @@ pub fn start_app(args: Vec<String>) {
 
     let (glib_sender, glib_receiver) =
         glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
-    let arc = Arc::new(Mutex::from(Some(glib_receiver)));
+    let safe_receiver: SafeGlibReceiver = Arc::new(Mutex::from(Some(glib_receiver)));
     let (sender, receiver) = mpsc::channel::<UIRequest>();
     let join_handle = thread::spawn(move || run(args, glib_sender.clone(), receiver));
 
-    application.connect_activate(move |app| run_app(app, glade_src, sender.clone(), arc.clone()));
+    application.connect_activate(move |app| run_app(app, glade_src, sender.clone(), safe_receiver.clone()));
 
     let vector: Vec<String> = Vec::new();
     application.run_with_args(&vector);

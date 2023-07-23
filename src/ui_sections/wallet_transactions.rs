@@ -7,6 +7,7 @@ use node::blocks::proof::{HashPair, hash_pairs_for_merkle_tree};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
+use crate::utils::error_handling::handle_error;
 use crate::merkle_tree_label::*;
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
@@ -67,8 +68,13 @@ pub fn modify_block_header(
     let merkle_root_str =
         get_string_representation_from_bytes(&mut header.merkle_root_hash.to_vec());
 
-    let date =
-        Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(header.time as i64, 0).unwrap());
+    let date = match &NaiveDateTime::from_timestamp_opt(header.time as i64, 0) {
+        Some(date) => Utc.from_utc_datetime(date),
+        None => {
+            handle_error(builder, "Couldn't parse date of the block to display".to_string());
+            return;
+        },
+    };
     header_hash_label.set_label(&header_hash_str);
     prev_header_hash_label.set_label(&prev_header_hash_str);
     merkle_root_label.set_label(&merkle_root_str);
@@ -88,9 +94,16 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
     let block_number_label: Label = builder.object("Block Header Frame Label").expect("Couldn't find Block Header Frame Label");
 
     let sender_clone = sender.clone();
+    let builder_clone = builder.clone();
     merkle_button.connect_clicked(move |_| {
         let block_number = match block_number_label.label().to_string().split(' ').last() {
-            Some(block_number) => block_number[1..].parse::<usize>().unwrap(),
+            Some(block_number) => match block_number[1..].parse::<usize>() {
+                Ok(block_number) => block_number,
+                Err(_) => {
+                    handle_error(&builder_clone, "Error parsing block number".to_string());
+                    return;
+                },
+            },
             None => return,
         };
         let (_, tree_iter) = match tree_selection.selected() {
@@ -100,7 +113,10 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
 
         let value = tree_store.value(&tree_iter, TX_HASH_COLUMN as i32);
 
-        let hash = value.get::<String>().unwrap();
+        let hash = match value.get::<String>() {
+            Ok(hash) => hash,
+            Err(_) => return,
+        };
         let mut hash_bytes = get_bytes_from_hex(hash);
         hash_bytes.reverse();
         let transaction_hash: [u8; 32] = match hash_bytes.try_into() {
@@ -150,14 +166,14 @@ fn add_hashes_to_tree_store(merkle_path_tree_store: &TreeStore, path: &Vec<HashP
 }
 
 fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>, merkle_root: [u8; 32]) {
-    let merkle_path_tree_store: TreeStore = builder.object("Merkle Path Store").unwrap();
+    let merkle_path_tree_store: TreeStore = builder.object("Merkle Path Store").expect("Merkle Path Store not found");
     
     if path.is_empty(){
         add_merkle_root_for_tree_store(&merkle_path_tree_store, merkle_root);
     } else {
         add_hashes_to_tree_store(&merkle_path_tree_store, &mut path);
     }
-    let merkle_tree_label : Label = builder.object("Merkle Tree Label").unwrap();
+    let merkle_tree_label : Label = builder.object("Merkle Tree Label").expect("Merkle Tree Label not found");
     let merkle_tree_text = draw_merkle_proof_of_inclusion_tree(&mut path);
     merkle_tree_label.set_label(merkle_tree_text.as_str());
    

@@ -2,8 +2,10 @@ use gtk::prelude::*;
 use gtk::{Adjustment, Builder, Button, Dialog, Entry, Label, SpinButton};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
+use crate::utils::error_handling::handle_error;
 const ADDRESS_LEN: usize = 34;
 const BITCOIN_TO_SATOSHIS: f64 = 100000000.0;
+const TX_SEND_ERROR: &str = "Error sending transaction info to Node/Wallet thread";
 
 /// Updates the balance label with the new balance.
 pub fn update_balance(balance: &Builder, amount: &str) {
@@ -70,7 +72,7 @@ fn handle_transaction_sending(
             fee_in_sth,
             address.to_string(),
         ))
-        .unwrap();
+        .expect(TX_SEND_ERROR);
 }
 
 /// Connects the signals of the send amount and fee amount spin buttons to the update_total_amount function.
@@ -140,6 +142,7 @@ fn activate_dialogs(builder: &Builder) {
     let error_adress_button: Button = builder.object("Invalid Address Button").expect("Couldn't find invalid address button");
     error_adress_button.connect_clicked(move |_| {
         error_address_dialog.hide();
+
     });
 
     let error_amount_dialog: Dialog = builder.object("Invalid Amount Dialog").expect("Couldn't find invalid amount dialog");
@@ -168,7 +171,13 @@ pub fn activate_send_button(builder: &Builder, sender: &Sender<UIRequest>) {
         let address = address_entry.text();
         let amount = amount.value();
         let fee = fee.value();
-        let balance_amount = balance_label.label().parse::<f64>().unwrap();
+        let balance_amount = match balance_label.label().parse::<f64>() {
+            Ok(value) => value,
+            Err(_) => {
+                handle_error(&builder_clone, "Error parsing balance amount".to_string());
+                return;
+            },
+        };
         handle_transaction_sending(
             &builder_clone,
             address.as_str(),
@@ -195,6 +204,10 @@ pub fn update_adjustments_max_value(builder: &Builder) {
         Some(adjustment) => adjustment,
         None => return,
     };
-    send_amount_adjustment.set_upper(balance_amount.label().parse::<f64>().unwrap_or(0.0));
-    fee_amount_adjustment.set_upper(balance_amount.label().parse::<f64>().unwrap_or(0.0));
+    let balance = match balance_amount.label().parse::<f64>() {
+        Ok(value) => value,
+        Err(_) => 0.0,
+    };
+    send_amount_adjustment.set_upper(balance);
+    fee_amount_adjustment.set_upper(balance);
 }
