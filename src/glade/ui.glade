@@ -683,6 +683,21 @@ than the current Balance</property>
               </packing>
             </child>
             <child>
+              <object class="GtkLabel" id="Node Disconnection Label">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                  <attribute name="foreground" value="#e0e01b1b2424"/>
+                </attributes>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkBox" id="Wallet">
                 <property name="name">Wallet</property>
                 <property name="width-request">500</property>
@@ -744,7 +759,7 @@ than the current Balance</property>
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">1</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>

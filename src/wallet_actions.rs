@@ -95,9 +95,11 @@ pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<boo
                 if !*program_running {
                     break;
                 } else {
-                    sender
-                        .send(UIRequest::UpdateWallet)
-                        .expect("Could not send update request");
+                    match sender
+                        .send(UIRequest::UpdateWallet){
+                            Ok(_) => {},
+                            Err(_) => return,
+                        }
                 }
             }
             Err(_) => return,
