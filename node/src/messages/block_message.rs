@@ -7,7 +7,7 @@ pub struct BlockMessage {
     pub block: Block,
 }
 
-impl Message for BlockMessage {
+impl MessageTrait for BlockMessage {
     type MessageType = BlockMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingBlockMessage;
 

@@ -6,7 +6,7 @@ pub struct GetDataMessage {
     inv: InvMessage,
 }
 
-impl Message for GetDataMessage {
+impl MessageTrait for GetDataMessage {
     type MessageType = GetDataMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingGetDataMessage;
 

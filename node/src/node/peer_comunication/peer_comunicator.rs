@@ -1,4 +1,4 @@
-use crate::{node::*, utils::{btc_errors::PeerComunicatorError, WorkerError}};
+use crate::{node::*, utils::btc_errors::PeerComunicatorError};
 
 use std::{
     net::TcpStream,
@@ -31,7 +31,6 @@ impl PeerComunicator {
         logger: &Logger,
     ) -> PeerComunicator{
         let finished_working_indicator = Arc::new(Mutex::from(false));
-        let workers = PeerComunicator::create_peer_comunicator_workers(outbound_connections, safe_blockchain, safe_headers, safe_pending_tx, safe_headers_index, &finished_working_indicator, logger);
         let new_peer_conector = NewPeerConnector::new(
             node_version, 
             node_address, 
@@ -42,7 +41,7 @@ impl PeerComunicator {
         }
         let worker_manager = PeerComunicatorWorkerManager::new(
             new_peer_conector.ok(), 
-            workers, 
+            outbound_connections,
             safe_blockchain.clone(),
             safe_headers.clone(),
             safe_pending_tx.clone(),
@@ -55,45 +54,6 @@ impl PeerComunicator {
             peer_communicator_manager: worker_manager,
             logger: logger.clone()
         }
-    }
-
-    ///Creates a PeerCommunicatorWorker for each stream, making each of them responsible for communicating with their corresponding peer 
-    fn create_peer_comunicator_workers(
-        outbound_connections: &Vec<TcpStream>,
-        safe_blockchain: &SafeBlockChain,
-        safe_headers: &SafeVecHeader,
-        safe_pending_tx: &SafePendingTx,
-        safe_headers_index: &SafeHeaderIndex,
-        finished_working_indicator: &Arc<Mutex<bool>>,
-        logger: &Logger,
-    ) -> Vec<Worker> {
-        let amount_of_peers = outbound_connections.len();
-        let mut workers = Vec::new();
-        for (id, stream) in outbound_connections
-            .iter()
-            .enumerate()
-            .take(amount_of_peers)
-        {
-            let current_stream = match stream.try_clone() {
-                Ok(stream) => stream,
-                Err(_) => {
-                    logger.log_error(&PeerComunicatorError::ErrorCreatingWorker);
-                    continue;
-                }
-            };
-            let worker = Worker::new_peer_comunicator_worker(
-                current_stream,
-                safe_headers.clone(),
-                safe_blockchain.clone(),
-                safe_pending_tx.clone(),
-                safe_headers_index.clone(),
-                logger.clone(),
-                finished_working_indicator.clone(),
-                id,
-            );
-            workers.push(worker);
-        }
-        workers
     }
 
     /// Joins all worker threads, trying to result in a gracefull finish
@@ -115,8 +75,12 @@ impl PeerComunicator {
     }
 
     ///sends the given bytes to all currently connected peers
-    pub fn send_message<T: Message>(&self, message: &T)->Result<(), PeerComunicatorError>{
+    pub fn send_message<T: MessageTrait>(&self, message: &T)->Result<(), PeerComunicatorError>{
         self.peer_communicator_manager.send_message(message)
+    }
+
+    pub fn disconected(&self)->bool{
+        self.peer_communicator_manager.disconected()
     }
 }
 
@@ -131,9 +95,9 @@ pub fn worker_manager_loop(
     safe_pending_tx: &SafePendingTx,
     safe_headers_index: &SafeHeaderIndex,
     message_bytes_receiver: &mpsc::Receiver<Vec<u8>>,
+    propagation_channel: &mpsc::Sender<Vec<u8>>,
     finished: &Arc<Mutex<bool>>,
     logger: &Logger)-> Stops{
-        
         match finished.lock() {
             Ok(finish) => {
                 if *finish {
@@ -142,9 +106,13 @@ pub fn worker_manager_loop(
             }
             Err(_) => return Stops::UngracefullStop,
         }
-        
+
         //recivir nuevos peers
         if let Some(new_peer_connector) = new_peer_connector{
+            let id = match workers.last(){
+                Some(worker) => worker._id + 1,
+                None => 0,
+            };
             match new_peer_connector.recv_timeout(NEW_CONECTION_INTERVAL){
                 Ok(new_stream) => {
                     let new_worker = Worker::new_peer_comunicator_worker(
@@ -153,9 +121,10 @@ pub fn worker_manager_loop(
                         safe_blockchain.clone(), 
                         safe_pending_tx.clone(), 
                         safe_headers_index.clone(),
+                        propagation_channel.clone(),
                         logger.clone(), 
                         finished.clone(), 
-                        workers.len());
+                        id);
                     workers.push(new_worker);
                 },
                 Err(error) => if let RecvTimeoutError::Disconnected = error{
@@ -164,36 +133,49 @@ pub fn worker_manager_loop(
             }
         }
         
-        match message_bytes_receiver.try_recv() {
-            Ok(message_bytes) => {
-                //sacar peers que hayan terminado
-                let mut i = 0;
-                let mut message_sent = false;
-                while i < workers.len() {
-                    if workers[i].is_finished() {
-                        let removed_worker = workers.swap_remove(i);
-                        if let Err(error) = removed_worker.join_thread(){
-                            logger.log_error(&error);
-                        }
-                    } else {
-                        if workers[i].send_message_bytes(message_bytes.clone()).is_ok(){
-                            message_sent = true;
-                        };
-                        i += 1;
-                    }
-                }
-                if !message_sent{
-                    return Stops::UngracefullStop;
-                }
-            }
-            Err(mpsc::TryRecvError::Empty) => {},
-            _ => return Stops::UngracefullStop,
+        if let Err(error) = process_existing_workers(workers, message_bytes_receiver, logger){
+            logger.log_error(&error);
+            return Stops::UngracefullStop;
         };
-        
+        if workers.is_empty(){
+            return Stops::GracefullStop;
+        }
         Stops::Continue
         //firjarse de mandar mensajes
 }
 
+/// Processes existing workers by removing any that may have ungracefully finished, and sending the message bytes 
+/// to each one of themif any message needs to be broadcasted to the hole net.
+fn process_existing_workers(workers: &mut Vec<Worker>, message_bytes_receiver: &mpsc::Receiver<Vec<u8>>, logger: &Logger)-> Result<(), PeerComunicatorError>{
+    let message_bytes = match message_bytes_receiver.try_recv() {
+        Ok(message_bytes) => Some(message_bytes),
+        Err(mpsc::TryRecvError::Empty) => None,
+        _ => return Err(PeerComunicatorError::ErrorSendingMessage),
+    };
+
+    let mut i = 0;
+    let mut message_sent = false;
+    while i < workers.len() {
+        if workers[i].is_finished() {
+            let removed_worker = workers.swap_remove(i);
+            logger.log("removing_desconected_peer".to_string());
+            if let Err(error) = removed_worker.join_thread(){
+                logger.log_error(&error);
+            }
+        } else {
+            if let Some(bytes) = &message_bytes{
+                if workers[i].send_message_bytes(bytes.clone()).is_ok(){
+                    message_sent = true;
+                };
+            }
+            i += 1;
+        }
+    }
+    if message_bytes.is_some() && !message_sent{
+        return Err(PeerComunicatorError::ErrorSendingMessage);
+    }
+    Ok(())
+}
 
 /// Main loop for each peer communicator worker, attemps to receive a message form its peer and handles it.
 /// If there is a message to send then it sends it to its peer
@@ -204,6 +186,7 @@ pub fn peer_comunicator_worker_thread_loop(
     safe_pending_tx: &SafePendingTx,
     safe_headers_index: &SafeHeaderIndex,
     message_bytes_receiver: &mpsc::Receiver<Vec<u8>>,
+    propagation_channel: &mpsc::Sender<Vec<u8>>,
     logger: &Logger,
     finished: &FinishedIndicator,
     id: usize,
@@ -217,36 +200,78 @@ pub fn peer_comunicator_worker_thread_loop(
         Err(_) => return Stops::UngracefullStop,
     }
 
-    if let Err(error) = receive_message(
-        stream,
-        safe_block_headers,
-        safe_block_chain,
-        safe_pending_tx,
-        safe_headers_index,
-        logger,
-        false,
-    ){
-        match error{
-            NodeError::ErrorPeerTimeout => return Stops::Continue,
-            _ => return Stops::UngracefullStop,
-        }
-    }
-
-    match message_bytes_receiver.try_recv(){
-        Ok(message_bytes) => {
-            if stream.write_all(&message_bytes).is_err(){
-                logger.log_error(&PeerComunicatorError::ErrorSendingMessage);
+    match receive_message(stream, logger){
+        Ok((msg,_command_name)) => {
+            if propagate_messages(&msg, propagation_channel, safe_block_chain, safe_pending_tx).is_err(){
                 return Stops::UngracefullStop;
-            }
+            };
+            
+            if handle_message(msg, stream, safe_block_headers, safe_block_chain, safe_pending_tx, safe_headers_index, logger, false).is_err(){
+                return Stops::UngracefullStop;
+            };
+        },
+        Err(error) => match error{
+            NodeError::ErrorPeerTimeout => {},
+            _ => return Stops::UngracefullStop,
+        },
+    };
+    
+    match try_to_send_message(message_bytes_receiver, stream){
+        Ok(sent) => if sent{
             logger.log(format!("Mandado mensaje al peer: {id}"));
         },
-        Err(mpsc::TryRecvError::Empty) => {},
-        _ => {
-            logger.log_error(&WorkerError::LostConnectionToManager);
+        Err(error) => {
+            logger.log_error(&error);
             return Stops::UngracefullStop
-        }
+        },
     };
+
     Stops::Continue
+}
+
+/// Atempts to send any message bytes that may be received trough the message_bytes_receiver to the given stream
+fn try_to_send_message(message_bytes_receiver: &mpsc::Receiver<Vec<u8>>, stream: &mut TcpStream)->Result<bool,PeerComunicatorError>{
+    let message_bytes = match message_bytes_receiver.try_recv(){
+        Ok(message_bytes) => message_bytes,
+        Err(error) => match error{
+            mpsc::TryRecvError::Empty => return Ok(false),
+            mpsc::TryRecvError::Disconnected => return Err(PeerComunicatorError::ErrorPropagating),
+        },
+    };
+    stream.write_all(&message_bytes).map_err(|_| PeerComunicatorError::ErrorSendingMessage)?;
+
+    Ok(true)
+}
+
+fn propagate_messages(msg: &Message, propagation_channel: &mpsc::Sender<Vec<u8>>, safe_block_chain: &SafeBlockChain, safe_pending_tx: &SafePendingTx)->Result<(), PeerComunicatorError>{
+    match msg{
+        Message::Block(block_msg) => {
+            let hash = block_msg.block.header_hash();
+            let new_block = match safe_block_chain.lock(){
+                Ok(block_chain) => !block_chain.contains_key(&hash),
+                Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
+            };  
+            if new_block{
+                let mut msg_bytes = block_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
+                msg_bytes.extend(block_msg.to_bytes());
+                propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+            }
+        },
+        Message::Tx(tx_msg) => {
+            let hash = tx_msg.tx.hash();
+            let new_tx = match safe_pending_tx.lock(){
+                Ok(pending_tx) => !pending_tx.contains_key(&hash),
+                Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
+            };
+            if new_tx{
+                let mut msg_bytes = tx_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
+                msg_bytes.extend(tx_msg.to_bytes());
+                propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+            }
+        },
+        _ => {},
+    }
+    Ok(())
 }
 
 /// Checks for new incomming connections, if a successfull handshake is done then it sends the new TcpStream to

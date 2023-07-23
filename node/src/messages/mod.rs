@@ -9,15 +9,17 @@ pub mod not_found_message;
 pub mod tx_message;
 pub mod verack_message;
 pub mod version_message;
+pub mod ping_pong_messages;
 
+pub use message_trait::{MessageTrait, Message};
 pub use block_headers_message::BlockHeadersMessage;
 pub use block_message::BlockMessage;
 pub use get_block_headers_message::GetBlockHeadersMessage;
 pub use get_data_message::GetDataMessage;
 pub use header_message::HeaderMessage;
 pub use inv_message::InvMessage;
-pub use message_trait::Message;
 pub use not_found_message::NotFoundMessage;
 pub use tx_message::TxMessage;
 pub use verack_message::VerACKMessage;
 pub use version_message::VersionMessage;
+pub use ping_pong_messages::{PingMessage, PongMessage};

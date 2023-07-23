@@ -26,7 +26,7 @@ pub struct VersionMessage {
     relay: u8,
 }
 
-impl Message for VersionMessage {
+impl MessageTrait for VersionMessage {
     type MessageType = VersionMessage;
     const SENDING_ERROR: MessageError = MessageError::ErrorSendingVersionMessage;
 

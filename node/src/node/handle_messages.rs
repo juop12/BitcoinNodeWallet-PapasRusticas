@@ -4,17 +4,43 @@ use crate::node::get_block_headers_message::MAX_QUANTITY_FOR_GET_HEADERS;
 
 use super::peer_comunication::block_downloader::send_get_data_message_for_blocks;
 
+pub fn handle_message(
+    message: Message,
+    stream: &mut TcpStream,
+    block_headers: &SafeVecHeader,
+    blockchain: &SafeBlockChain,
+    pending_tx: &SafePendingTx,
+    headers_index: &SafeHeaderIndex,
+    logger: &Logger,
+    ibd: bool)->Result<(), NodeError>{
+        match message{
+            Message::BlockHeaders(msg) => if ibd {
+                handle_block_headers_message(msg, block_headers, headers_index)?;
+            },
+            Message::Block(msg) => handle_block_message(msg, block_headers, blockchain, pending_tx, headers_index, logger, ibd)?,
+            Message::GetBlockHeaders(msg) => if !ibd{
+                handle_get_headers_message(stream, msg, block_headers, headers_index, logger)?;
+            },
+            Message::GetData(msg) => if !ibd{
+                handle_get_data(stream, msg, blockchain)?;
+            },
+            Message::Header(_) => return Err(NodeError::DoubleHeader),
+            Message::Inv(msg) => if !ibd{
+                handle_inv_message(stream, msg, blockchain, pending_tx)?;
+            },
+            Message::Tx(msg) => handle_tx_message(msg, pending_tx)?,
+            Message::Ping(msg) => handle_ping_message(stream, msg)?,
+            _ => {},
+        };
+        Ok(())
+    }
+
 ///Handles the headers message by hashing the last received header and asking for more headers.
 pub fn handle_block_headers_message(
-    msg_bytes: Vec<u8>,
+    block_headers_msg : BlockHeadersMessage,
     safe_block_headers: &SafeVecHeader,
     safe_headers_index: &SafeHeaderIndex
 ) -> Result<(), NodeError> {
-    let block_headers_msg = match BlockHeadersMessage::from_bytes(&msg_bytes) {
-        Ok(block_headers_message) => block_headers_message,
-        Err(_) => return Err(NodeError::ErrorReceivingHeadersMessageInIBD),
-    };
-
     let received_block_headers = block_headers_msg.headers;
 
     insert_new_headers(received_block_headers, &safe_block_headers, &safe_headers_index)?;
@@ -25,7 +51,7 @@ pub fn handle_block_headers_message(
 /// Handles the block message by validating the proof of work and the proof of inclusion and the saving it.
 /// If the block is already in the blockchain, it is not saved.
 pub fn handle_block_message(
-    msg_bytes: Vec<u8>,
+    block_msg: BlockMessage,
     safe_headers: &SafeVecHeader,
     safe_blockchain: &SafeBlockChain,
     safe_pending_tx: &SafePendingTx,
@@ -33,10 +59,7 @@ pub fn handle_block_message(
     logger: &Logger,
     ibd: bool,
 ) -> Result<(), NodeError> {
-    let block = match BlockMessage::from_bytes(&msg_bytes) {
-        Ok(block_msg) => block_msg.block,
-        Err(_) => return Err(NodeError::ErrorReceivingBroadcastedBlock),
-    };
+    let block = block_msg.block;
 
     let mut blockchain = safe_blockchain
         .lock()
@@ -57,15 +80,17 @@ pub fn handle_block_message(
         return Err(NodeError::ErrorValidatingBlock);
     };
     
-    let mut pending_tx = safe_pending_tx
-        .lock()
-        .map_err(|_| NodeError::ErrorSharingReference)?;
-    for tx in block.get_transactions() {
-        if pending_tx.remove(&tx.hash()).is_some() {
-            logger.log(String::from("Transaccion sacada de pending"));
-        }
+    match safe_pending_tx.lock(){
+        Ok(mut pending_tx) => {
+            for tx in block.get_transactions() {
+                if pending_tx.remove(&tx.hash()).is_some() {
+                    logger.log(String::from("Transaccion sacada de pending"));
+                }
+            }
+        },
+        Err(_) => return Err(NodeError::ErrorSharingReference),
     }
-
+    
     if !ibd {
         insert_new_headers(vec![block_header], safe_headers, safe_headers_index)?;
     }
@@ -79,15 +104,10 @@ pub fn handle_block_message(
 ///If the block is already in the blockchain, it is not saved.
 pub fn handle_inv_message(
     stream: &mut TcpStream,
-    msg_bytes: Vec<u8>,
+    inv_msg: InvMessage,
     safe_blockchain: &SafeBlockChain,
     safe_pending_tx: &SafePendingTx,
 ) -> Result<(), NodeError> {
-    let inv_msg = match InvMessage::from_bytes(&msg_bytes) {
-        Ok(msg) => msg,
-        Err(_) => return Err(NodeError::ErrorRecevingBroadcastedInventory),
-    };
-
     let block_hashes = inv_msg.get_block_hashes();
     let transaction_hashes = inv_msg.get_transaction_hashes();
 
@@ -128,33 +148,18 @@ pub fn handle_inv_message(
 ///Handles the ping message by sending a pong message.
 pub fn handle_ping_message(
     stream: &mut TcpStream,
-    header_message: &HeaderMessage,
-    nonce: Vec<u8>,
+    ping_msg: PingMessage,
 ) -> Result<(), NodeError> {
-    if nonce.len() != 8 {
-        return Err(NodeError::ErrorReceivingPing);
-    }
-
-    let mut pong_bytes = header_message.to_bytes();
-    pong_bytes.extend(nonce);
-    pong_bytes[5] = b'o';
-
-    if stream.write(&pong_bytes).is_err() {
-        return Err(NodeError::ErrorSendingPong);
-    }
-    Ok(())
+    ping_msg.reply_pong(stream).map_err(|error| NodeError::ErrorMessage(error))
 }
 
 ///Handles the block message by validating the proof of work and the proof of inclusion and the saving it.
 /// If the block is already in the blockchain, it is not saved.
 pub fn handle_tx_message(
-    msg_bytes: Vec<u8>,
+    tx_msg: TxMessage,
     safe_pending_tx: &SafePendingTx,
 ) -> Result<(), NodeError> {
-    let tx = match TxMessage::from_bytes(&msg_bytes) {
-        Ok(tx_msg) => tx_msg.tx,
-        Err(_) => return Err(NodeError::ErrorReceivingTx),
-    };
+    let tx = tx_msg.tx;
     let mut pending_tx = safe_pending_tx
         .lock()
         .map_err(|_| NodeError::ErrorSharingReference)?;
@@ -168,11 +173,7 @@ pub fn handle_tx_message(
 /// -The stopping_hash is found
 /// -The end of the blockchain is reached
 /// -The len of the vector reaches MAX_QUANTITY_FOR_GET_HEADERS 
-pub fn handle_get_headers_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_headers: &SafeVecHeader, safe_headers_index: &SafeHeaderIndex, logger: &Logger) -> Result<(), NodeError> {
-    let get_headers_msg = match GetBlockHeadersMessage::from_bytes(&msg_bytes) {
-        Ok(get_headers_msg) => get_headers_msg,
-        Err(_) => return Err(NodeError::ErrorReceivingGetHeaders),
-    };
+pub fn handle_get_headers_message(stream: &mut TcpStream, get_headers_msg: GetBlockHeadersMessage, safe_headers: &SafeVecHeader, safe_headers_index: &SafeHeaderIndex, logger: &Logger) -> Result<(), NodeError> {
     
     let starting_header_position = match get_starting_header_position(&get_headers_msg, safe_headers_index){
         Ok(header_position) => {
@@ -189,7 +190,7 @@ pub fn handle_get_headers_message(stream: &mut TcpStream, msg_bytes: Vec<u8>, sa
     
     logger.log(format!("Sending {} headers", headers_to_send.len()));
     
-    BlockHeadersMessage::new(headers_to_send).send_to(stream).map_err(|_| NodeError::ErrorSendingHeadersMsg)?;
+    BlockHeadersMessage::new(headers_to_send).send_to(stream).map_err(|_| NodeError::ErrorMessage(MessageError::ErrorSendingBlockHeadersMessage))?;
     
     logger.log(format!("Sent headers message"));
 
@@ -240,12 +241,7 @@ fn get_starting_header_position(get_headers_msg: &GetBlockHeadersMessage, safe_h
 
 /// Handles get data message. If it receives block hashes it looks for them in the block chain and responds 
 /// with Block messages, each block hash not found in the blocks is then returned through a NotFoundMessage 
-pub fn handle_get_data(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockchain: &SafeBlockChain) -> Result<(), NodeError>{
-    let get_data_msg = match GetDataMessage::from_bytes(&msg_bytes) {
-        Ok(get_data_msg) => get_data_msg,
-        Err(_) => return Err(NodeError::ErrorReceivingGetData),
-    };
-
+pub fn handle_get_data(stream: &mut TcpStream, get_data_msg: GetDataMessage, safe_blockchain: &SafeBlockChain) -> Result<(), NodeError>{
     let hashes = get_data_msg.get_block_hashes();
 
     let mut block_messages = Vec::new();
@@ -254,7 +250,7 @@ pub fn handle_get_data(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockcha
         Ok(blockchain) => {
             for hash in hashes{
                 match blockchain.get(&hash){
-                    Some(block) => block_messages.push(BlockMessage::from(block).map_err(|_| NodeError::ErrorReceivingGetData)?),
+                    Some(block) => block_messages.push(BlockMessage::from(block).map_err(|_| NodeError::ErrorMessage(MessageError::ErrorCreatingGetDataMessage))?),
                     None => {
                         not_found_blocks.push(hash);
                     }
@@ -265,11 +261,11 @@ pub fn handle_get_data(stream: &mut TcpStream, msg_bytes: Vec<u8>, safe_blockcha
     }
     
     for message in block_messages{
-        message.send_to(stream).map_err(|_| NodeError::ErrorSendingBlockMessage)?;
+        message.send_to(stream).map_err(|_| NodeError::ErrorMessage(MessageError::ErrorSendingBlockMessage))?;
     }
     
     if !not_found_blocks.is_empty(){
-        NotFoundMessage::from_block_hashes(not_found_blocks).send_to(stream).map_err(|_| NodeError::ErrorSendingBlockMessage)?;
+        NotFoundMessage::from_block_hashes(not_found_blocks).send_to(stream).map_err(|_| NodeError::ErrorMessage(MessageError::ErrorSendingNotFoundMessage))?;
     }
     Ok(())
 }
@@ -284,7 +280,7 @@ fn send_get_data_message_for_transactions(
 
     match get_data_message.send_to(stream) {
         Ok(_) => Ok(()),
-        Err(_) => Err(NodeError::ErrorGettingTx),
+        Err(_) => Err(NodeError::ErrorMessage(MessageError::ErrorSendingGetDataMessage)),
     }
 }
 

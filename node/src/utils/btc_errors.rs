@@ -51,11 +51,15 @@ pub enum MessageError {
     ErrorSendingInvMessage,
     ErrorCreatingBlockMessage,
     ErrorSendingBlockMessage,
-    ErrorSendingPongMessages,
     ErrorCreatingNotFoundMessage,
     ErrorSendingNotFoundMessage,
     ErrorSendingBlockHeadersMessage,
     ErrorSendingTxMessage,
+    ErrorCreatingPingMessage,
+    ErrorSendingPingMessage,
+    ErrorCreatingPongMessage,
+    ErrorSendingPongMessage,
+    UnknownMessage
 }
 
 impl BtcError for MessageError {}
@@ -118,12 +122,10 @@ pub enum NodeError {
     ErrorConnectingToPeer,
     ErrorSendingMessageInHandshake,
     ErrorReceivingMessageInHandshake,
-    ErrorReceivedUnknownMessage,
     ErrorInterpretingMessageCommandName,
     ErrorSendingMessageInIBD,
     ErrorIteratingStreams,
     ErrorReceivingHeadersMessageInIBD,
-    ErrorReceivingMessageHeader,
     ErrorReceivingHeadersMessageHeaderInIBD,
     ErrorCreatingBlockDownloader,
     ErrorDownloadingBlockBundle,
@@ -132,9 +134,6 @@ pub enum NodeError {
     ErrorLoadingDataFromDisk,
     ErrorRecevingBroadcastedInventory,
     ErrorReceivingBroadcastedBlock,
-    ErrorReceivingPing,
-    ErrorSendingPong,
-    ErrorReceivingMessage,
     ErrorValidatingBlock,
     ErrorSharingReference,
     ErrorGettingUtxo,
@@ -145,24 +144,32 @@ pub enum NodeError {
     ErrorSendingThroughChannel,
     ErrorJoiningThread,
     ErrorPeerTimeout,
-    ErrorSendingHeadersMsg,
-    ErrorReceivingTx,
-    ErrorReceivingGetHeaders,
-    ErrorReceivingGetData,
-    ErrorSendingBlockMessage,
+    ErrorReceivingMessageHeader,
+    DoubleHeader,
+    ErrorDisconectedFromBlockchain,
+    ErrorMessage(MessageError),
 }
 
-impl BtcError for NodeError {}
+impl BtcError for NodeError {
+    fn to_string(&self) -> String {
+        match self{
+            NodeError::ErrorMessage(message_error) => message_error.to_string(),
+            _ => format!("Error: {:?}", self),
+        }
+        
+    }
+}
 
 #[derive(Debug)]
 pub enum PeerComunicatorError {
     ErrorReceivingMessages,
-    ErrorAddingReceivedData,
     ErrorWorkerPanicked,
     ErrorFinishingReceivingMessages,
     ErrorCreatingWorker,
     ErrorCantReceiveNewPeerConections,
-    ErrorSendingMessage
+    ErrorSendingMessage,
+    ErrorPropagating,
+    LostConnectionToManager,
 }
 
 impl BtcError for PeerComunicatorError {}
@@ -171,7 +178,6 @@ impl BtcError for PeerComunicatorError {}
 pub enum WorkerError{
     ErrorWorkerPanicked,
     ErrorComunicatingBetweenWorkers,
-    LostConnectionToManager,
 }
 
 impl BtcError for WorkerError {}
@@ -191,6 +197,7 @@ pub enum WalletError {
     ErrorReceivingFromUI,
     ErrorUpdatingWallet,
     InvalidAmount,
+    ErrorDisconectedFromBlockchain
 }
 
 impl BtcError for WalletError {}

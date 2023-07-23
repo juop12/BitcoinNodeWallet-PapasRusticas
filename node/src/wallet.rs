@@ -103,6 +103,7 @@ impl Wallet {
                 if wallet_pending.hash == node_pending.hash {
                     node_pending.tx_out_total = wallet_pending.tx_out_total;
                     node_pending.tx_in_total = wallet_pending.tx_in_total;
+                    break;
                 }
             }
             if node_pending.tx_in_total == 0 {
