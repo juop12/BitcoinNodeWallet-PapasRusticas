@@ -1,6 +1,8 @@
 use gtk::prelude::*;
 use gtk::{Application, Box, Builder, Label, ProgressBar, Window};
 use node::utils::ui_communication_protocol::LoadingScreenInfo;
+use crate::utils::node_status::NodeStatus;
+use std::sync::{Arc, Mutex};
 
 fn show_block_download_progress(builder: &Builder, total_blocks: usize) {
     let block_download_box: Box = builder.object("Block Downloader Box").expect("Couldn't find Block Downloader Box");
@@ -27,11 +29,19 @@ fn hide_block_download_progress(builder: &Builder){
     block_download_box.hide();
 }
 
-pub fn show_loading_screen(builder: &Builder, app: &Application) {
+pub fn show_loading_screen(builder: &Builder, app: &Application, node_status: Arc<Mutex<NodeStatus>>) {
     let loading_window: Window = builder.object("Loading Screen Window").expect("Couldn't find Loading Screen Window");
     let block_download_box: Box = builder.object("Block Downloader Box").expect("Couldn't find Block Downloader Box");
     loading_window.set_title("Loading Screen");
     loading_window.set_application(Some(app));
+    let loading_window_clone = loading_window.clone();
+    loading_window.connect_delete_event(move |_, _| {
+        loading_window_clone.hide();
+        if let Ok(mut current_status) = node_status.lock() {
+            *current_status = NodeStatus::Terminated;
+        }
+        Inhibit(false)
+    });
     loading_window.show_all();
     block_download_box.hide();
 }

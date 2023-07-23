@@ -15,15 +15,6 @@ pub struct NodeSharedInformation{
 }
 
 impl NodeSharedInformation{
-    pub fn new()-> NodeSharedInformation{
-        NodeSharedInformation{
-            safe_blockchain: Arc::new(Mutex::from(HashMap::new())),
-            safe_block_headers: Arc::new(Mutex::from(Vec::new())),
-            safe_headers_index: Arc::new(Mutex::from(HashMap::new())),
-            safe_pending_tx: Arc::new(Mutex::from(HashMap::new())),
-        }
-    }
-
     pub fn from(safe_blockchain: &SafeBlockChain, safe_block_headers: &SafeVecHeader, safe_headers_index: &SafeHeadersIndex, safe_pending_tx: &SafePendingTx)-> NodeSharedInformation{
         NodeSharedInformation { safe_blockchain: safe_blockchain.clone(), safe_block_headers: safe_block_headers.clone(), safe_headers_index: safe_headers_index.clone(), safe_pending_tx: safe_pending_tx.clone() }
     }
@@ -42,11 +33,5 @@ impl NodeSharedInformation{
 
     pub fn lock_safe_pending_tx(&self)->Result<MutexGuard<HashMap<[u8; 32], Transaction>>, NodeError>{
         self.safe_pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)
-    }
-}
-
-impl Default for NodeSharedInformation {
-    fn default() -> Self {
-        Self::new()
     }
 }

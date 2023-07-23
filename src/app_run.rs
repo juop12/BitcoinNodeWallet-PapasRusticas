@@ -7,6 +7,7 @@ use crate::wallet_send::{
     activate_clear_all_button, activate_send_button, activate_use_available_balance,
     update_adjustments_max_value,
 };
+use crate::utils::node_status::NodeStatus;
 use crate::wallet_transactions::*;
 use glib::Receiver as GlibReceiver;
 use gtk::prelude::*;
@@ -24,22 +25,25 @@ fn ui_response_to_message(builder: Builder,
     action: UIResponse,
     app: Application,
     sender: &Sender<UIRequest>,
-    window_running: Arc<Mutex<bool>>,
+    node_status: Arc<Mutex<NodeStatus>>,
 ){
     match action {
         UIResponse::ResultOFTXProof(result) => handle_result_of_tx_proof(&builder, result),
         UIResponse::WalletInfo(wallet_info) => handle_wallet_info(&wallet_info, &builder),
         UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
         UIResponse::FinishedInitializingNode => {
-            if let Err(error) = start_window(&app, &builder, sender, window_running) {
+            if let Err(error) = start_window(&app, &builder, sender, node_status) {
                 handle_ui_error(&builder, error);
                 glib::Continue(false);
             }    
         }
-        UIResponse::WalletFinished => handle_app_finished(&builder, &app, window_running),
+        UIResponse::WalletFinished => handle_app_finished(&builder, &app, node_status),
         UIResponse::TxSent => handle_tx_sent(&builder),
-        UIResponse::WalletError(error) => handle_wallet_error(&builder, error, window_running),
-        UIResponse::ErrorInitializingNode => handle_initialization_error(&builder, &app),
+        UIResponse::WalletError(error) => handle_wallet_error(&builder, error, node_status),
+        UIResponse::ErrorInitializingNode => {
+            handle_initialization_error(&builder, node_status);
+            glib::Continue(false);
+        }
         UIResponse::LoadingScreenUpdate(progress) => handle_loading_screen_update(&builder, progress),
     }
 }
@@ -53,7 +57,7 @@ fn run_app(
     glade_src: &str,
     sender: Sender<UIRequest>,
     safe_receiver: SafeGlibReceiver,
-    main_window_running: Arc<Mutex<bool>>,
+    node_status: Arc<Mutex<NodeStatus>>,
 ) {
     // Create Window
     let builder = Builder::from_string(glade_src);
@@ -66,12 +70,12 @@ fn run_app(
         Some(receiver) => receiver,
         None => return,
     };
-    show_loading_screen(&builder, app);
+    show_loading_screen(&builder, app, node_status.clone());
     let sender_clone = sender.clone();
     let builder_clone = builder.clone();
     let app_cloned = app.clone();
     glib_receiver.attach(None, move |action| {
-        ui_response_to_message(builder.clone(), action, app_cloned.clone(), &sender, main_window_running.clone());
+        ui_response_to_message(builder.clone(), action, app_cloned.clone(), &sender, node_status.clone());
         glib::Continue(true)
     });
     
@@ -97,10 +101,10 @@ start_window(
     app: &Application,
     builder: &Builder,
     sender: &Sender<UIRequest>,
-    running: Arc<Mutex<bool>>,
+    node_status: Arc<Mutex<NodeStatus>>,
 ) -> Result<(), UiError> {
-    match running.lock() {
-        Ok(mut running) => *running = true,
+    match node_status.lock() {
+        Ok(mut current_status) => *current_status = NodeStatus::Running,
         Err(_) => return Err(UiError::FailedToBuildUi)
     }
     initialize_elements(builder, sender); 
@@ -139,10 +143,10 @@ pub fn start_app(args: Vec<String>) {
     let sender_for_update_wallet = sender.clone();
     let node_join_handle = thread::spawn(move || run(args, glib_sender.clone(), receiver));
 
-    let main_window_running = Arc::new(Mutex::new(false));
-    let window_running_for_update_wallet = main_window_running.clone();
-    let update_wallet_join_handle = send_ui_update_request(&sender_for_update_wallet, window_running_for_update_wallet); 
-    application.connect_activate(move |app| run_app(app, glade_src, sender.clone(), safe_receiver.clone(), main_window_running.clone()));
+    let node_status = Arc::new(Mutex::new(NodeStatus::Initializing));
+    let node_status_for_update_wallet = node_status.clone();
+    let update_wallet_join_handle = send_ui_update_request(&sender_for_update_wallet, node_status_for_update_wallet); 
+    application.connect_activate(move |app| run_app(app, glade_src, sender.clone(), safe_receiver.clone(), node_status.clone()));
 
     let vector: Vec<String> = Vec::new();
     application.run_with_args(&vector);
