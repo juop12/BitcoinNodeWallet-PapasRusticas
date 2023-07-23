@@ -7,7 +7,7 @@ use node::blocks::proof::{HashPair, hash_pairs_for_merkle_tree};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
-use crate::utils::error_handling::handle_error;
+use crate::utils::error_handling::{UiError,handle_ui_error};
 use crate::merkle_tree_label::*;
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
@@ -71,7 +71,7 @@ pub fn modify_block_header(
     let date = match &NaiveDateTime::from_timestamp_opt(header.time as i64, 0) {
         Some(date) => Utc.from_utc_datetime(date),
         None => {
-            handle_error(builder, "Couldn't parse date of the block to display".to_string());
+            handle_ui_error(builder, UiError::ErrorParsingBlockDate);
             return;
         },
     };
@@ -100,7 +100,7 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
             Some(block_number) => match block_number[1..].parse::<usize>() {
                 Ok(block_number) => block_number,
                 Err(_) => {
-                    handle_error(&builder_clone, "Error parsing block number".to_string());
+                    handle_ui_error(&builder_clone, UiError::ErrorParsingBlockNumber);
                     return;
                 },
             },
@@ -117,7 +117,10 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
             Ok(hash) => hash,
             Err(_) => return,
         };
-        let mut hash_bytes = get_bytes_from_hex(hash);
+        let mut hash_bytes = match get_bytes_from_hex(hash) {
+            Ok(hash_bytes) => hash_bytes,
+            Err(_) => return,
+        };
         hash_bytes.reverse();
         let transaction_hash: [u8; 32] = match hash_bytes.try_into() {
             Ok(transaction_hash) => transaction_hash,
@@ -171,7 +174,7 @@ fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>, merkle_root:
     if path.is_empty(){
         add_merkle_root_for_tree_store(&merkle_path_tree_store, merkle_root);
     } else {
-        add_hashes_to_tree_store(&merkle_path_tree_store, &mut path);
+        add_hashes_to_tree_store(&merkle_path_tree_store, &path);
     }
     let merkle_tree_label : Label = builder.object("Merkle Tree Label").expect("Merkle Tree Label not found");
     let merkle_tree_text = draw_merkle_proof_of_inclusion_tree(&mut path);

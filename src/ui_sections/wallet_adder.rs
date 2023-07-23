@@ -2,7 +2,7 @@ use crate::error_handling::*;
 use crate::wallet_persistance::*;
 use crate::UiError;
 use gtk::prelude::*;
-use gtk::{Window,Builder, Button, ComboBoxText, Dialog, Entry, Label};
+use gtk::{Builder, Button, ComboBoxText, Dialog, Entry, Label};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
@@ -139,8 +139,8 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>)
         }
         Err(error) => {
             match error {
-                UiError::WalletsCSVWasEmpty => handle_initial_login(&builder),
-                _ => handle_error(builder, format!("An Error occured: {:#?}", error)),
+                UiError::WalletsCSVWasEmpty => handle_initial_login(builder),
+                default => handle_ui_error(builder, default),
             };
         }
     }

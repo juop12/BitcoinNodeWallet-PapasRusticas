@@ -6,7 +6,7 @@ use crate::wallet_overview::{
 use crate::wallet_send::{update_adjustments_max_value, update_balance};
 use crate::wallet_transactions::{add_row, modify_block_header};
 use gtk::prelude::*;
-use gtk::{Application, Builder, Dialog, ListBox, TreeStore};
+use gtk::{Application, Builder, Dialog, ListBox, TreeStore, Window};
 use node::utils::ui_communication_protocol::{
     BlockInfo, UIRequest, WalletInfo,
 };
@@ -14,10 +14,12 @@ use std::{
     sync::mpsc::Sender,
     sync::{Arc, Mutex},
     thread,
+    thread::JoinHandle,
     time::Duration,
 };
 
 const REFRESH_RATE: Duration = Duration::from_secs(5);
+const INITIAL_WAIT_INTERVAL: Duration = Duration::from_secs(2);
 const SATOSHI_TO_BTC: f64 = 100000000.0;
 
 /// Receives a BlockInfo and it updates the UI with the information of the block
@@ -83,25 +85,41 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder) {
     }
 }
 
-/// Sends a request to the wallet to update the information of the wallet
-/// every REFRESH_RATE seconds
-pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<bool>>) {
-    let sender = sender.clone();
-    thread::spawn(move || loop {
+fn check_if_node_initialized(running: Arc<Mutex<bool>>) {
+    let mut node_initialized = false;
+    while !node_initialized {
+        thread::sleep(INITIAL_WAIT_INTERVAL);
+        if let Ok(program_running) = running.lock() {
+            if *program_running {
+                node_initialized = true;
+            }
+        }
+    }
+}
+
+fn request_update_loop(sender: Sender<UIRequest>, running: Arc<Mutex<bool>>) {
+    loop {
         thread::sleep(REFRESH_RATE);
         match running.lock() {
             Ok(program_running) => {
                 if !*program_running {
                     break;
-                } else {
-                    sender
-                        .send(UIRequest::UpdateWallet)
-                        .expect("Could not send update request");
+                } else if sender.send(UIRequest::UpdateWallet).is_err() {
+                    return;
                 }
-            }
+            },
             Err(_) => return,
         }
-    });
+    }
+}
+/// Sends a request to the wallet to update the information of the wallet
+/// every REFRESH_RATE seconds
+pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<bool>>) -> JoinHandle<()> {
+    let sender = sender.clone();
+    thread::spawn(move || {
+        check_if_node_initialized(running.clone());
+        request_update_loop(sender, running);
+    })
 }
 
 /// Shows the success message of a transaction well sent
@@ -111,10 +129,32 @@ pub fn handle_tx_sent(builder: &Builder) {
     tx_sent_dialog.run();
 }
 
+fn close_window(builder: &Builder) {
+    let main_window: Window = builder.object("Main Window").expect("Main Window not found");
+    main_window.close();
+}
 /// E
-pub fn handle_app_finished(app: &Application, running: Arc<Mutex<bool>>) {
+pub fn handle_app_finished(builder: &Builder, app: &Application, running: Arc<Mutex<bool>>) {
+    close_window(builder);
     if let Ok(mut program_running) = running.lock() {
         *program_running = false;
         app.quit();
     }
+    /*println!("estoy despues del quit");
+    match update_wallet_join_handle.lock() {
+        Ok(mut join_handle) => {
+            println!("pude lockear el join handle");
+            match join_handle.take() {
+                Some(handle) => {
+                    println!("pude tomar el join handle");
+                    match handle.join() {
+                        Ok(_) => { println!("pude hacer join al update wallet thread"); },
+                        Err(_) => println!("Error joining update wallet thread"),
+                    }
+                },
+                None => println!("Error taking update wallet join handle"),
+            }
+        },
+        Err(_) => println!("Error locking update wallet join handle"),
+    }*/
 }

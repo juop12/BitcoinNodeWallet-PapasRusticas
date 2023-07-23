@@ -182,7 +182,7 @@ pub enum WorkerError{
 
 impl BtcError for WorkerError {}
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq)]
 pub enum WalletError {
     ErrorHandlingPrivKey,
     ErrorHandlingAddress,
