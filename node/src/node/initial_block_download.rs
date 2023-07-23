@@ -72,8 +72,7 @@ impl Node {
         let block_downloader = BlockDownloader::from(
             &self.initial_peers,
             header_stream_index,
-            &self.block_headers,
-            &self.blockchain,
+            self.get_safe_node_info(),
             &self.logger,
         );
         match block_downloader {
@@ -405,8 +404,7 @@ mod tests {
         let mut block_downloader = BlockDownloader::from(
             &node.initial_peers,
             0,
-            &node.block_headers,
-            &node.blockchain,
+            node.get_safe_node_info(),
             &node.logger.clone(),
         )
         .unwrap();
