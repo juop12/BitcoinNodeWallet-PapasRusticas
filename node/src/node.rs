@@ -163,7 +163,6 @@ impl Node {
     /// that contains all the addresses converted to SocketAddr. 
     /// If an error occured (for example, all addresses are not valid), it returns an empty Vector.
     /// The socket address requires an IP and a PORT. 
-    /// (PORT is set to 18333 because it is the port used by the bitcoin core testnet).
     fn add_external_addresses(&self, addresses: Vec<([u8; 4], u16)>) -> Vec<SocketAddr>{
         let mut socket_address_vector = Vec::new();
 
