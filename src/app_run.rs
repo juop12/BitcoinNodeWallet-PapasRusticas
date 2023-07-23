@@ -16,7 +16,6 @@ use node::utils::ui_communication_protocol::{UIRequest, UIResponse};
 use std::{
     sync::{mpsc, mpsc::Sender, Arc, Mutex},
     thread,
-    thread::JoinHandle,
 };
 
 type SafeGlibReceiver = Arc<Mutex<Option<GlibReceiver<UIResponse>>>>;

@@ -85,40 +85,44 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder) {
     }
 }
 
-/// Sends a request to the wallet to update the information of the wallet
-/// every REFRESH_RATE seconds
-pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<bool>>) -> JoinHandle<()> {
-    let sender = sender.clone();
-    let join_handle = thread::spawn(move || {
-        let mut node_initialized = false;
-        while !node_initialized {
-            thread::sleep(INITIAL_WAIT_INTERVAL);
-            if let Ok(program_running) = running.lock() {
-                if *program_running {
-                    node_initialized = true;
-                }
+fn check_if_node_initialized(running: Arc<Mutex<bool>>) {
+    let mut node_initialized = false;
+    while !node_initialized {
+        thread::sleep(INITIAL_WAIT_INTERVAL);
+        if let Ok(program_running) = running.lock() {
+            if *program_running {
+                node_initialized = true;
             }
         }
-        loop {
+    }
+}
+
+fn request_update_loop(sender: Sender<UIRequest>, running: Arc<Mutex<bool>>) {
+    loop {
         thread::sleep(REFRESH_RATE);
         match running.lock() {
             Ok(program_running) => {
                 if !*program_running {
-                    println!("running esta en false, me salgo del thread");
                     break;
                 } else {
-                    match sender
-                        .send(UIRequest::UpdateWallet){
-                            Ok(_) => {println!("pude enviar el update wallet");},
-                            Err(_) => return,
+                    if sender
+                        .send(UIRequest::UpdateWallet).is_err() {
+                            return;
                         }
                 }
             }
             Err(_) => return,
         }
-        println!("estoy afuera del sleep");
-    };
-    println!("estoy afuera del loop, procedo a morir")});
+    }
+}
+/// Sends a request to the wallet to update the information of the wallet
+/// every REFRESH_RATE seconds
+pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<bool>>) -> JoinHandle<()> {
+    let sender = sender.clone();
+    let join_handle = thread::spawn(move || {
+        check_if_node_initialized(running.clone());
+        request_update_loop(sender, running);
+    });
     join_handle
 }
 
