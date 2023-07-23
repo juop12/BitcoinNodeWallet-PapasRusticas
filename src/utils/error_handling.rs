@@ -49,7 +49,7 @@ pub fn handle_wallet_error(builder: &Builder, wallet_error: WalletError, window_
             },
             Err(_) => return,
         };
-        error_string = format!("The node was disconnected from the blockchain. Please restart the application.");
+        error_string = String::from("The node was disconnected from the blockchain. Please restart the application.");
     }else{
         error_string = format!(" An Error Ocurred: {:?}", wallet_error);
     }

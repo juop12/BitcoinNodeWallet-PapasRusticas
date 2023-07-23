@@ -174,7 +174,7 @@ fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>, merkle_root:
     if path.is_empty(){
         add_merkle_root_for_tree_store(&merkle_path_tree_store, merkle_root);
     } else {
-        add_hashes_to_tree_store(&merkle_path_tree_store, &mut path);
+        add_hashes_to_tree_store(&merkle_path_tree_store, &path);
     }
     let merkle_tree_label : Label = builder.object("Merkle Tree Label").expect("Merkle Tree Label not found");
     let merkle_tree_text = draw_merkle_proof_of_inclusion_tree(&mut path);

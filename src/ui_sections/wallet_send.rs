@@ -204,10 +204,7 @@ pub fn update_adjustments_max_value(builder: &Builder) {
         Some(adjustment) => adjustment,
         None => return,
     };
-    let balance = match balance_amount.label().parse::<f64>() {
-        Ok(value) => value,
-        Err(_) => 0.0,
-    };
+    let balance = balance_amount.label().parse::<f64>().unwrap_or(0.0);
     send_amount_adjustment.set_upper(balance);
     fee_amount_adjustment.set_upper(balance);
 }

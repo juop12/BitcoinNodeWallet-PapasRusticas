@@ -14,10 +14,7 @@ fn update_block_download_progress(builder: &Builder, blocks: usize){
     let total_amount_label: Label = builder.object("Total Block Number").expect("Couldn't find Total Block Number Label");
     let progress_bar: ProgressBar = builder.object("Block Download Progress Bar").expect("Couldn't find Block Download Progress Bar");
     downloaded_amount_label.set_text(format!("{blocks}").as_str());
-    let total_amount = match total_amount_label.label().parse::<usize>() {
-        Ok(value) => value,
-        Err(_) => 0,
-    };
+    let total_amount = total_amount_label.label().parse::<usize>().unwrap_or(0);
     if total_amount == 0 {
         progress_bar.set_fraction(1.0);
     } else {

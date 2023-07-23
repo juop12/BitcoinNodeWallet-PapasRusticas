@@ -292,7 +292,7 @@ fn receive_message(stream: &mut TcpStream, logger: &Logger,)->Result<(Message,St
         }
     })?;
     
-    let msg = Message::from_bytes(msg_bytes, block_headers_msg_h.get_command_name()).map_err(|msg_error| NodeError::ErrorMessage(msg_error))?;
+    let msg = Message::from_bytes(msg_bytes, block_headers_msg_h.get_command_name()).map_err(NodeError::ErrorMessage)?;
     Ok((msg, block_headers_msg_h.get_command_name()))
 }
 

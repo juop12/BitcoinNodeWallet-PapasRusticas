@@ -139,7 +139,7 @@ pub fn initialize_wallet_selector(builder: &Builder, sender: &Sender<UIRequest>)
         }
         Err(error) => {
             match error {
-                UiError::WalletsCSVWasEmpty => handle_initial_login(&builder),
+                UiError::WalletsCSVWasEmpty => handle_initial_login(builder),
                 default => handle_ui_error(builder, default),
             };
         }

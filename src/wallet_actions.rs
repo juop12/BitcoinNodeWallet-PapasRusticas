@@ -104,13 +104,10 @@ fn request_update_loop(sender: Sender<UIRequest>, running: Arc<Mutex<bool>>) {
             Ok(program_running) => {
                 if !*program_running {
                     break;
-                } else {
-                    if sender
-                        .send(UIRequest::UpdateWallet).is_err() {
-                            return;
-                        }
+                } else if sender.send(UIRequest::UpdateWallet).is_err() {
+                    return;
                 }
-            }
+            },
             Err(_) => return,
         }
     }
@@ -119,11 +116,10 @@ fn request_update_loop(sender: Sender<UIRequest>, running: Arc<Mutex<bool>>) {
 /// every REFRESH_RATE seconds
 pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<bool>>) -> JoinHandle<()> {
     let sender = sender.clone();
-    let join_handle = thread::spawn(move || {
+    thread::spawn(move || {
         check_if_node_initialized(running.clone());
         request_update_loop(sender, running);
-    });
-    join_handle
+    })
 }
 
 /// Shows the success message of a transaction well sent

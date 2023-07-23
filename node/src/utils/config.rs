@@ -133,7 +133,7 @@ fn get_handler(config_fields: &HashMap<String, String>, field: &str) -> Result<S
     match config_fields.get(field){
         Some(data) => Ok(data.to_string()),
         None => {
-            return Err(ConfigError::ErrorParameterNotFound);
+            Err(ConfigError::ErrorParameterNotFound)
         },
     }
 }
@@ -149,7 +149,7 @@ fn parse_address_vector(addresses: &str) -> Result<Vec<([u8; 4], u16)>, ConfigEr
 
     let mut addresses = Vec::new();
 
-    if splitted_addresses[0] != "" {
+    if !splitted_addresses[0].is_empty() {
         for address in splitted_addresses{
             addresses.push(parse_address(address)?);
         }   
@@ -164,7 +164,7 @@ fn parse_dns_vector(dns: &str) -> Result<Vec<(String, u16)>, ConfigError>{
     
     let mut dns_vec = Vec::new();
 
-    if splitted_dns[0] != "" {
+    if !splitted_dns[0].is_empty() {
         for dns in splitted_dns{
             dns_vec.push(parse_dns(dns)?);
         }   

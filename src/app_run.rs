@@ -31,12 +31,12 @@ fn ui_response_to_message(builder: Builder,
         UIResponse::WalletInfo(wallet_info) => handle_wallet_info(&wallet_info, &builder),
         UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
         UIResponse::FinishedInitializingNode => {
-            if let Err(error) = start_window(&app, &builder, &sender, window_running.clone()) {
+            if let Err(error) = start_window(&app, &builder, sender, window_running) {
                 handle_ui_error(&builder, error);
-                return;
+                glib::Continue(false);
             }    
         }
-        UIResponse::WalletFinished => handle_app_finished(&builder, &app, window_running.clone()),
+        UIResponse::WalletFinished => handle_app_finished(&builder, &app, window_running),
         UIResponse::TxSent => handle_tx_sent(&builder),
         UIResponse::WalletError(error) => handle_wallet_error(&builder, error, window_running),
         UIResponse::ErrorInitializingNode => handle_initialization_error(&builder, &app),
