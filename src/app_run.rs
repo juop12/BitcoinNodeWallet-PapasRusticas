@@ -86,7 +86,7 @@ fn run_app(
     
     app.connect_shutdown(move |_| {
         if sender_clone.send(UIRequest::EndOfProgram).is_ok() {
-            let window = builder_clone.object::<Window>("Ventana").expect("Couldn't find main window");
+            let window = builder_clone.object::<Window>("Main Window").expect("Couldn't find main window");
             window.close();
             match join_handle_for_finishing.lock().unwrap().take() {
                 Some(join_handle) => {
@@ -121,7 +121,7 @@ fn start_window(
     }
     initialize_elements(builder, sender); 
     close_loading_window(builder);
-    let window: Window = builder.object("Ventana").expect("Failed to find main window");
+    let window: Window = builder.object("Main Window").expect("Failed to find main window");
     window.set_application(Some(app));
     window.show_all();
     Ok(send_ui_update_request(sender, running))
