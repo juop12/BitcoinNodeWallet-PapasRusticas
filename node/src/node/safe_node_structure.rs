@@ -43,22 +43,6 @@ impl NodeSharedInformation{
     pub fn lock_safe_pending_tx(&self)->Result<MutexGuard<HashMap<[u8; 32], Transaction>>, NodeError>{
         self.safe_pending_tx.lock().map_err(|_| NodeError::ErrorSharingReference)
     }
-
-    pub fn clone_safe_blockchain(&self)->SafeBlockChain{
-        self.safe_blockchain.clone()
-    }
-
-    pub fn clone_safe_block_headers(&self)->SafeVecHeader{
-        self.safe_block_headers.clone()
-    }
-
-    pub fn clone_safe_headers_index(&self)->SafeHeadersIndex{
-        self.safe_headers_index.clone()
-    }
-
-    pub fn clone_safe_pending_tx(&self)->SafePendingTx{
-        self.safe_pending_tx.clone()
-    }
 }
 
 impl Default for NodeSharedInformation {
