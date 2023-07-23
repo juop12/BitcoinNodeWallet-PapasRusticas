@@ -2,7 +2,7 @@ use gtk::prelude::*;
 use gtk::{Adjustment, Builder, Button, Dialog, Entry, Label, SpinButton};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
-use crate::utils::error_handling::handle_error;
+use crate::utils::error_handling::{UiError,handle_ui_error};
 const ADDRESS_LEN: usize = 34;
 const BITCOIN_TO_SATOSHIS: f64 = 100000000.0;
 const TX_SEND_ERROR: &str = "Error sending transaction info to Node/Wallet thread";
@@ -174,7 +174,7 @@ pub fn activate_send_button(builder: &Builder, sender: &Sender<UIRequest>) {
         let balance_amount = match balance_label.label().parse::<f64>() {
             Ok(value) => value,
             Err(_) => {
-                handle_error(&builder_clone, "Error parsing balance amount".to_string());
+                handle_ui_error(&builder_clone, UiError::ErrorParsingAmount);
                 return;
             },
         };

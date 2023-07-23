@@ -16,40 +16,36 @@ use node::utils::ui_communication_protocol::{UIRequest, UIResponse};
 use std::{
     sync::{mpsc, mpsc::Sender, Arc, Mutex},
     thread,
+    thread::JoinHandle,
 };
 
 type SafeGlibReceiver = Arc<Mutex<Option<GlibReceiver<UIResponse>>>>;
-
-/// Enum that represents the possible errors that can happen in the UI
-#[derive(Debug)]
-pub enum UiError {
-    FailedToBuildUi,
-    FailedToFindObject,
-    ErrorReadingFile,
-    ErrorWritingFile,
-    WalletsCSVWasEmpty,
-}
 
 fn ui_response_to_message(builder: Builder,
     action: UIResponse,
     app: Application,
     sender: &Sender<UIRequest>,
-    window_running: Arc<Mutex<bool>>)
-    {
+    window_running: Arc<Mutex<bool>>,
+    update_wallet_join_handle: Arc<Mutex<Option<JoinHandle<()>>>>
+){
     match action {
         UIResponse::ResultOFTXProof(result) => handle_result_of_tx_proof(&builder, result),
         UIResponse::WalletInfo(wallet_info) => handle_wallet_info(&wallet_info, &builder),
         UIResponse::BlockInfo(block_info) => handle_block_info(&block_info, &builder),
         UIResponse::FinishedInitializingNode => {
-            start_window(&app, &builder, &sender, window_running.clone())
+            match start_window(&app, &builder, &sender, window_running.clone()){
+                Ok(join_handle) => {
+                    update_wallet_join_handle.lock().unwrap().replace(join_handle);
+                },
+                Err(error) => {
+                    handle_ui_error(&builder, error);
+                    return;
+                }
+            }    
         }
-        UIResponse::WalletFinished => {
-            handle_app_finished(&app, window_running.clone())
-        }
+        UIResponse::WalletFinished => handle_app_finished(&app, window_running.clone()),
         UIResponse::TxSent => handle_tx_sent(&builder),
-        UIResponse::WalletError(error) => {
-            handle_error(&builder, format!("An Error occured: {:#?}", error))
-        }
+        UIResponse::WalletError(error) => handle_wallet_error(&builder, error, window_running),
         UIResponse::ErrorInitializingNode => handle_initialization_error(&builder, &app),
         UIResponse::LoadingScreenUpdate(progress) => handle_loading_screen_update(&builder, progress),
     }
@@ -81,16 +77,25 @@ fn run_app(
     let sender_clone = sender.clone();
     let builder_clone = builder.clone();
     let app_cloned = app.clone();
-
+    let update_wallet_join_handle: Arc<Mutex<Option<JoinHandle<()>>>> = Arc::new(Mutex::from(None));
+    let join_handle_for_finishing = update_wallet_join_handle.clone();
     glib_receiver.attach(None, move |action| {
-        ui_response_to_message(builder.clone(), action, app_cloned.clone(), &sender, main_window_running.clone());
+        ui_response_to_message(builder.clone(), action, app_cloned.clone(), &sender, main_window_running.clone(), update_wallet_join_handle.clone());
         glib::Continue(true)
     });
-
+    
     app.connect_shutdown(move |_| {
         if sender_clone.send(UIRequest::EndOfProgram).is_ok() {
             let window = builder_clone.object::<Window>("Ventana").expect("Couldn't find main window");
             window.close();
+            match join_handle_for_finishing.lock().unwrap().take() {
+                Some(join_handle) => {
+                    if let Err(error) = join_handle.join() {
+                        eprintln!("Error joining thread: {:#?}", error);
+                    };
+                }
+                None => (),
+            }
         };
     });
 }
@@ -109,17 +114,17 @@ fn start_window(
     builder: &Builder,
     sender: &Sender<UIRequest>,
     running: Arc<Mutex<bool>>,
-) {
+) -> Result<JoinHandle<()>, UiError> {
     match running.lock() {
         Ok(mut running) => *running = true,
-        Err(_) => return,
+        Err(_) => return Err(UiError::FailedToBuildUi)
     }
-    initialize_elements(builder, sender);
+    initialize_elements(builder, sender); 
     close_loading_window(builder);
     let window: Window = builder.object("Ventana").expect("Failed to find main window");
     window.set_application(Some(app));
-    send_ui_update_request(sender, running);
     window.show_all();
+    Ok(send_ui_update_request(sender, running))
 }
 
 /// Defines the important signals and actions of the UI elements, such as buttons, sliders,

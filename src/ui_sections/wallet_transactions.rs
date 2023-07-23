@@ -7,7 +7,7 @@ use node::blocks::proof::{HashPair, hash_pairs_for_merkle_tree};
 use node::utils::ui_communication_protocol::UIRequest;
 use std::sync::mpsc::Sender;
 
-use crate::utils::error_handling::handle_error;
+use crate::utils::error_handling::{UiError,handle_ui_error};
 use crate::merkle_tree_label::*;
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
 
@@ -71,7 +71,7 @@ pub fn modify_block_header(
     let date = match &NaiveDateTime::from_timestamp_opt(header.time as i64, 0) {
         Some(date) => Utc.from_utc_datetime(date),
         None => {
-            handle_error(builder, "Couldn't parse date of the block to display".to_string());
+            handle_ui_error(builder, UiError::ErrorParsingBlockDate);
             return;
         },
     };
@@ -100,7 +100,7 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
             Some(block_number) => match block_number[1..].parse::<usize>() {
                 Ok(block_number) => block_number,
                 Err(_) => {
-                    handle_error(&builder_clone, "Error parsing block number".to_string());
+                    handle_ui_error(&builder_clone, UiError::ErrorParsingBlockNumber);
                     return;
                 },
             },

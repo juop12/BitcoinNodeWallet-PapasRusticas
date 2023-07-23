@@ -14,6 +14,7 @@ use std::{
     sync::mpsc::Sender,
     sync::{Arc, Mutex},
     thread,
+    thread::JoinHandle,
     time::Duration,
 };
 
@@ -85,9 +86,9 @@ pub fn handle_wallet_info(wallet_info: &WalletInfo, builder: &Builder) {
 
 /// Sends a request to the wallet to update the information of the wallet
 /// every REFRESH_RATE seconds
-pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<bool>>) {
+pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<bool>>) -> JoinHandle<()>{
     let sender = sender.clone();
-    thread::spawn(move || loop {
+    let update_wallet_join_handle = thread::spawn(move || loop {
         thread::sleep(REFRESH_RATE);
         match running.lock() {
             Ok(program_running) => {
@@ -102,6 +103,7 @@ pub fn send_ui_update_request(sender: &Sender<UIRequest>, running: Arc<Mutex<boo
             Err(_) => return,
         }
     });
+    update_wallet_join_handle
 }
 
 /// Shows the success message of a transaction well sent
