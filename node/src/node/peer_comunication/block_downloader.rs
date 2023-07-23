@@ -39,8 +39,7 @@ pub fn block_downloader_thread_loop(
     id: usize,
     receiver: &SafeReceiver,
     stream: &mut TcpStream,
-    safe_headers: &SafeVecHeader,
-    safe_block_chain: &SafeBlockChain,
+    safe_node_info: &NodeSharedInformation,
     missed_bundles_sender: &mpsc::Sender<Bundle>,
     logger: &Logger,
 ) -> Stops {
@@ -56,7 +55,7 @@ pub fn block_downloader_thread_loop(
 
     let aux_bundle = bundle.clone();
     logger.log(format!("sigo vivo {id}"));
-    match get_blocks_from_bundle(bundle, stream, safe_headers, safe_block_chain, logger) {
+    match get_blocks_from_bundle(bundle, stream, safe_node_info, logger) {
         Ok(blocks) => blocks,
         Err(error) => {
             if let Err(error) = missed_bundles_sender.send(aux_bundle) {
@@ -88,16 +87,14 @@ pub struct BlockDownloader {
     receiver: SafeReceiver,
     missed_bundles_sender: mpsc::Sender<Bundle>,
     missed_bundles_receiver: mpsc::Receiver<Bundle>,
-    safe_headers: SafeVecHeader,
-    safe_blockchain: SafeBlockChain,
+    safe_node_info: NodeSharedInformation,
     downloading_headers_peer: Option<(TcpStream, usize)>,
     logger: Logger,
 }
 
 impl BlockDownloader {
     fn new(
-        safe_headers: &SafeVecHeader,
-        safe_blockchain: &SafeBlockChain,
+        safe_node_info: NodeSharedInformation,
         logger: &Logger)->BlockDownloader{
         let (sender, receiver) = mpsc::channel();
         let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
@@ -110,18 +107,16 @@ impl BlockDownloader {
             receiver,
             missed_bundles_sender,
             missed_bundles_receiver,
-            safe_headers: safe_headers.clone(),
-            safe_blockchain: safe_blockchain.clone(),
+            safe_node_info,
             downloading_headers_peer: None,
             logger: logger.clone()}
-    }
+        }
 
     /// Creates a new thread pool with the specified size, it must be greater than zero.
     pub fn from(
         outbound_connections: &Vec<TcpStream>,
         header_stream_index: usize,
-        safe_headers: &SafeVecHeader,
-        safe_blockchain: &SafeBlockChain,
+        safe_node_info: NodeSharedInformation,
         logger: &Logger,
     ) -> Result<BlockDownloader, BlockDownloaderError> {
         let connections_amount = outbound_connections.len();
@@ -130,7 +125,7 @@ impl BlockDownloader {
         }
 
         let mut id = 0;
-        let mut block_downloader = Self::new( safe_headers, safe_blockchain, logger);
+        let mut block_downloader = Self::new( safe_node_info, logger);
         
         //No tomamos el tcp stream que se esta usando para descargar headers, porque se usa para descargar headers.
         for stream in outbound_connections{
@@ -160,8 +155,7 @@ impl BlockDownloader {
             id,
             self.receiver.clone(),
             stream,
-            self.safe_headers.clone(),
-            self.safe_blockchain.clone(),
+            self.safe_node_info.clone(),
             self.missed_bundles_sender.clone(),
             self.logger.clone(),
         );
@@ -199,8 +193,7 @@ impl BlockDownloader {
             get_blocks_from_bundle(
                 bundle,
                 &mut stream,
-                &self.safe_headers,
-                &self.safe_blockchain,
+                &self.safe_node_info,
                 &self.logger,
             )?;
         }
@@ -245,20 +238,14 @@ impl BlockDownloader {
 /// Receives messages until it receives either block or not found
 fn receive_block(
     stream: &mut TcpStream,
-    safe_headers: &SafeVecHeader,
-    safe_blockchain: &SafeBlockChain,
+    safe_node_info: &NodeSharedInformation,
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
     let start_time = Instant::now();
-    let pending_tx_dummy = Arc::new(Mutex::from(HashMap::new()));
-    let headers_index_dummy = Arc::new(Mutex::from(HashMap::new()));
     while start_time.elapsed() < PEER_TIMEOUT {
         match recieve_and_handle(
             stream,
-            safe_headers,
-            safe_blockchain,
-            &pending_tx_dummy,
-            &headers_index_dummy,
+            safe_node_info,
             logger,
             true,
         ) {
@@ -301,8 +288,7 @@ pub fn send_get_data_message_for_blocks(
 fn get_blocks_from_bundle(
     requested_block_hashes: Vec<[u8; 32]>,
     stream: &mut TcpStream,
-    safe_headers: &SafeVecHeader,
-    safe_blockchain: &SafeBlockChain,
+    safe_node_info: &NodeSharedInformation,
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
     if requested_block_hashes.is_empty() {
@@ -311,7 +297,7 @@ fn get_blocks_from_bundle(
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     for _ in 0..amount_of_hashes {
-        receive_block(stream, safe_headers, safe_blockchain, logger)?;
+        receive_block(stream, safe_node_info, logger)?;
     }
 
     Ok(())

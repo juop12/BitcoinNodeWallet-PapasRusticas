@@ -46,8 +46,7 @@ impl Worker {
         id: usize,
         receiver: SafeReceiver,
         mut stream: TcpStream,
-        safe_headers: SafeVecHeader,
-        safe_blockchain: SafeBlockChain,
+        safe_node_info: NodeSharedInformation,
         missed_bundles_sender: mpsc::Sender<Bundle>,
         logger: Logger,
     ) -> Worker {
@@ -61,8 +60,7 @@ impl Worker {
                 id,
                 &receiver,
                 &mut stream,
-                &safe_headers,
-                &safe_blockchain,
+                &safe_node_info,
                 &missed_bundles_sender,
                 &logger,
             );
@@ -86,10 +84,7 @@ impl Worker {
     /// Creates a worker responsible for communicating with a peer
     pub fn new_peer_comunicator_worker(
         mut stream: TcpStream,
-        safe_block_headers: SafeVecHeader,
-        safe_block_chain: SafeBlockChain,
-        safe_pending_tx: SafePendingTx,
-        safe_headers_index: SafeHeaderIndex,
+        safe_node_info: NodeSharedInformation,
         propagation_channel: mpsc::Sender<Vec<u8>>,
         logger: Logger,
         finished: FinishedIndicator,
@@ -105,10 +100,7 @@ impl Worker {
             logger.log(format!("Worker {} continues execution", id));
             match peer_comunicator_worker_thread_loop(
                 &mut stream,
-                &safe_block_headers,
-                &safe_block_chain,
-                &safe_pending_tx,
-                &safe_headers_index,
+                &safe_node_info,
                 &message_bytes_receiver,
                 &propagation_channel,
                 &logger,
@@ -171,7 +163,7 @@ impl NewPeerConnector{
         let (sender, receiver) = mpsc::channel();
         
         let thread = thread::spawn(move || loop {
-            logger.log(format!("Peer connector continues execution"));
+            logger.log("Peer connector continues execution".to_string());
             match new_peer_conector_thread_loop(
                 &listener,
                 node_version,
@@ -216,10 +208,7 @@ impl PeerComunicatorWorkerManager{
     /// Creates a worker responsible for managing all the other peer communicator workers
     pub fn new(new_peer_conector: Option<NewPeerConnector>,
         outbound_connections: &Vec<TcpStream>,
-        safe_blockchain: SafeBlockChain,
-        safe_headers: SafeVecHeader,
-        safe_pending_tx: SafePendingTx,
-        safe_headers_index: SafeHeaderIndex,
+        safe_node_info: NodeSharedInformation,
         finished: Arc<Mutex<bool>>,
         logger: Logger)-> PeerComunicatorWorkerManager{
         
@@ -228,10 +217,7 @@ impl PeerComunicatorWorkerManager{
 
         let mut workers = create_peer_comunicator_workers(
             outbound_connections,
-            &safe_blockchain,
-            &safe_headers,
-            &safe_pending_tx,
-            &safe_headers_index,
+            &safe_node_info,
             &propagation_channel,
             &finished,
             &logger);
@@ -241,10 +227,7 @@ impl PeerComunicatorWorkerManager{
             match worker_manager_loop(
                 &new_peer_conector,
                 &mut workers,
-                &safe_blockchain,
-                &safe_headers,
-                &safe_pending_tx,
-                &safe_headers_index,
+                &safe_node_info,
                 &message_bytes_receiver,
                 &propagation_channel,
                 &finished,
@@ -296,10 +279,7 @@ impl PeerComunicatorWorkerManager{
 ///Creates a PeerCommunicatorWorker for each stream, making each of them responsible for communicating with their corresponding peer 
 fn create_peer_comunicator_workers(
     outbound_connections: &Vec<TcpStream>,
-    safe_blockchain: &SafeBlockChain,
-    safe_headers: &SafeVecHeader,
-    safe_pending_tx: &SafePendingTx,
-    safe_headers_index: &SafeHeaderIndex,
+    safe_node_info: &NodeSharedInformation,
     propagation_channel: &mpsc::Sender<Vec<u8>>,
     finished_working_indicator: &Arc<Mutex<bool>>,
     logger: &Logger,
@@ -320,10 +300,7 @@ fn create_peer_comunicator_workers(
         };
         let worker = Worker::new_peer_comunicator_worker(
             current_stream,
-            safe_headers.clone(),
-            safe_blockchain.clone(),
-            safe_pending_tx.clone(),
-            safe_headers_index.clone(),
+            safe_node_info.clone(),
             propagation_channel.clone(),
             logger.clone(),
             finished_working_indicator.clone(),

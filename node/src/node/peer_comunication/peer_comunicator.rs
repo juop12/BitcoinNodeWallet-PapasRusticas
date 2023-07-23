@@ -24,10 +24,7 @@ impl PeerComunicator {
         node_version: i32,
         node_address: SocketAddr, 
         outbound_connections: &Vec<TcpStream>,
-        safe_blockchain: &SafeBlockChain,
-        safe_headers: &SafeVecHeader,
-        safe_pending_tx: &SafePendingTx,
-        safe_headers_index: &SafeHeaderIndex,
+        safe_node_info: NodeSharedInformation,
         logger: &Logger,
     ) -> PeerComunicator{
         let finished_working_indicator = Arc::new(Mutex::from(false));
@@ -42,10 +39,7 @@ impl PeerComunicator {
         let worker_manager = PeerComunicatorWorkerManager::new(
             new_peer_conector.ok(), 
             outbound_connections,
-            safe_blockchain.clone(),
-            safe_headers.clone(),
-            safe_pending_tx.clone(),
-            safe_headers_index.clone(),
+            safe_node_info,
             finished_working_indicator.clone(),
             logger.clone());
 
@@ -90,10 +84,7 @@ impl PeerComunicator {
 pub fn worker_manager_loop(
     new_peer_connector: &Option<NewPeerConnector>,
     workers: &mut Vec<Worker>,
-    safe_blockchain: &SafeBlockChain,
-    safe_headers: &SafeVecHeader,
-    safe_pending_tx: &SafePendingTx,
-    safe_headers_index: &SafeHeaderIndex,
+    safe_node_info: &NodeSharedInformation,
     message_bytes_receiver: &mpsc::Receiver<Vec<u8>>,
     propagation_channel: &mpsc::Sender<Vec<u8>>,
     finished: &Arc<Mutex<bool>>,
@@ -117,10 +108,7 @@ pub fn worker_manager_loop(
                 Ok(new_stream) => {
                     let new_worker = Worker::new_peer_comunicator_worker(
                         new_stream,
-                        safe_headers.clone(), 
-                        safe_blockchain.clone(), 
-                        safe_pending_tx.clone(), 
-                        safe_headers_index.clone(),
+                        safe_node_info.clone(),
                         propagation_channel.clone(),
                         logger.clone(), 
                         finished.clone(), 
@@ -141,7 +129,6 @@ pub fn worker_manager_loop(
             return Stops::GracefullStop;
         }
         Stops::Continue
-        //firjarse de mandar mensajes
 }
 
 /// Processes existing workers by removing any that may have ungracefully finished, and sending the message bytes 
@@ -181,10 +168,7 @@ fn process_existing_workers(workers: &mut Vec<Worker>, message_bytes_receiver: &
 /// If there is a message to send then it sends it to its peer
 pub fn peer_comunicator_worker_thread_loop(
     stream: &mut TcpStream,
-    safe_block_headers: &SafeVecHeader,
-    safe_block_chain: &SafeBlockChain,
-    safe_pending_tx: &SafePendingTx,
-    safe_headers_index: &SafeHeaderIndex,
+    safe_node_info: &NodeSharedInformation,
     message_bytes_receiver: &mpsc::Receiver<Vec<u8>>,
     propagation_channel: &mpsc::Sender<Vec<u8>>,
     logger: &Logger,
@@ -202,11 +186,11 @@ pub fn peer_comunicator_worker_thread_loop(
 
     match receive_message(stream, logger){
         Ok((msg,_command_name)) => {
-            if propagate_messages(&msg, propagation_channel, safe_block_chain, safe_pending_tx).is_err(){
+            if propagate_messages(&msg, propagation_channel, &safe_node_info.safe_blockchain, &safe_node_info.safe_pending_tx).is_err(){
                 return Stops::UngracefullStop;
             };
             
-            if handle_message(msg, stream, safe_block_headers, safe_block_chain, safe_pending_tx, safe_headers_index, logger, false).is_err(){
+            if handle_message(msg, stream, safe_node_info, logger, false).is_err(){
                 return Stops::UngracefullStop;
             };
         },
@@ -296,7 +280,7 @@ pub fn new_peer_conector_thread_loop(
     match listener.accept(){
         Ok((mut tcp_stream, peer_address)) => {
             logger.log("New peer requested conection".to_string());
-            if incoming_handshake(node_version, peer_address, node_address, &mut tcp_stream, &logger).is_err(){
+            if incoming_handshake(node_version, peer_address, node_address, &mut tcp_stream, logger).is_err(){
                 logger.log("New peer failed handshake".to_string());
                 return Stops::UngracefullStop;
             }
