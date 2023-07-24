@@ -174,8 +174,8 @@ impl NodeDataHandler {
             if let Some(block) = blockchain.get(&header.hash()) {
                 self.save_block(block)?;
                 should_have_block = true;
-            } else if should_have_block{
-                return Ok(i)
+            } else if should_have_block {
+                return Ok(i);
             }
             self.save_header(header)?;
         }

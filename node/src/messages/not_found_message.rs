@@ -30,8 +30,10 @@ impl MessageTrait for NotFoundMessage {
     }
 }
 
-impl NotFoundMessage{
-    pub fn from_block_hashes(hashes: Vec<[u8;32]>)-> NotFoundMessage{
-        NotFoundMessage{ inv: InvMessage::create_message_inventory_block_type(hashes) }
+impl NotFoundMessage {
+    pub fn from_block_hashes(hashes: Vec<[u8; 32]>) -> NotFoundMessage {
+        NotFoundMessage {
+            inv: InvMessage::create_message_inventory_block_type(hashes),
+        }
     }
 }

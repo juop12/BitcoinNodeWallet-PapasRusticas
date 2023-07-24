@@ -1,6 +1,6 @@
-use crate::node::*;
-use crate::node::initial_block_download::HASHEDGENESISBLOCK;
 use crate::node::get_block_headers_message::MAX_QUANTITY_FOR_GET_HEADERS;
+use crate::node::initial_block_download::HASHEDGENESISBLOCK;
+use crate::node::*;
 
 use super::peer_comunication::block_downloader::send_get_data_message_for_blocks;
 use super::safe_node_structure::NodeSharedInformation;
@@ -10,38 +10,73 @@ pub fn handle_message(
     stream: &mut TcpStream,
     safe_node_info: &NodeSharedInformation,
     logger: &Logger,
-    downloading_headers: bool)->Result<(), NodeError>{
-        match message{
-            Message::BlockHeaders(msg) => if downloading_headers {
-                handle_block_headers_message(msg, &safe_node_info.safe_block_headers, &safe_node_info.safe_headers_index)?;
-            },
-            Message::Block(msg) => handle_block_message(msg, safe_node_info, logger, downloading_headers)?,
-            Message::GetBlockHeaders(msg) => if !downloading_headers{
-                handle_get_headers_message(stream, msg, &safe_node_info.safe_block_headers, &safe_node_info.safe_headers_index, logger)?;
-            },
-            Message::GetData(msg) => if !downloading_headers{
-                handle_get_data(stream, msg, &safe_node_info.safe_blockchain, &safe_node_info.safe_pending_tx)?;
-            },
-            Message::Header(_) => return Err(NodeError::DoubleHeader),
-            Message::Inv(msg) => if !downloading_headers{
-                handle_inv_message(stream, msg, &safe_node_info.safe_blockchain, &safe_node_info.safe_pending_tx)?;
-            },
-            Message::Tx(msg) => handle_tx_message(msg, &safe_node_info.safe_pending_tx)?,
-            Message::Ping(msg) => handle_ping_message(stream, msg)?,
-            _ => {},
-        };
-        Ok(())
-    }
+    downloading_headers: bool,
+) -> Result<(), NodeError> {
+    match message {
+        Message::BlockHeaders(msg) => {
+            if downloading_headers {
+                handle_block_headers_message(
+                    msg,
+                    &safe_node_info.safe_block_headers,
+                    &safe_node_info.safe_headers_index,
+                )?;
+            }
+        }
+        Message::Block(msg) => {
+            handle_block_message(msg, safe_node_info, logger, downloading_headers)?
+        }
+        Message::GetBlockHeaders(msg) => {
+            if !downloading_headers {
+                handle_get_headers_message(
+                    stream,
+                    msg,
+                    &safe_node_info.safe_block_headers,
+                    &safe_node_info.safe_headers_index,
+                    logger,
+                )?;
+            }
+        }
+        Message::GetData(msg) => {
+            if !downloading_headers {
+                handle_get_data(
+                    stream,
+                    msg,
+                    &safe_node_info.safe_blockchain,
+                    &safe_node_info.safe_pending_tx,
+                )?;
+            }
+        }
+        Message::Header(_) => return Err(NodeError::DoubleHeader),
+        Message::Inv(msg) => {
+            if !downloading_headers {
+                handle_inv_message(
+                    stream,
+                    msg,
+                    &safe_node_info.safe_blockchain,
+                    &safe_node_info.safe_pending_tx,
+                )?;
+            }
+        }
+        Message::Tx(msg) => handle_tx_message(msg, &safe_node_info.safe_pending_tx)?,
+        Message::Ping(msg) => handle_ping_message(stream, msg)?,
+        _ => {}
+    };
+    Ok(())
+}
 
 ///Handles the headers message by hashing the last received header and asking for more headers.
 pub fn handle_block_headers_message(
-    block_headers_msg : BlockHeadersMessage,
+    block_headers_msg: BlockHeadersMessage,
     safe_block_headers: &SafeVecHeader,
-    safe_headers_index: &SafeHeaderIndex
+    safe_headers_index: &SafeHeaderIndex,
 ) -> Result<(), NodeError> {
     let received_block_headers = block_headers_msg.headers;
 
-    insert_new_headers(received_block_headers, safe_block_headers, safe_headers_index)?;
+    insert_new_headers(
+        received_block_headers,
+        safe_block_headers,
+        safe_headers_index,
+    )?;
 
     Ok(())
 }
@@ -57,7 +92,7 @@ pub fn handle_block_message(
     let block = block_msg.block;
 
     let mut blockchain = safe_node_info.lock_blockchain()?;
-        
+
     let block_header = block.get_header();
 
     if blockchain.contains_key(&block_header.hash()) {
@@ -72,20 +107,28 @@ pub fn handle_block_message(
         logger.log(String::from("Proof of inclusion failed for a block"));
         return Err(NodeError::ErrorValidatingBlock);
     };
-    
-    match safe_node_info.lock_safe_pending_tx(){
+
+    match safe_node_info.lock_safe_pending_tx() {
         Ok(mut pending_tx) => {
             for tx in block.get_transactions() {
                 if pending_tx.remove(&tx.hash()).is_some() {
                     logger.log(String::from("Transaccion sacada de pending"));
                 }
             }
-        },
+        }
         Err(_) => return Err(NodeError::ErrorSharingReference),
     }
-    
-    if !downloading_headers && !safe_node_info.lock_headers_index()?.contains_key(&block_header.hash()){
-        insert_new_headers(vec![block_header], &safe_node_info.safe_block_headers, &safe_node_info.safe_headers_index)?;
+
+    if !downloading_headers
+        && !safe_node_info
+            .lock_headers_index()?
+            .contains_key(&block_header.hash())
+    {
+        insert_new_headers(
+            vec![block_header],
+            &safe_node_info.safe_block_headers,
+            &safe_node_info.safe_headers_index,
+        )?;
     }
 
     blockchain.insert(block.header_hash(), block);
@@ -139,10 +182,7 @@ pub fn handle_inv_message(
 }
 
 ///Handles the ping message by sending a pong message.
-pub fn handle_ping_message(
-    stream: &mut TcpStream,
-    ping_msg: PingMessage,
-) -> Result<(), NodeError> {
+pub fn handle_ping_message(stream: &mut TcpStream, ping_msg: PingMessage) -> Result<(), NodeError> {
     ping_msg.reply_pong(stream).map_err(NodeError::ErrorMessage)
 }
 
@@ -161,29 +201,39 @@ pub fn handle_tx_message(
 }
 
 /// Handles the get_headers_message answearing with a Header message cointaining the headers starting from the
-/// latest block in the blockchain that is shared between the local blockchain and the get_headers_message, and 
+/// latest block in the blockchain that is shared between the local blockchain and the get_headers_message, and
 /// stopping when either of the following conditions is met:
 /// -The stopping_hash is found
 /// -The end of the blockchain is reached
-/// -The len of the vector reaches MAX_QUANTITY_FOR_GET_HEADERS 
-pub fn handle_get_headers_message(stream: &mut TcpStream, get_headers_msg: GetBlockHeadersMessage, safe_block_headers: &SafeVecHeader, safe_headers_index: &SafeHeaderIndex, logger: &Logger) -> Result<(), NodeError> {
-    
-    let starting_header_position = match get_starting_header_position(&get_headers_msg, safe_headers_index){
-        Ok(header_position) => {
-            match header_position {
+/// -The len of the vector reaches MAX_QUANTITY_FOR_GET_HEADERS
+pub fn handle_get_headers_message(
+    stream: &mut TcpStream,
+    get_headers_msg: GetBlockHeadersMessage,
+    safe_block_headers: &SafeVecHeader,
+    safe_headers_index: &SafeHeaderIndex,
+    logger: &Logger,
+) -> Result<(), NodeError> {
+    let starting_header_position =
+        match get_starting_header_position(&get_headers_msg, safe_headers_index) {
+            Ok(header_position) => match header_position {
                 Some(header_position) => header_position + 1,
                 None => 0,
-            }
-        },
-        Err(NodeError::ErrorFindingBlock) => return Ok(()),
-        Err(error) => return Err(error),
-    };
-    
-    let headers_to_send = get_headers_to_send(safe_block_headers, starting_header_position, &get_headers_msg.stopping_hash)?;
-    
+            },
+            Err(NodeError::ErrorFindingBlock) => return Ok(()),
+            Err(error) => return Err(error),
+        };
+
+    let headers_to_send = get_headers_to_send(
+        safe_block_headers,
+        starting_header_position,
+        &get_headers_msg.stopping_hash,
+    )?;
+
     logger.log(format!("Sending {} headers", headers_to_send.len()));
-    
-    BlockHeadersMessage::new(headers_to_send).send_to(stream).map_err(NodeError::ErrorMessage)?;
+
+    BlockHeadersMessage::new(headers_to_send)
+        .send_to(stream)
+        .map_err(NodeError::ErrorMessage)?;
 
     Ok(())
 }
@@ -191,21 +241,27 @@ pub fn handle_get_headers_message(stream: &mut TcpStream, get_headers_msg: GetBl
 /// Returns a vector of Header, filling it from starting_header_position, until either of the following conditions is met
 /// -The stopping_hash is found
 /// -The end of the blockchain is reached
-/// -The len of the vector reaches MAX_QUANTITY_FOR_GET_HEADERS 
-fn get_headers_to_send(safe_block_headers: &SafeVecHeader, starting_header_position: usize, stopping_hash: &[u8;32]) -> Result<Vec<BlockHeader>, NodeError>  {
+/// -The len of the vector reaches MAX_QUANTITY_FOR_GET_HEADERS
+fn get_headers_to_send(
+    safe_block_headers: &SafeVecHeader,
+    starting_header_position: usize,
+    stopping_hash: &[u8; 32],
+) -> Result<Vec<BlockHeader>, NodeError> {
     let mut headers_to_send: Vec<BlockHeader> = Vec::new();
-    
-    match safe_block_headers.lock(){
+
+    match safe_block_headers.lock() {
         Ok(headers) => {
             let header_iter = headers.iter().skip(starting_header_position);
 
-            for header in header_iter{
+            for header in header_iter {
                 headers_to_send.push(header.clone());
-                if (headers_to_send.len() >= MAX_QUANTITY_FOR_GET_HEADERS) || (header.hash() == *stopping_hash){
+                if (headers_to_send.len() >= MAX_QUANTITY_FOR_GET_HEADERS)
+                    || (header.hash() == *stopping_hash)
+                {
                     break;
                 }
             }
-        },
+        }
         Err(_) => return Err(NodeError::ErrorSharingReference),
     };
 
@@ -213,67 +269,83 @@ fn get_headers_to_send(safe_block_headers: &SafeVecHeader, starting_header_posit
 }
 
 /// Gets the latest block in the blockchain that is shared between the local blockchain and the get_headers_message
-fn get_starting_header_position(get_headers_msg: &GetBlockHeadersMessage, safe_headers_index: &SafeHeaderIndex) -> Result<Option<usize>, NodeError>{
+fn get_starting_header_position(
+    get_headers_msg: &GetBlockHeadersMessage,
+    safe_headers_index: &SafeHeaderIndex,
+) -> Result<Option<usize>, NodeError> {
     match safe_headers_index.lock() {
         Ok(header_index) => {
-            for header_hash in &get_headers_msg.block_header_hashes{
-                if let Some(starting_header_position) = header_index.get(header_hash){
+            for header_hash in &get_headers_msg.block_header_hashes {
+                if let Some(starting_header_position) = header_index.get(header_hash) {
                     return Ok(Some(*starting_header_position));
                 }
-                if *header_hash == HASHEDGENESISBLOCK{
+                if *header_hash == HASHEDGENESISBLOCK {
                     return Ok(None);
                 };
             }
             Err(NodeError::ErrorFindingBlock)
-        },
+        }
         Err(_) => Err(NodeError::ErrorSharingReference),
     }
 }
 
-/// Handles get data message. If it receives block hashes it looks for them in the block chain and responds 
-/// with Block messages, each block hash not found in the blocks is then returned through a NotFoundMessage 
-pub fn handle_get_data(stream: &mut TcpStream, get_data_msg: GetDataMessage, safe_blockchain: &SafeBlockChain, safe_pending: &SafePendingTx) -> Result<(), NodeError>{
+/// Handles get data message. If it receives block hashes it looks for them in the block chain and responds
+/// with Block messages, each block hash not found in the blocks is then returned through a NotFoundMessage
+pub fn handle_get_data(
+    stream: &mut TcpStream,
+    get_data_msg: GetDataMessage,
+    safe_blockchain: &SafeBlockChain,
+    safe_pending: &SafePendingTx,
+) -> Result<(), NodeError> {
     let block_hashes = get_data_msg.get_block_hashes();
     let tx_hashes = get_data_msg.get_block_hashes();
 
     let mut block_messages = Vec::new();
     let mut not_found_blocks = Vec::new();
-    match safe_blockchain.lock(){
+    match safe_blockchain.lock() {
         Ok(blockchain) => {
-            for hash in block_hashes{
-                match blockchain.get(&hash){
-                    Some(block) => block_messages.push(BlockMessage::from(block).map_err(|_| NodeError::ErrorMessage(MessageError::ErrorCreatingGetDataMessage))?),
+            for hash in block_hashes {
+                match blockchain.get(&hash) {
+                    Some(block) => {
+                        block_messages.push(BlockMessage::from(block).map_err(|_| {
+                            NodeError::ErrorMessage(MessageError::ErrorCreatingGetDataMessage)
+                        })?)
+                    }
                     None => {
                         not_found_blocks.push(hash);
                     }
                 };
             }
-        },
+        }
         Err(_) => return Err(NodeError::ErrorSharingReference),
     }
-    
+
     let mut tx_messages = Vec::new();
-    match safe_pending.lock(){
+    match safe_pending.lock() {
         Ok(safe_pending) => {
-            for hash in tx_hashes{
-                if let Some(tx) = safe_pending.get(&hash){
-                    tx_messages.push(TxMessage::from_bytes(&tx.to_bytes()).map_err(NodeError::ErrorMessage)?);
+            for hash in tx_hashes {
+                if let Some(tx) = safe_pending.get(&hash) {
+                    tx_messages.push(
+                        TxMessage::from_bytes(&tx.to_bytes()).map_err(NodeError::ErrorMessage)?,
+                    );
                 };
             }
-        },
+        }
         Err(_) => return Err(NodeError::ErrorSharingReference),
     }
 
-    for message in block_messages{
+    for message in block_messages {
         message.send_to(stream).map_err(NodeError::ErrorMessage)?;
     }
 
-    for message in tx_messages{
+    for message in tx_messages {
         message.send_to(stream).map_err(NodeError::ErrorMessage)?;
     }
-    
-    if !not_found_blocks.is_empty(){
-        NotFoundMessage::from_block_hashes(not_found_blocks).send_to(stream).map_err(|_| NodeError::ErrorMessage(MessageError::ErrorSendingNotFoundMessage))?;
+
+    if !not_found_blocks.is_empty() {
+        NotFoundMessage::from_block_hashes(not_found_blocks)
+            .send_to(stream)
+            .map_err(|_| NodeError::ErrorMessage(MessageError::ErrorSendingNotFoundMessage))?;
     }
     Ok(())
 }
@@ -288,8 +360,8 @@ fn send_get_data_message_for_transactions(
 
     match get_data_message.send_to(stream) {
         Ok(_) => Ok(()),
-        Err(_) => Err(NodeError::ErrorMessage(MessageError::ErrorSendingGetDataMessage)),
+        Err(_) => Err(NodeError::ErrorMessage(
+            MessageError::ErrorSendingGetDataMessage,
+        )),
     }
 }
-
-

@@ -1,8 +1,8 @@
+use crate::blocks::proof::HashPair;
 use crate::blocks::BlockHeader;
 use crate::blocks::Outpoint;
 use crate::utils::btc_errors::WalletError;
 use crate::wallet::Wallet;
-use crate::blocks::proof::HashPair;
 
 pub const TX_PAGE_LENGTH: usize = 30;
 pub const BLOCK_PAGE_LENGTH: usize = 10;
@@ -35,10 +35,10 @@ pub enum UIResponse {
 }
 
 pub enum LoadingScreenInfo {
-    StartedBlockDownload(/*total_blocks*/usize),
+    StartedBlockDownload(/*total_blocks*/ usize),
     DownloadedBlocks(usize),
     UpdateLabel(String),
-    FinishedBlockDownload
+    FinishedBlockDownload,
 }
 
 pub struct WalletInfo {

@@ -15,7 +15,11 @@ mod test {
     // Auxiliar functions
     //=================================================================
 
-    fn create_config(log_path: &str, dns: Vec<(String, u16)>, external_addresses: Vec<([u8; 4], u16)>) -> Config{
+    fn create_config(
+        log_path: &str,
+        dns: Vec<(String, u16)>,
+        external_addresses: Vec<([u8; 4], u16)>,
+    ) -> Config {
         Config {
             version: VERSION,
             local_address: LOCAL_ADDRESS,
@@ -33,12 +37,13 @@ mod test {
     //=================================================================
 
     #[test]
-    fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes() -> Result<(), NodeError> {
+    fn integration_test_1_after_creating_a_node_it_connects_with_other_nodes(
+    ) -> Result<(), NodeError> {
         let config = create_config(
             "tests_txt/integration_test_1_log.txt",
             vec![(DNS_HOST.to_string(), DNS_PORT)],
-            vec![]
-            );
+            vec![],
+        );
 
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let node = Node::new(config, sx)?;
@@ -52,8 +57,8 @@ mod test {
         let config = create_config(
             "tests_txt/integration_test_2_log.txt",
             vec![(DNS_HOST.to_string(), DNS_PORT)],
-            vec![]
-            );
+            vec![],
+        );
 
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
         let mut node = Node::new(config, sx)?;
@@ -89,12 +94,12 @@ mod test {
     //     let header_index_hash = node.get_header_index_hash()?;
 
     //     let mut i = 0;
-        
+
     //     for header in block_headers.iter(){
     //         let key = header.hash();
     //         let index = header_index_hash.get(&key).unwrap();
     //         assert_eq!(*index, i);
-            
+
     //         i += 1;
     //     }
 
@@ -104,8 +109,11 @@ mod test {
     #[test]
     fn test3_set_wallet() {
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
-        let mut node =
-            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()], sx).unwrap();
+        let mut node = initialize_node(
+            vec!["test".to_string(), "node/src/nodo.conf".to_string()],
+            sx,
+        )
+        .unwrap();
 
         let wallet =
             Wallet::from("cTcbayZmdiCxNywGxfLXGLqS2Y8uTNzGktbFXZnkNCR3zeN1XMQC".to_string())
@@ -124,8 +132,11 @@ mod test {
     #[test]
     fn test4_block_info() {
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
-        let mut node =
-            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()], sx).unwrap();
+        let mut node = initialize_node(
+            vec!["test".to_string(), "node/src/nodo.conf".to_string()],
+            sx,
+        )
+        .unwrap();
 
         let mut wallet =
             Wallet::from("cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string())
@@ -149,8 +160,11 @@ mod test {
     #[test]
     fn test5_tx_valida() -> Result<(), NodeError> {
         let (sx, _rx) = glib::MainContext::channel::<UIResponse>(glib::PRIORITY_DEFAULT);
-        let mut node =
-            initialize_node(vec!["test".to_string(), "node/src/nodo.conf".to_string()], sx).unwrap();
+        let mut node = initialize_node(
+            vec!["test".to_string(), "node/src/nodo.conf".to_string()],
+            sx,
+        )
+        .unwrap();
 
         let wallet =
             Wallet::from("cW4xB3oopcqxK5hACPKpTtsDZHkcnKn4VFih5bH4vZKAkeDaVEPy".to_string())

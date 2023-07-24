@@ -1,15 +1,15 @@
 use chrono::{NaiveDateTime, TimeZone, Utc};
 use gtk::prelude::*;
 use gtk::{glib, Builder, Button, Dialog, Label, TreeSelection, TreeStore};
+use node::blocks::proof::{hash_pairs_for_merkle_tree, HashPair};
 use node::blocks::BlockHeader;
-use node::wallet::get_bytes_from_hex;
-use node::blocks::proof::{HashPair, hash_pairs_for_merkle_tree};
 use node::utils::ui_communication_protocol::UIRequest;
+use node::wallet::get_bytes_from_hex;
 use std::sync::mpsc::Sender;
 
-use crate::utils::error_handling::{UiError,handle_ui_error};
-use crate::merkle_tree_label::*;
 use crate::hex_bytes_to_string::get_string_representation_from_bytes;
+use crate::merkle_tree_label::*;
+use crate::utils::error_handling::{handle_ui_error, UiError};
 
 const INDEX_COLUMN: u32 = 0;
 const TX_HASH_COLUMN: u32 = 1;
@@ -21,8 +21,12 @@ const HASH_PAIR_COLUMN: u32 = 1;
 
 /// Connects the buttons that allow the user to switch between blocks
 pub fn connect_block_switcher_buttons(builder: &Builder, sender: &Sender<UIRequest>) {
-    let next_button: Button = builder.object("Next Block Button").expect("Couldn't find Next Block Button");
-    let previous_button: Button = builder.object("Previous Block Button").expect("Couldn't find Previous Block Button");
+    let next_button: Button = builder
+        .object("Next Block Button")
+        .expect("Couldn't find Next Block Button");
+    let previous_button: Button = builder
+        .object("Previous Block Button")
+        .expect("Couldn't find Previous Block Button");
     let sender_clone = sender.clone();
     let sender_clone_2 = sender.clone();
     next_button.connect_clicked(move |_| {
@@ -56,12 +60,22 @@ pub fn modify_block_header(
     tx_hashes: &Vec<[u8; 32]>,
     header: &BlockHeader,
 ) {
-    let header_hash_label: Label = builder.object("Header Hash").expect("Couldn't find Header Hash Label");
-    let prev_header_hash_label: Label = builder.object("Previous Header Hash").expect("Couldn't find Previous Header Hash Label");
-    let merkle_root_label: Label = builder.object("Merkle Root").expect("Couldn't find Merkle Root Label");
+    let header_hash_label: Label = builder
+        .object("Header Hash")
+        .expect("Couldn't find Header Hash Label");
+    let prev_header_hash_label: Label = builder
+        .object("Previous Header Hash")
+        .expect("Couldn't find Previous Header Hash Label");
+    let merkle_root_label: Label = builder
+        .object("Merkle Root")
+        .expect("Couldn't find Merkle Root Label");
     let date_label: Label = builder.object("Date").expect("Couldn't find Date Label");
-    let tx_count_label: Label = builder.object("Transaction Count").expect("Couldn't find Transaction Count Label");
-    let header_label: Label = builder.object("Block Header Frame Label").expect("Couldn't find Block Header Frame Label");
+    let tx_count_label: Label = builder
+        .object("Transaction Count")
+        .expect("Couldn't find Transaction Count Label");
+    let header_label: Label = builder
+        .object("Block Header Frame Label")
+        .expect("Couldn't find Block Header Frame Label");
 
     let header_hash_str = get_string_representation_from_bytes(&mut header.hash().to_vec());
     let prev_header_hash_str = get_string_representation_from_bytes(&mut header.prev_hash.to_vec());
@@ -73,7 +87,7 @@ pub fn modify_block_header(
         None => {
             handle_ui_error(builder, UiError::ErrorParsingBlockDate);
             return;
-        },
+        }
     };
     header_hash_label.set_label(&header_hash_str);
     prev_header_hash_label.set_label(&prev_header_hash_str);
@@ -87,11 +101,19 @@ pub fn modify_block_header(
 /// checking if the user has selected a transaction and converting the hash
 /// to a byte array.
 pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIRequest>) {
-    let merkle_button: Button = builder.object("Merkle Proof Button").expect("Couldn't find Merkle Proof Button");
-    let tree_selection: TreeSelection = builder.object("Tx Tree Selection").expect("Couldn't find Tx Tree Selection");
-    let tree_store: TreeStore = builder.object("Tx Tree Store").expect("Couldn't find Tx Tree Store");
+    let merkle_button: Button = builder
+        .object("Merkle Proof Button")
+        .expect("Couldn't find Merkle Proof Button");
+    let tree_selection: TreeSelection = builder
+        .object("Tx Tree Selection")
+        .expect("Couldn't find Tx Tree Selection");
+    let tree_store: TreeStore = builder
+        .object("Tx Tree Store")
+        .expect("Couldn't find Tx Tree Store");
 
-    let block_number_label: Label = builder.object("Block Header Frame Label").expect("Couldn't find Block Header Frame Label");
+    let block_number_label: Label = builder
+        .object("Block Header Frame Label")
+        .expect("Couldn't find Block Header Frame Label");
 
     let sender_clone = sender.clone();
     let builder_clone = builder.clone();
@@ -102,7 +124,7 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
                 Err(_) => {
                     handle_ui_error(&builder_clone, UiError::ErrorParsingBlockNumber);
                     return;
-                },
+                }
             },
             None => return,
         };
@@ -135,12 +157,11 @@ pub fn initialize_merkle_proof_button(builder: &Builder, sender: &Sender<UIReque
 
 fn add_merkle_root_for_tree_store(merkle_path_tree_store: &TreeStore, merkle_root: [u8; 32]) {
     let tree_iter = merkle_path_tree_store.append(None);
-    let merkle_root_string = format!("Merkle Root: {}", get_string_representation_from_bytes(&mut merkle_root.to_vec()));
-    merkle_path_tree_store.set_value(
-        &tree_iter,
-        LEVEL_COLUMN,
-        &glib::Value::from(0.to_string()),
+    let merkle_root_string = format!(
+        "Merkle Root: {}",
+        get_string_representation_from_bytes(&mut merkle_root.to_vec())
     );
+    merkle_path_tree_store.set_value(&tree_iter, LEVEL_COLUMN, &glib::Value::from(0.to_string()));
     merkle_path_tree_store.set_value(
         &tree_iter,
         HASH_PAIR_COLUMN,
@@ -150,11 +171,18 @@ fn add_merkle_root_for_tree_store(merkle_path_tree_store: &TreeStore, merkle_roo
 
 fn add_hashes_to_tree_store(merkle_path_tree_store: &TreeStore, path: &Vec<HashPair>) {
     let mut level = path.len();
-    for hash_pair in path{
+    for hash_pair in path {
         let resulting_hashes = hash_pairs_for_merkle_tree(hash_pair.left, hash_pair.right);
-        let resulting_hashes_str = get_string_representation_from_bytes(&mut resulting_hashes.to_vec());
-        let left_hash = format!("Left: {}\n", get_string_representation_from_bytes(&mut hash_pair.left.to_vec()));
-        let right_hash = format!("Right: {}\n\n", get_string_representation_from_bytes(&mut hash_pair.right.to_vec()));
+        let resulting_hashes_str =
+            get_string_representation_from_bytes(&mut resulting_hashes.to_vec());
+        let left_hash = format!(
+            "Left: {}\n",
+            get_string_representation_from_bytes(&mut hash_pair.left.to_vec())
+        );
+        let right_hash = format!(
+            "Right: {}\n\n",
+            get_string_representation_from_bytes(&mut hash_pair.right.to_vec())
+        );
         let res_hash = format!("Resulting Hash: {}\n", resulting_hashes_str);
         let display_hashes = left_hash + &right_hash + &res_hash;
         let tree_iter = merkle_path_tree_store.append(None);
@@ -163,29 +191,43 @@ fn add_hashes_to_tree_store(merkle_path_tree_store: &TreeStore, path: &Vec<HashP
             LEVEL_COLUMN,
             &glib::Value::from(level.to_string()),
         );
-        merkle_path_tree_store.set_value(&tree_iter, HASH_PAIR_COLUMN, &glib::Value::from(display_hashes));
+        merkle_path_tree_store.set_value(
+            &tree_iter,
+            HASH_PAIR_COLUMN,
+            &glib::Value::from(display_hashes),
+        );
         level -= 1;
     }
 }
 
 fn add_merkle_path_rows(builder: &Builder, mut path: Vec<HashPair>, merkle_root: [u8; 32]) {
-    let merkle_path_tree_store: TreeStore = builder.object("Merkle Path Store").expect("Merkle Path Store not found");
-    
-    if path.is_empty(){
+    let merkle_path_tree_store: TreeStore = builder
+        .object("Merkle Path Store")
+        .expect("Merkle Path Store not found");
+
+    if path.is_empty() {
         add_merkle_root_for_tree_store(&merkle_path_tree_store, merkle_root);
     } else {
         add_hashes_to_tree_store(&merkle_path_tree_store, &path);
     }
-    let merkle_tree_label : Label = builder.object("Merkle Tree Label").expect("Merkle Tree Label not found");
+    let merkle_tree_label: Label = builder
+        .object("Merkle Tree Label")
+        .expect("Merkle Tree Label not found");
     let merkle_tree_text = draw_merkle_proof_of_inclusion_tree(&mut path);
     merkle_tree_label.set_label(merkle_tree_text.as_str());
-   
 }
 
 /// Handles the result of the merkle proof request, showing a dialog with the result.
-pub fn handle_result_of_tx_proof(builder: &Builder, merkle_path: Option<(Vec<HashPair>, [u8; 32])>) {
-    let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").expect("Couldn't find Merkle Success Dialog");
-    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").expect("Couldn't find Merkle Failure Dialog");
+pub fn handle_result_of_tx_proof(
+    builder: &Builder,
+    merkle_path: Option<(Vec<HashPair>, [u8; 32])>,
+) {
+    let merkle_success_dialog: Dialog = builder
+        .object("Merkle Success Dialog")
+        .expect("Couldn't find Merkle Success Dialog");
+    let merkle_failure_dialog: Dialog = builder
+        .object("Merkle Failure Dialog")
+        .expect("Couldn't find Merkle Failure Dialog");
     activate_buttons(builder);
 
     if let Some((path, merkle_root)) = merkle_path {
@@ -203,11 +245,21 @@ pub fn handle_result_of_tx_proof(builder: &Builder, merkle_path: Option<(Vec<Has
 /// Connects the buttons of the merkle proof result dialogs to the function that
 /// will hide them.
 fn activate_buttons(builder: &Builder) {
-    let merkle_failure_dialog: Dialog = builder.object("Merkle Failure Dialog").expect("Couldn't find Merkle Failure Dialog");
-    let failure_dialog_button: Button = builder.object("Merkle Failure Button").expect("Couldn't find Merkle Failure Button");
-    let merkle_success_dialog: Dialog = builder.object("Merkle Success Dialog").expect("Couldn't find Merkle Success Dialog");
-    let success_dialog_button: Button = builder.object("Merkle Success Button").expect("Couldn't find Merkle Success Button");
-    let merkle_path_tree_store: TreeStore = builder.object("Merkle Path Store").expect("Couldn't find Merkle Path Store");
+    let merkle_failure_dialog: Dialog = builder
+        .object("Merkle Failure Dialog")
+        .expect("Couldn't find Merkle Failure Dialog");
+    let failure_dialog_button: Button = builder
+        .object("Merkle Failure Button")
+        .expect("Couldn't find Merkle Failure Button");
+    let merkle_success_dialog: Dialog = builder
+        .object("Merkle Success Dialog")
+        .expect("Couldn't find Merkle Success Dialog");
+    let success_dialog_button: Button = builder
+        .object("Merkle Success Button")
+        .expect("Couldn't find Merkle Success Button");
+    let merkle_path_tree_store: TreeStore = builder
+        .object("Merkle Path Store")
+        .expect("Couldn't find Merkle Path Store");
     let merkle_success_dialog_clone = merkle_success_dialog.clone();
     let merkle_tree_store_clone = merkle_path_tree_store.clone();
 
@@ -215,7 +267,7 @@ fn activate_buttons(builder: &Builder) {
         merkle_tree_store_clone.clear();
         merkle_success_dialog_clone.hide();
     });
-    
+
     merkle_success_dialog.connect_delete_event(move |_, _| {
         merkle_path_tree_store.clear();
         Inhibit(false)

@@ -1,5 +1,5 @@
 pub use super::*;
-use super::{InvMessage, BlockMessage};
+use super::{BlockMessage, InvMessage};
 pub use crate::utils::btc_errors::MessageError;
 pub use std::io::{Read, Write};
 
@@ -30,7 +30,7 @@ pub trait MessageTrait {
     fn get_header_message(&self) -> Result<HeaderMessage, MessageError>;
 }
 
-pub enum Message{
+pub enum Message {
     BlockHeaders(BlockHeadersMessage),
     Block(BlockMessage),
     GetBlockHeaders(GetBlockHeadersMessage),
@@ -46,12 +46,14 @@ pub enum Message{
     UnknownMessage,
 }
 
-impl Message{
-    pub fn from_bytes(bytes: Vec<u8>, command_name: String)-> Result<Message, MessageError>{
+impl Message {
+    pub fn from_bytes(bytes: Vec<u8>, command_name: String) -> Result<Message, MessageError> {
         let mensaje = match command_name.as_str() {
             "headers\0\0\0\0\0" => Message::BlockHeaders(BlockHeadersMessage::from_bytes(&bytes)?),
             "block\0\0\0\0\0\0\0" => Message::Block(BlockMessage::from_bytes(&bytes)?),
-            "getheaders\0\0" => Message::GetBlockHeaders(GetBlockHeadersMessage::from_bytes(&bytes)?),
+            "getheaders\0\0" => {
+                Message::GetBlockHeaders(GetBlockHeadersMessage::from_bytes(&bytes)?)
+            }
             "getdata\0\0\0\0\0" => Message::GetData(GetDataMessage::from_bytes(&bytes)?),
             "header\0\0\0\0\0\0" => Message::Header(HeaderMessage::from_bytes(&bytes)?),
             "inv\0\0\0\0\0\0\0\0\0" => Message::Inv(InvMessage::from_bytes(&bytes)?),
@@ -66,5 +68,3 @@ impl Message{
         Ok(mensaje)
     }
 }
-
-

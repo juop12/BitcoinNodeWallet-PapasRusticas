@@ -38,7 +38,6 @@ pub struct Config {
 }
 
 impl Config {
-
     /// It receives a path to a file containing the fields for the configuration and returns a Config if both the path
     /// and the parameters were valid.
     /// On Error, it returns an error in the ConfigError enum.
@@ -56,7 +55,8 @@ impl Config {
             match line {
                 Ok(field) => {
                     let splitted_line: Vec<&str> = field.split('=').collect();
-                    config_fields.insert(splitted_line[0].to_string(), splitted_line[1].to_string());
+                    config_fields
+                        .insert(splitted_line[0].to_string(), splitted_line[1].to_string());
                 }
                 Err(_) => return Err(ConfigError::ErrorReadingFile),
             }
@@ -66,7 +66,7 @@ impl Config {
     }
 
     /// It receives the fields for the configuration, validates them and returns a Config if they were valid.
-    /// Returns a ConfigError when parsing failed or a parameter is invalid. 
+    /// Returns a ConfigError when parsing failed or a parameter is invalid.
     fn _from(config_fields: HashMap<String, String>) -> Result<Config, ConfigError> {
         if config_fields.len() != PARAMETER_AMOUNT {
             return Err(ConfigError::ErrorMismatchedQuantityOfParameters);
@@ -75,7 +75,7 @@ impl Config {
         Config::_initialize(config_fields)
     }
 
-    /// It receives the fields for the configuration and returns a config 
+    /// It receives the fields for the configuration and returns a config
     /// with those values. In case of error returns None.
     fn _initialize(config_fields: HashMap<String, String>) -> Result<Config, ConfigError> {
         let version = parse_version(&get_handler(&config_fields, VERSION)?)?;
@@ -90,9 +90,12 @@ impl Config {
         dns.extend(parse_dns_vector(&get_handler(&config_fields, DNS)?)?);
 
         let mut external_addresses = Vec::new();
-        external_addresses.extend(parse_address_vector(&get_handler(&config_fields, EXTERNAL_ADDR)?)?);
+        external_addresses.extend(parse_address_vector(&get_handler(
+            &config_fields,
+            EXTERNAL_ADDR,
+        )?)?);
 
-        if dns.is_empty() && external_addresses.is_empty(){
+        if dns.is_empty() && external_addresses.is_empty() {
             return Err(ConfigError::ErrorNoExternalAddressGiven);
         }
 
@@ -110,9 +113,9 @@ impl Config {
     }
 
     ///-
-    fn _parse_date(data: &str) -> Result<u32, ConfigError>{
+    fn _parse_date(data: &str) -> Result<u32, ConfigError> {
         let begin_time = parse_date(data)?;
-                    
+
         if begin_time > (Utc::now().timestamp() as u32) {
             return Err(ConfigError::ErrorInvalidDate);
         }
@@ -129,52 +132,54 @@ fn _open_config_handler(path: &str) -> Result<File, ConfigError> {
     }
 }
 
-fn get_handler(config_fields: &HashMap<String, String>, field: &str) -> Result<String, ConfigError>{
-    match config_fields.get(field){
+fn get_handler(
+    config_fields: &HashMap<String, String>,
+    field: &str,
+) -> Result<String, ConfigError> {
+    match config_fields.get(field) {
         Some(data) => Ok(data.to_string()),
-        None => {
-            Err(ConfigError::ErrorParameterNotFound)
-        },
+        None => Err(ConfigError::ErrorParameterNotFound),
     }
 }
 
 /// It parses an string into a version number.
-fn parse_version(data: &str) -> Result<i32, ConfigError>{
-    data.parse::<i32>().map_err(|_| ConfigError::ErrorParsingVersion)
+fn parse_version(data: &str) -> Result<i32, ConfigError> {
+    data.parse::<i32>()
+        .map_err(|_| ConfigError::ErrorParsingVersion)
 }
 
 /// It parses an string into a vector of address.
-fn parse_address_vector(addresses: &str) -> Result<Vec<([u8; 4], u16)>, ConfigError>{
+fn parse_address_vector(addresses: &str) -> Result<Vec<([u8; 4], u16)>, ConfigError> {
     let splitted_addresses: Vec<&str> = addresses.split(ARRAY_DELIMETER).collect();
 
     let mut addresses = Vec::new();
 
     if !splitted_addresses[0].is_empty() {
-        for address in splitted_addresses{
+        for address in splitted_addresses {
             addresses.push(parse_address(address)?);
-        }   
+        }
     }
 
     Ok(addresses)
 }
 
 /// It parses an string into a vector of dns.
-fn parse_dns_vector(dns: &str) -> Result<Vec<(String, u16)>, ConfigError>{
+fn parse_dns_vector(dns: &str) -> Result<Vec<(String, u16)>, ConfigError> {
     let splitted_dns: Vec<&str> = dns.split(ARRAY_DELIMETER).collect();
-    
+
     let mut dns_vec = Vec::new();
 
     if !splitted_dns[0].is_empty() {
-        for dns in splitted_dns{
+        for dns in splitted_dns {
             dns_vec.push(parse_dns(dns)?);
-        }   
+        }
     }
 
     Ok(dns_vec)
 }
 
 /// It parses an string into an address.
-fn parse_address(address: &str) -> Result<([u8; 4], u16), ConfigError>{
+fn parse_address(address: &str) -> Result<([u8; 4], u16), ConfigError> {
     let splitted_address: Vec<&str> = address.split(PORT_DELIMETER).collect();
     let host = parse_ip_address(splitted_address[0])?;
     let port = parse_port(splitted_address[1])?;
@@ -183,7 +188,7 @@ fn parse_address(address: &str) -> Result<([u8; 4], u16), ConfigError>{
 }
 
 /// It parses an string into a dns.
-fn parse_dns(data: &str) -> Result<(String, u16), ConfigError>{
+fn parse_dns(data: &str) -> Result<(String, u16), ConfigError> {
     let splitted_data: Vec<&str> = data.split(PORT_DELIMETER).collect();
     let port = parse_port(splitted_data[1])?;
 
@@ -196,16 +201,18 @@ fn parse_ip_address(address: &str) -> Result<[u8; 4], ConfigError> {
     let splitter = address.split(IP_DELIMETER);
 
     for (i, number) in (0_usize..).zip(splitter) {
-
-        local_host[i] = number.parse::<u8>().map_err(|_| ConfigError::ErrorParsingIP)?;
+        local_host[i] = number
+            .parse::<u8>()
+            .map_err(|_| ConfigError::ErrorParsingIP)?;
     }
 
     Ok(local_host)
 }
 
 /// It parses an string into a port.
-fn parse_port(port: &str) -> Result<u16, ConfigError>{
-    port.parse::<u16>().map_err(|_| ConfigError::ErrorParsingPort)
+fn parse_port(port: &str) -> Result<u16, ConfigError> {
+    port.parse::<u16>()
+        .map_err(|_| ConfigError::ErrorParsingPort)
 }
 
 /// It receives a string representing a date and returns its timestamp at 00:00:00 in case of success, None otherwise.
@@ -219,10 +226,10 @@ fn parse_date(line: &str) -> Result<u32, ConfigError> {
 }
 
 /// It parses an string into a boolean (enable IPV6).
-fn parse_ipv6_enabled(data: &str) -> Result<bool, ConfigError>{
-    data.parse::<bool>().map_err(|_| ConfigError::ErrorParsingIPV6Bool)
+fn parse_ipv6_enabled(data: &str) -> Result<bool, ConfigError> {
+    data.parse::<bool>()
+        .map_err(|_| ConfigError::ErrorParsingIPV6Bool)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -233,11 +240,17 @@ mod tests {
     const HEADERS_FILE_PATH: &str = "tests_txt/headers.bin";
     const BLOCKS_FILE_PATH: &str = "tests_txt/blocks.bin";
 
-
     // Auxiliar functions
     //=================================================================
 
-    fn create_parameters(version: &str, local_address: &str, begin_time: &str, ipv6_enabled: bool, dns_vector: &str, ext_addr_vector: &str) -> HashMap<String, String>{
+    fn create_parameters(
+        version: &str,
+        local_address: &str,
+        begin_time: &str,
+        ipv6_enabled: bool,
+        dns_vector: &str,
+        ext_addr_vector: &str,
+    ) -> HashMap<String, String> {
         let mut paramenters = HashMap::new();
 
         paramenters.insert(VERSION.to_string(), version.to_string());
@@ -255,7 +268,6 @@ mod tests {
 
     // Tests
     //=================================================================
-
 
     #[test]
     fn config_test_1_valid_file_creates_config() {
@@ -276,11 +288,14 @@ mod tests {
             false,
             "dns.first.example:18333;dns.second.example:18334",
             "127,0,0,2:18335;127,0,0,3:18333",
-            );
+        );
 
         let expected_local_address = ([127, 0, 0, 1], 1001);
         let expected_begin_time_timestamp: u32 = 1681084800;
-        let expected_dns = vec![("dns.first.example".to_string(), 18333), ("dns.second.example".to_string(), 18334)];
+        let expected_dns = vec![
+            ("dns.first.example".to_string(), 18333),
+            ("dns.second.example".to_string(), 18334),
+        ];
         let expected_external_addresses = vec![([127, 0, 0, 2], 18335), ([127, 0, 0, 3], 18333)];
 
         let config =
@@ -306,8 +321,8 @@ mod tests {
             false,
             "dns_vector:1",
             "1,2,3,4:2",
-            );
-        
+        );
+
         parameters.remove(LOG_PATH);
 
         assert!(Config::_from(parameters).is_err());
@@ -322,7 +337,7 @@ mod tests {
             true,
             "dns_vector:1",
             "1,2,3,4:2",
-            );
+        );
 
         assert!(Config::_from(parameters).is_err());
     }
@@ -336,7 +351,7 @@ mod tests {
             true,
             "dns_vector:1",
             "1,2,3,4:2",
-            );
+        );
 
         assert!(Config::_from(parameters).is_err());
     }
@@ -350,16 +365,15 @@ mod tests {
             true,
             "",
             "1,2,3,4:1",
-            );
+        );
 
         let expected_local_address = ([127, 0, 0, 1], 1001);
         let expected_begin_time_timestamp: u32 = 1681084800;
         let expected_dns = vec![];
         let expected_external_addresses = vec![([1, 2, 3, 4], 1)];
 
-
         let config =
-        Config::_from(parameters).expect("Could not create config from valid parameters.");
+            Config::_from(parameters).expect("Could not create config from valid parameters.");
 
         assert_eq!(config.version, 70015);
         assert_eq!(config.local_address, expected_local_address);
@@ -369,7 +383,7 @@ mod tests {
         assert_eq!(config.blocks_path, BLOCKS_FILE_PATH.to_string());
         assert_eq!(config.ipv6_enabled, true);
         assert_eq!(config.dns, expected_dns);
-        assert_eq!(config.external_addresses, expected_external_addresses);  
+        assert_eq!(config.external_addresses, expected_external_addresses);
     }
 
     #[test]
@@ -381,16 +395,15 @@ mod tests {
             true,
             "dns_vector:1",
             "",
-            );
+        );
 
         let expected_local_address = ([127, 0, 0, 1], 1001);
         let expected_begin_time_timestamp: u32 = 1681084800;
         let expected_dns = vec![("dns_vector".to_string(), 1)];
         let expected_external_addresses = vec![];
 
-
         let config =
-        Config::_from(parameters).expect("Could not create config from valid parameters.");
+            Config::_from(parameters).expect("Could not create config from valid parameters.");
 
         assert_eq!(config.version, 70015);
         assert_eq!(config.local_address, expected_local_address);
@@ -400,19 +413,12 @@ mod tests {
         assert_eq!(config.blocks_path, BLOCKS_FILE_PATH.to_string());
         assert_eq!(config.ipv6_enabled, true);
         assert_eq!(config.dns, expected_dns);
-        assert_eq!(config.external_addresses, expected_external_addresses);  
+        assert_eq!(config.external_addresses, expected_external_addresses);
     }
 
     #[test]
     fn config_test_9_no_dns_and_ext_addr_parameter_cannot_create_config() {
-        let parameters = create_parameters(
-            "70015",
-            "127,0,0,1:1001",
-            STARTING_TIME,
-            true,
-            "",
-            "",
-            );
+        let parameters = create_parameters("70015", "127,0,0,1:1001", STARTING_TIME, true, "", "");
 
         assert!(Config::_from(parameters).is_err());
     }

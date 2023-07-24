@@ -59,7 +59,7 @@ pub enum MessageError {
     ErrorSendingPingMessage,
     ErrorCreatingPongMessage,
     ErrorSendingPongMessage,
-    UnknownMessage
+    UnknownMessage,
 }
 
 impl BtcError for MessageError {}
@@ -152,11 +152,10 @@ pub enum NodeError {
 
 impl BtcError for NodeError {
     fn to_string(&self) -> String {
-        match self{
+        match self {
             NodeError::ErrorMessage(message_error) => message_error.to_string(),
             _ => format!("Error: {:?}", self),
         }
-        
     }
 }
 
@@ -175,14 +174,14 @@ pub enum PeerComunicatorError {
 impl BtcError for PeerComunicatorError {}
 
 #[derive(Debug)]
-pub enum WorkerError{
+pub enum WorkerError {
     ErrorWorkerPanicked,
     ErrorComunicatingBetweenWorkers,
 }
 
 impl BtcError for WorkerError {}
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum WalletError {
     ErrorHandlingPrivKey,
     ErrorHandlingAddress,
@@ -197,7 +196,7 @@ pub enum WalletError {
     ErrorReceivingFromUI,
     ErrorUpdatingWallet,
     InvalidAmount,
-    ErrorDisconectedFromBlockchain
+    ErrorDisconectedFromBlockchain,
 }
 
 impl BtcError for WalletError {}
