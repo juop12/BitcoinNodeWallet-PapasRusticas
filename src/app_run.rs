@@ -21,6 +21,7 @@ use std::{
 
 type SafeGlibReceiver = Arc<Mutex<Option<GlibReceiver<UIResponse>>>>;
 
+/// Calls the corresponding handler for each UIResponse
 fn ui_response_to_message(builder: Builder,
     action: UIResponse,
     app: Application,
