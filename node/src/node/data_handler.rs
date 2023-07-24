@@ -162,19 +162,24 @@ impl NodeDataHandler {
         safe_blockchain: &SafeBlockChain,
         safe_headers: &SafeVecHeader,
         start: usize,
-    ) -> Result<(), NodeDataHandlerError> {
+    ) -> Result<usize, NodeDataHandlerError> {
         let block_headers = safe_headers
             .lock()
             .map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
         let blockchain = safe_blockchain
             .lock()
             .map_err(|_| NodeDataHandlerError::ErrorSharingData)?;
-        for header in block_headers.iter().skip(start) {
+        let mut should_have_block = false;
+        for (i, header) in block_headers.iter().skip(start).enumerate() {
             if let Some(block) = blockchain.get(&header.hash()) {
                 self.save_block(block)?;
+                should_have_block = true;
+            } else if should_have_block {
+                return Ok(i);
             }
+            self.save_header(header)?;
         }
 
-        Ok(())
+        Ok(block_headers.len())
     }
 }

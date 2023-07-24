@@ -41,6 +41,7 @@ pub fn block_downloader_thread_loop(
     stream: &mut TcpStream,
     safe_node_info: &NodeSharedInformation,
     missed_bundles_sender: &mpsc::Sender<Bundle>,
+    downloading_headers: &FinishedIndicator,
     logger: &Logger,
 ) -> Stops {
     let bundle = match get_bundle(id, receiver, logger) {
@@ -52,10 +53,14 @@ pub fn block_downloader_thread_loop(
     if bundle.is_empty() {
         return Stops::GracefullStop;
     }
+    let downloading_headers = match downloading_headers.lock() {
+        Ok(downloading_headers) => *downloading_headers,
+        Err(_) => return Stops::UngracefullStop,
+    };
 
     let aux_bundle = bundle.clone();
     logger.log(format!("sigo vivo {id}"));
-    match get_blocks_from_bundle(bundle, stream, safe_node_info, logger) {
+    match get_blocks_from_bundle(bundle, stream, safe_node_info, downloading_headers, logger) {
         Ok(blocks) => blocks,
         Err(error) => {
             if let Err(error) = missed_bundles_sender.send(aux_bundle) {
@@ -64,7 +69,7 @@ pub fn block_downloader_thread_loop(
                     error
                 ));
             }
-            
+
             if let BlockDownloaderError::BundleNotFound = error {
                 logger.log(format!("Worker {id} did not find bundle"));
                 return Stops::Continue;
@@ -89,18 +94,17 @@ pub struct BlockDownloader {
     missed_bundles_receiver: mpsc::Receiver<Bundle>,
     safe_node_info: NodeSharedInformation,
     downloading_headers_peer: Option<(TcpStream, usize)>,
+    pub downloading_headers: FinishedIndicator,
     logger: Logger,
 }
 
 impl BlockDownloader {
-    fn new(
-        safe_node_info: NodeSharedInformation,
-        logger: &Logger)->BlockDownloader{
+    fn new(safe_node_info: NodeSharedInformation, logger: &Logger) -> BlockDownloader {
         let (sender, receiver) = mpsc::channel();
         let (missed_bundles_sender, missed_bundles_receiver) = mpsc::channel();
 
         let receiver = Arc::new(Mutex::new(receiver));
-        
+        let downloading_headers = Arc::new(Mutex::from(true));
         BlockDownloader {
             workers: Vec::new(),
             sender,
@@ -109,8 +113,10 @@ impl BlockDownloader {
             missed_bundles_receiver,
             safe_node_info,
             downloading_headers_peer: None,
-            logger: logger.clone()}
+            downloading_headers,
+            logger: logger.clone(),
         }
+    }
 
     /// Creates a new thread pool with the specified size, it must be greater than zero.
     pub fn from(
@@ -125,10 +131,10 @@ impl BlockDownloader {
         }
 
         let mut id = 0;
-        let mut block_downloader = Self::new( safe_node_info, logger);
-        
+        let mut block_downloader = Self::new(safe_node_info, logger);
+
         //No tomamos el tcp stream que se esta usando para descargar headers, porque se usa para descargar headers.
-        for stream in outbound_connections{
+        for stream in outbound_connections {
             let current_stream = match stream.try_clone() {
                 Ok(stream) => stream,
                 Err(_) => {
@@ -136,27 +142,28 @@ impl BlockDownloader {
                     continue;
                 }
             };
-            
-            if id == header_stream_index{
+
+            if id == header_stream_index {
                 block_downloader.downloading_headers_peer = Some((current_stream, id));
-            }else{
+            } else {
                 block_downloader.add_worker(current_stream, id);
             }
 
-            id+=1;
+            id += 1;
         }
 
         println!("{}", block_downloader.workers.len());
         Ok(block_downloader)
     }
 
-    fn add_worker(&mut self, stream: TcpStream, id: usize){
+    fn add_worker(&mut self, stream: TcpStream, id: usize) {
         let worker = Worker::new_block_downloader_worker(
             id,
             self.receiver.clone(),
             stream,
             self.safe_node_info.clone(),
             self.missed_bundles_sender.clone(),
+            self.downloading_headers.clone(),
             self.logger.clone(),
         );
 
@@ -178,10 +185,9 @@ impl BlockDownloader {
     /// Writes an empty vector to the channel of the workers, so they can finish their execution. It works as
     /// a way to stop the threads execution. On error, it returns BlockDownloaderError.
     pub fn finish_downloading(&mut self) -> Result<(), BlockDownloaderError> {
-        if let Some((header_peer_stream, worker_id)) = self.downloading_headers_peer.take(){
+        if let Some((header_peer_stream, worker_id)) = self.downloading_headers_peer.take() {
             self.add_worker(header_peer_stream, worker_id);
         }
-
         let working_peer_conection = self.join_workers()?;
 
         let mut stream = match working_peer_conection {
@@ -194,6 +200,7 @@ impl BlockDownloader {
                 bundle,
                 &mut stream,
                 &self.safe_node_info,
+                false,
                 &self.logger,
             )?;
         }
@@ -201,7 +208,7 @@ impl BlockDownloader {
         Ok(())
     }
 
-    fn join_workers(&mut self)->Result<Option<TcpStream>,BlockDownloaderError>{
+    fn join_workers(&mut self) -> Result<Option<TcpStream>, BlockDownloaderError> {
         let cantidad_workers = self.workers.len();
         let mut working_peer_conection = None;
         for _ in 0..cantidad_workers {
@@ -221,7 +228,9 @@ impl BlockDownloader {
             while !joined_a_worker {
                 let worker = self.workers.remove(0);
                 if worker.is_finished() {
-                    let stream_op = worker.join_thread().map_err(|_| BlockDownloaderError::ErrorWorkerPanicked)?;
+                    let stream_op = worker
+                        .join_thread()
+                        .map_err(|_| BlockDownloaderError::ErrorWorkerPanicked)?;
                     if working_peer_conection.is_none() {
                         working_peer_conection = stream_op;
                     };
@@ -239,16 +248,12 @@ impl BlockDownloader {
 fn receive_block(
     stream: &mut TcpStream,
     safe_node_info: &NodeSharedInformation,
+    downloading_headers: bool,
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
     let start_time = Instant::now();
     while start_time.elapsed() < PEER_TIMEOUT {
-        match recieve_and_handle(
-            stream,
-            safe_node_info,
-            logger,
-            true,
-        ) {
+        match recieve_and_handle(stream, safe_node_info, logger, downloading_headers) {
             Ok(message_cmd) => {
                 match message_cmd.as_str() {
                     "block\0\0\0\0\0\0\0" => return Ok(()),
@@ -289,6 +294,7 @@ fn get_blocks_from_bundle(
     requested_block_hashes: Vec<[u8; 32]>,
     stream: &mut TcpStream,
     safe_node_info: &NodeSharedInformation,
+    downloading_headers: bool,
     logger: &Logger,
 ) -> Result<(), BlockDownloaderError> {
     if requested_block_hashes.is_empty() {
@@ -297,7 +303,7 @@ fn get_blocks_from_bundle(
     let amount_of_hashes = requested_block_hashes.len();
     send_get_data_message_for_blocks(requested_block_hashes, stream)?;
     for _ in 0..amount_of_hashes {
-        receive_block(stream, safe_node_info, logger)?;
+        receive_block(stream, safe_node_info, downloading_headers, logger)?;
     }
 
     Ok(())

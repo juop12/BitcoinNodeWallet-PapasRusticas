@@ -30,7 +30,7 @@ impl MessageTrait for BlockMessage {
     }
 }
 
-impl BlockMessage{
+impl BlockMessage {
     pub fn from(block: &Block) -> Result<BlockMessage, MessageError> {
         BlockMessage::from_bytes(&block.to_bytes())
     }

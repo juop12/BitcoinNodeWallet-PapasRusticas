@@ -46,7 +46,7 @@ impl GetDataMessage {
         }
     }
 
-    pub fn get_block_hashes(&self) -> Vec<[u8; 32]>{
+    pub fn get_block_hashes(&self) -> Vec<[u8; 32]> {
         self.inv.get_block_hashes()
     }
 }

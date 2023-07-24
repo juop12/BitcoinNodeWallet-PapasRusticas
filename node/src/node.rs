@@ -3,29 +3,28 @@ pub mod handle_messages;
 pub mod handshake;
 pub mod initial_block_download;
 pub mod peer_comunication;
+pub mod safe_node_structure;
 pub mod utxo_set;
 pub mod wallet_communication;
-pub mod safe_node_structure;
 
 use self::{
-    data_handler::NodeDataHandler, handle_messages::*, peer_comunicator::PeerComunicator,
-    peer_comunication::*, 
-    handshake::*, safe_node_structure::NodeSharedInformation,
+    data_handler::NodeDataHandler, handle_messages::*, handshake::*, peer_comunication::*,
+    peer_comunicator::PeerComunicator, safe_node_structure::NodeSharedInformation,
 };
 use crate::{
     blocks::{blockchain::*, proof::*, transaction::TxOut, Outpoint, Transaction},
-    messages::{*, message_trait::MessageError},
-    utils::{btc_errors::NodeError,config::*, log::*, UIResponse, LoadingScreenInfo},
-};
-use std::{
-    collections::HashMap,
-    io::{Read, Write, ErrorKind::WouldBlock},
-    net::{SocketAddr, TcpStream, ToSocketAddrs, TcpListener},
-    sync::{Arc, Mutex, MutexGuard},
-    thread::sleep, 
-    time::Duration,
+    messages::{message_trait::MessageError, *},
+    utils::{btc_errors::NodeError, config::*, log::*, LoadingScreenInfo, UIResponse},
 };
 use glib::Sender as GlibSender;
+use std::{
+    collections::HashMap,
+    io::{ErrorKind::WouldBlock, Read, Write},
+    net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs},
+    sync::{Arc, Mutex, MutexGuard},
+    thread::sleep,
+    time::Duration,
+};
 
 const MESSAGE_HEADER_SIZE: usize = 24;
 
@@ -63,7 +62,7 @@ impl Node {
         logger: Logger,
         data_handler: NodeDataHandler,
         starting_block_time: u32,
-        sender_to_ui: GlibSender<UIResponse>
+        sender_to_ui: GlibSender<UIResponse>,
     ) -> Node {
         Node {
             version,
@@ -114,12 +113,10 @@ impl Node {
             match outgoing_handshake(node.version, addr, node.address, &node.logger) {
                 Ok(tcp_stream) => {
                     node.initial_peers.push(tcp_stream);
-                    let progress = format!(
-                        "Amount of peers conected = {}",
-                        node.initial_peers.len()
-                    );
+                    let progress =
+                        format!("Amount of peers conected = {}", node.initial_peers.len());
                     node.log_and_send_to_ui(&progress);
-                },
+                }
                 Err(error) => node.logger.log_error(&error),
             }
         }
@@ -135,18 +132,24 @@ impl Node {
     pub fn log_and_send_to_ui(&self, message: &str) {
         self.logger.log(message.to_string());
         let ui_message = LoadingScreenInfo::UpdateLabel(message.to_string());
-        self.sender_to_ui.send(UIResponse::LoadingScreenUpdate(ui_message)).expect("Error sending message to UI");
+        self.sender_to_ui
+            .send(UIResponse::LoadingScreenUpdate(ui_message))
+            .expect("Error sending message to UI");
     }
 
-    /// Receives a vector of dns address as a (String, u16) each and returns a 
-    /// Vector that contains all the addresses returned by the dns. 
+    /// Receives a vector of dns address as a (String, u16) each and returns a
+    /// Vector that contains all the addresses returned by the dns.
     /// If an error occured (for example, the dns address is not valid), it returns an empty Vector.
-    /// The socket address requires a dns and a DNS_PORT. 
+    /// The socket address requires a dns and a DNS_PORT.
     /// (DNS_PORT is set to 18333 because it is the port used by the bitcoin core testnet).
-    fn peer_discovery(&self, dns_vector: Vec<(String, u16)>, ipv6_enabled: bool) -> Vec<SocketAddr> {
+    fn peer_discovery(
+        &self,
+        dns_vector: Vec<(String, u16)>,
+        ipv6_enabled: bool,
+    ) -> Vec<SocketAddr> {
         let mut socket_address_vector = Vec::new();
 
-        for dns in dns_vector{
+        for dns in dns_vector {
             if let Ok(address_iter) = dns.to_socket_addrs() {
                 for address in address_iter {
                     if address.is_ipv4() || ipv6_enabled {
@@ -159,14 +162,14 @@ impl Node {
         socket_address_vector
     }
 
-    /// Receives a vector of addresses as a ([u8; 4], u16) each and returns a Vector 
-    /// that contains all the addresses converted to SocketAddr. 
+    /// Receives a vector of addresses as a ([u8; 4], u16) each and returns a Vector
+    /// that contains all the addresses converted to SocketAddr.
     /// If an error occured (for example, all addresses are not valid), it returns an empty Vector.
-    /// The socket address requires an IP and a PORT. 
-    fn add_external_addresses(&self, addresses: Vec<([u8; 4], u16)>) -> Vec<SocketAddr>{
+    /// The socket address requires an IP and a PORT.
+    fn add_external_addresses(&self, addresses: Vec<([u8; 4], u16)>) -> Vec<SocketAddr> {
         let mut socket_address_vector = Vec::new();
 
-        for address in addresses{
+        for address in addresses {
             let socket_address = SocketAddr::from(address);
             socket_address_vector.push(socket_address); //p Si el usuario quiere poner IPv6 puede. El booleano solo cuenta para las DNS
         }
@@ -213,21 +216,24 @@ impl Node {
     }
 
     /// Actual receive_message wrapper. Encapsulates node's parameteres.
-    fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError> {
+    fn receive_message(
+        &mut self,
+        stream_index: usize,
+        downloading_headers: bool,
+    ) -> Result<String, NodeError> {
         let safe_node_info = self.get_safe_node_info();
         let stream = &mut self.initial_peers[stream_index];
-        recieve_and_handle(
-            stream,
-            &safe_node_info,
-            &self.logger,
-            ibd,
+        recieve_and_handle(stream, &safe_node_info, &self.logger, downloading_headers)
+    }
+
+    fn get_safe_node_info(&self) -> NodeSharedInformation {
+        NodeSharedInformation::from(
+            &self.blockchain,
+            &self.block_headers,
+            &self.headers_index,
+            &self.pending_tx,
         )
     }
-
-    fn get_safe_node_info(&self)->NodeSharedInformation{
-        NodeSharedInformation::from(&self.blockchain, &self.block_headers, &self.headers_index, &self.pending_tx)
-    }
-
 }
 
 impl Drop for Node {
@@ -241,10 +247,11 @@ impl Drop for Node {
 
         //Saving data.
         self.logger.log("Saving received data".to_string());
-
+        /*
         if self.store_headers_in_disk().is_err() {
             return self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
         };
+        */
 
         if self.store_blocks_in_disk().is_err() {
             return self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
@@ -273,7 +280,10 @@ pub fn receive_message_header<T: Read + Write>(stream: &mut T) -> Result<HeaderM
     }
 }
 
-fn receive_message(stream: &mut TcpStream, logger: &Logger,)->Result<(Message,String), NodeError>{
+fn receive_message(
+    stream: &mut TcpStream,
+    logger: &Logger,
+) -> Result<(Message, String), NodeError> {
     let block_headers_msg_h = receive_message_header(stream)?;
 
     logger.log(format!(
@@ -290,28 +300,40 @@ fn receive_message(stream: &mut TcpStream, logger: &Logger,)->Result<(Message,St
             NodeError::ErrorReceivingMessageHeader
         }
     })?;
-    
-    let msg = Message::from_bytes(msg_bytes, block_headers_msg_h.get_command_name()).map_err(NodeError::ErrorMessage)?;
+
+    let msg = Message::from_bytes(msg_bytes, block_headers_msg_h.get_command_name())
+        .map_err(NodeError::ErrorMessage)?;
     Ok((msg, block_headers_msg_h.get_command_name()))
 }
 
-pub fn recieve_and_handle(stream: &mut TcpStream, safe_node_info: &NodeSharedInformation, logger: &Logger, ibd: bool)-> Result<String, NodeError>{
-
+pub fn recieve_and_handle(
+    stream: &mut TcpStream,
+    safe_node_info: &NodeSharedInformation,
+    logger: &Logger,
+    downloading_headers: bool,
+) -> Result<String, NodeError> {
     let (msg, command_name) = receive_message(stream, logger)?;
-    handle_message(msg, stream, safe_node_info, logger, ibd)?;
+    handle_message(msg, stream, safe_node_info, logger, downloading_headers)?;
     Ok(command_name)
 }
 
-pub fn insert_new_headers(headers: Vec<BlockHeader>, safe_block_headers: &SafeVecHeader, safe_headers_index: &SafeHeaderIndex) -> Result<(), NodeError>{
+pub fn insert_new_headers(
+    headers: Vec<BlockHeader>,
+    safe_block_headers: &SafeVecHeader,
+    safe_headers_index: &SafeHeaderIndex,
+) -> Result<(), NodeError> {
+    let mut block_headers = safe_block_headers
+        .lock()
+        .map_err(|_| NodeError::ErrorSharingReference)?;
+    let mut headers_index = safe_headers_index
+        .lock()
+        .map_err(|_| NodeError::ErrorSharingReference)?;
 
-    let mut block_headers = safe_block_headers.lock().map_err(|_| NodeError::ErrorSharingReference)?;
-    let mut headers_index = safe_headers_index.lock().map_err(|_| NodeError::ErrorSharingReference)?;
-    
-    for header in headers{
+    for header in headers {
         headers_index.insert(header.hash(), block_headers.len());
         block_headers.push(header);
     }
-    
+
     Ok(())
 }
 

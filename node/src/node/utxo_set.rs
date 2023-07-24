@@ -20,7 +20,7 @@ impl Node {
                 Some(block) => block,
                 None => {
                     self.logger.log(format!(
-                        "Colud not find block number {} in create_utxo_set",
+                        "Could not find block number {} in create_utxo_set",
                         index + starting_position
                     ));
                     continue;
@@ -41,7 +41,7 @@ impl Node {
     pub fn create_utxo_set(&mut self) -> Result<(), NodeError> {
         let initialization_str = "Initializing UTxO Set creation";
         self.log_and_send_to_ui(initialization_str);
- 
+
         let mut utxo_set = HashMap::new();
 
         match self.get_block_headers() {

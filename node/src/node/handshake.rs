@@ -7,7 +7,12 @@ pub const PEER_TIMEOUT: Duration = Duration::from_secs(15);
 /// Attemps to start and do the peer conection protocol acording to the bitcoin network. Sends a VersionMessage,
 /// and it receives a VersionMessage and a VerAckMessage, not in any order on particular.
 /// If everything works well returns a tcpstream, which lets us communicate with the peer._err
-pub fn outgoing_handshake(version: i32, peer_address: SocketAddr, node_address: SocketAddr, logger: &Logger) -> Result<TcpStream, NodeError> {
+pub fn outgoing_handshake(
+    version: i32,
+    peer_address: SocketAddr,
+    node_address: SocketAddr,
+    logger: &Logger,
+) -> Result<TcpStream, NodeError> {
     let mut tcp_stream = connect_to_peer(peer_address)?;
 
     handshake_send_version_message(version, peer_address, node_address, &mut tcp_stream)?;
@@ -27,7 +32,13 @@ pub fn outgoing_handshake(version: i32, peer_address: SocketAddr, node_address: 
 /// Attemps to do the peer conection protocol acording to the bitcoin network with a requesting peer. Sends a VersionMessage,
 /// and it receives a VersionMessage and a VerAckMessage, not in any order on particular.
 /// If everything works well returns a tcpstream, which lets us communicate with the peer._err
-pub fn incoming_handshake(version: i32, peer_address: SocketAddr, node_address: SocketAddr, new_peer_conection: &mut TcpStream, logger: &Logger)->Result<(), NodeError>{
+pub fn incoming_handshake(
+    version: i32,
+    peer_address: SocketAddr,
+    node_address: SocketAddr,
+    new_peer_conection: &mut TcpStream,
+    logger: &Logger,
+) -> Result<(), NodeError> {
     handshake_receive_version_message(new_peer_conection, logger)?;
     handshake_send_version_message(version, peer_address, node_address, new_peer_conection)?;
     handshake_send_verack_message(new_peer_conection)?;
@@ -51,7 +62,12 @@ fn connect_to_peer(receiving_addrs: SocketAddr) -> Result<TcpStream, NodeError> 
 }
 
 /// Sends the version message as bytes to the stream according to bitcoin protocol. On error returns ErrorSendingMessageInHandshake
-fn handshake_send_version_message<T: Read + Write>(version: i32, receiving_addrs: SocketAddr, sending_address: SocketAddr, stream: &mut T) -> Result<(), NodeError> {
+fn handshake_send_version_message<T: Read + Write>(
+    version: i32,
+    receiving_addrs: SocketAddr,
+    sending_address: SocketAddr,
+    stream: &mut T,
+) -> Result<(), NodeError> {
     let vm = match VersionMessage::new(version, receiving_addrs, sending_address) {
         Ok(version_message) => version_message,
         Err(_) => return Err(NodeError::ErrorSendingMessageInHandshake),
@@ -77,7 +93,10 @@ fn handshake_send_verack_message<T: Read + Write>(stream: &mut T) -> Result<(), 
 }
 
 /// Receives a message, if it is any other than VersionMessage or VerackMessage it returns ErrorReceivingMessageInHandshake
-fn handshake_receive_verack_or_version_message<T: Read + Write>(stream: &mut T, logger: &Logger) -> Result<String, NodeError> {
+fn handshake_receive_verack_or_version_message<T: Read + Write>(
+    stream: &mut T,
+    logger: &Logger,
+) -> Result<String, NodeError> {
     let hm = receive_message_header(stream)?;
 
     let mut received_vm_bytes = vec![0; hm.get_payload_size() as usize];
@@ -86,8 +105,7 @@ fn handshake_receive_verack_or_version_message<T: Read + Write>(stream: &mut T, 
         Err(_) => return Err(NodeError::ErrorReceivingMessageInHandshake),
     };
 
-    logger
-        .log(format!("Received message: {}", hm.get_command_name()));
+    logger.log(format!("Received message: {}", hm.get_command_name()));
     let cmd_name = hm.get_command_name();
 
     match cmd_name.as_str() {
@@ -107,7 +125,10 @@ fn handshake_receive_verack_or_version_message<T: Read + Write>(stream: &mut T, 
 }
 
 /// Receives a message, if it is any other than VersionMessage it returns ErrorReceivingMessageInHandshake
-fn handshake_receive_version_message(stream: &mut TcpStream, logger: &Logger) -> Result<(), NodeError>{
+fn handshake_receive_version_message(
+    stream: &mut TcpStream,
+    logger: &Logger,
+) -> Result<(), NodeError> {
     let msg_received = handshake_receive_verack_or_version_message(stream, logger)?;
     match msg_received.as_str() {
         "version\0\0\0\0\0" => Ok(()),
@@ -116,7 +137,10 @@ fn handshake_receive_version_message(stream: &mut TcpStream, logger: &Logger) ->
 }
 
 /// Receives a message, if it is any other than VerackMessage it returns ErrorReceivingMessageInHandshake
-fn handshake_receive_verack_message(stream: &mut TcpStream, logger: &Logger) -> Result<(), NodeError>{
+fn handshake_receive_verack_message(
+    stream: &mut TcpStream,
+    logger: &Logger,
+) -> Result<(), NodeError> {
     let msg_received = handshake_receive_verack_or_version_message(stream, logger)?;
     match msg_received.as_str() {
         "verack\0\0\0\0\0\0" => Ok(()),
@@ -164,8 +188,7 @@ mod tests {
         let (mut stream, node) = initiate("tests_txt/test_log.txt");
 
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
-        let expected_vm =
-            VersionMessage::new(node.version, receiver_socket, node.address).unwrap();
+        let expected_vm = VersionMessage::new(node.version, receiver_socket, node.address).unwrap();
 
         handshake_send_version_message(node.version, receiver_socket, node.address, &mut stream)?;
         let write_buffer_len = stream.write_buffer.len();
@@ -202,8 +225,7 @@ mod tests {
         let (mut stream, node) = initiate("tests_txt/handshake_test_2_log.txt");
 
         let receiver_socket = SocketAddr::from(([127, 0, 0, 2], 8080));
-        let expected_vm =
-            VersionMessage::new(node.version, receiver_socket, node.address).unwrap();
+        let expected_vm = VersionMessage::new(node.version, receiver_socket, node.address).unwrap();
         let expected_hm = expected_vm.get_header_message().unwrap();
         stream.read_buffer = expected_hm.to_bytes();
         stream.read_buffer.extend(expected_vm.to_bytes());

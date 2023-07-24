@@ -51,12 +51,10 @@ impl Wallet {
                 bytes.truncate(bytes.len() - 5);
                 bytes
             }
-            HEX_CHAR_PRIV_KEY_LENGTH => {
-                match get_bytes_from_hex(priv_key_string) {
-                    Ok(bytes) => bytes,
-                    Err(_) => return Err(WalletError::ErrorHandlingPrivKey),
-                }
-            }
+            HEX_CHAR_PRIV_KEY_LENGTH => match get_bytes_from_hex(priv_key_string) {
+                Ok(bytes) => bytes,
+                Err(_) => return Err(WalletError::ErrorHandlingPrivKey),
+            },
             _ => return Err(WalletError::ErrorHandlingPrivKey),
         };
 

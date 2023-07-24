@@ -1,8 +1,6 @@
 use super::Wallet;
 use crate::node::Node;
-use crate::utils::ui_communication_protocol::{
-    UIRequest, WalletInfo, UIResponse,
-};
+use crate::utils::ui_communication_protocol::{UIRequest, UIResponse, WalletInfo};
 use crate::utils::NodeError;
 use crate::utils::WalletError;
 use glib::Sender as GlibSender;
@@ -57,12 +55,12 @@ impl Wallet {
     /// If theres a problem with obtaining the SafeVectors, then it
     /// returns ErrorUpdatingWallet.
     pub fn handle_update_wallet(&mut self, node: &mut Node) -> Result<UIResponse, WalletError> {
-        node.update(self)
-            .map_err(|error| 
-                match error{
-                    NodeError::ErrorDisconectedFromBlockchain => WalletError::ErrorDisconectedFromBlockchain,
-                    _ => WalletError::ErrorUpdatingWallet,
-            })?;
+        node.update(self).map_err(|error| match error {
+            NodeError::ErrorDisconectedFromBlockchain => {
+                WalletError::ErrorDisconectedFromBlockchain
+            }
+            _ => WalletError::ErrorUpdatingWallet,
+        })?;
 
         let wallet_info = WalletInfo::from(self);
 
@@ -134,7 +132,7 @@ impl Wallet {
         fee: i64,
         receiver_address: String,
     ) -> Result<UIResponse, WalletError> {
-        if amount + fee <= 0{
+        if amount + fee <= 0 {
             return Err(WalletError::InvalidAmount);
         }
         let address_bytes = bs58::decode(receiver_address)
@@ -172,6 +170,9 @@ impl Wallet {
             return Ok(UIResponse::ResultOFTXProof(None));
         }
 
-        Ok(UIResponse::ResultOFTXProof(Some((merkle_proof, merkle_root))))
+        Ok(UIResponse::ResultOFTXProof(Some((
+            merkle_proof,
+            merkle_root,
+        ))))
     }
 }

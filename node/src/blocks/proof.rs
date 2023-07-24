@@ -80,19 +80,23 @@ pub struct HashPair {
     path_comes_from: Side,
 }
 
-enum Side{
+enum Side {
     Left,
-    Right
+    Right,
 }
 
 impl HashPair {
     fn new(left: [u8; 32], right: [u8; 32], side: Side) -> HashPair {
-        HashPair { left, right, path_comes_from: side }
+        HashPair {
+            left,
+            right,
+            path_comes_from: side,
+        }
     }
 
     /// Returns true if the hash is equal to the correct side of the HashPair
     pub fn equals_path_side(&self, hash: [u8; 32]) -> bool {
-        match self.path_comes_from{
+        match self.path_comes_from {
             Side::Left => self.left == hash,
             Side::Right => self.right == hash,
         }
@@ -137,13 +141,13 @@ pub fn proof_of_transaction_included_in(
             HashPair::new(
                 current_level[level_position],
                 current_level[level_position + 1],
-                Side::Left
+                Side::Left,
             )
         } else {
             HashPair::new(
                 current_level[level_position - 1],
                 current_level[level_position],
-                Side::Right
+                Side::Right,
             )
         };
         merkle_proof.push(hash_pair);

@@ -46,7 +46,10 @@ impl MessageTrait for BlockHeadersMessage {
 impl BlockHeadersMessage {
     /// Creates a new BlockHeadersMessage.
     pub fn new(headers: Vec<BlockHeader>) -> BlockHeadersMessage {
-        BlockHeadersMessage { count: VarLenInt::new(headers.len()), headers }
+        BlockHeadersMessage {
+            count: VarLenInt::new(headers.len()),
+            headers,
+        }
     }
 
     /// Creates a new BlockHeadersMessage from a slice of bytes.

@@ -60,10 +60,12 @@ impl Node {
 
     /// Updates the Node information and communicates it to the wallet
     pub fn update(&mut self, wallet: &mut Wallet) -> Result<(), NodeError> {
-        match &self.peer_comunicator{
-            Some(peer_communicator) => if peer_communicator.disconected(){
-                return Err(NodeError::ErrorDisconectedFromBlockchain);
-            },
+        match &self.peer_comunicator {
+            Some(peer_communicator) => {
+                if peer_communicator.disconected() {
+                    return Err(NodeError::ErrorDisconectedFromBlockchain);
+                }
+            }
             None => return Err(NodeError::ErrorDisconectedFromBlockchain),
         }
         self.update_utxo(&mut wallet.utxos)?;
@@ -132,8 +134,10 @@ impl Node {
         if !sent {
             return Err(NodeError::ErrorSendingTransaction);
         }*/
-        match &self.peer_comunicator{
-            Some(peer_comunicator) => peer_comunicator.send_message(&message).map_err(|_| NodeError::ErrorSendingTransaction)? ,
+        match &self.peer_comunicator {
+            Some(peer_comunicator) => peer_comunicator
+                .send_message(&message)
+                .map_err(|_| NodeError::ErrorSendingTransaction)?,
             None => return Err(NodeError::ErrorSendingTransaction),
         };
 

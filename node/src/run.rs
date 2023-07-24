@@ -1,6 +1,4 @@
-use crate::utils::ui_communication_protocol::{
-    UIRequest, UIResponse,
-};
+use crate::utils::ui_communication_protocol::{UIRequest, UIResponse};
 use crate::{node::*, utils::config::*, utils::WalletError, wallet::*};
 use glib::Sender as GlibSender;
 use std::sync::mpsc;

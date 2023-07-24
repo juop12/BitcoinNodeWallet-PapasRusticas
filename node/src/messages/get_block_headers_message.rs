@@ -8,8 +8,8 @@ pub const MAX_QUANTITY_FOR_GET_HEADERS: usize = 2000;
 #[derive(Debug, PartialEq)]
 pub struct GetBlockHeadersMessage {
     version: u32,
-    hash_count: VarLenInt,              
-    pub block_header_hashes: Vec<[u8; 32]>, 
+    hash_count: VarLenInt,
+    pub block_header_hashes: Vec<[u8; 32]>,
     pub stopping_hash: [u8; 32],
 }
 

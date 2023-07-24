@@ -3,8 +3,8 @@ use std::net::TcpStream;
 use super::message_trait::*;
 
 /// Represents the NotFoundMessage as an InvMessage because it is equally implemented
-pub struct PingMessage{
-    nonce: [u8;8],
+pub struct PingMessage {
+    nonce: [u8; 8],
 }
 
 impl MessageTrait for PingMessage {
@@ -18,8 +18,10 @@ impl MessageTrait for PingMessage {
 
     /// Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError> {
-        let nonce: [u8;8] = slice[0..8].try_into().map_err(|_| MessageError::ErrorCreatingPingMessage)?;
-        Ok(PingMessage{nonce})
+        let nonce: [u8; 8] = slice[0..8]
+            .try_into()
+            .map_err(|_| MessageError::ErrorCreatingPingMessage)?;
+        Ok(PingMessage { nonce })
     }
 
     /// Gets the header message corresponding to the corresponding message
@@ -29,13 +31,13 @@ impl MessageTrait for PingMessage {
 }
 
 impl PingMessage {
-    pub fn reply_pong(&self, stream: &mut TcpStream)->Result<(), MessageError>{
+    pub fn reply_pong(&self, stream: &mut TcpStream) -> Result<(), MessageError> {
         PongMessage::from(self.nonce).send_to(stream)
     }
 }
 
-pub struct PongMessage{
-    nonce: [u8;8],
+pub struct PongMessage {
+    nonce: [u8; 8],
 }
 
 impl MessageTrait for PongMessage {
@@ -49,8 +51,10 @@ impl MessageTrait for PongMessage {
 
     /// Creates the coresponding message, using a slice of bytes, wich must be of the correct size, otherwise an error will be returned.
     fn from_bytes(slice: &[u8]) -> Result<Self::MessageType, MessageError> {
-        let nonce: [u8;8] = slice[0..8].try_into().map_err(|_| MessageError::ErrorCreatingPongMessage)?;
-        Ok(PongMessage{nonce})
+        let nonce: [u8; 8] = slice[0..8]
+            .try_into()
+            .map_err(|_| MessageError::ErrorCreatingPongMessage)?;
+        Ok(PongMessage { nonce })
     }
 
     /// Gets the header message corresponding to the corresponding message
@@ -59,9 +63,8 @@ impl MessageTrait for PongMessage {
     }
 }
 
-impl PongMessage{
-    fn from(nonce: [u8;8])->PongMessage{
-        PongMessage{nonce}
+impl PongMessage {
+    fn from(nonce: [u8; 8]) -> PongMessage {
+        PongMessage { nonce }
     }
 }
-
