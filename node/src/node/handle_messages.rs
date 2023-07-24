@@ -267,6 +267,10 @@ pub fn handle_get_data(stream: &mut TcpStream, get_data_msg: GetDataMessage, saf
     for message in block_messages{
         message.send_to(stream).map_err(NodeError::ErrorMessage)?;
     }
+
+    for message in tx_messages{
+        message.send_to(stream).map_err(NodeError::ErrorMessage)?;
+    }
     
     if !not_found_blocks.is_empty(){
         NotFoundMessage::from_block_hashes(not_found_blocks).send_to(stream).map_err(|_| NodeError::ErrorMessage(MessageError::ErrorSendingNotFoundMessage))?;

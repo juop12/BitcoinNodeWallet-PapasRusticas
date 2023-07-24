@@ -268,7 +268,7 @@ impl Node {
         progress_str = "Finished loading data from disk";
         self.log_and_send_to_ui(progress_str);
 
-        let mut aux_len = self.get_block_headers()?.len();
+        let aux_len = self.get_block_headers()?.len();
         self.headers_in_disk = aux_len;
         let starting_block_count = self.get_blockchain()?.len();
 
