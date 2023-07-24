@@ -2,7 +2,7 @@ use crate::{node::*, utils::btc_errors::PeerComunicatorError};
 
 use std::{
     net::TcpStream,
-    sync::{Arc, Mutex, mpsc::{RecvTimeoutError, self}}, 
+    sync::{Arc, Mutex, mpsc::{RecvTimeoutError, self}}, collections::HashSet, 
 };
 
 use workers::*;
@@ -134,11 +134,15 @@ pub fn worker_manager_loop(
 /// Processes existing workers by removing any that may have ungracefully finished, and sending the message bytes 
 /// to each one of themif any message needs to be broadcasted to the hole net.
 fn process_existing_workers(workers: &mut Vec<Worker>, message_bytes_receiver: &mpsc::Receiver<Vec<u8>>, logger: &Logger)-> Result<(), PeerComunicatorError>{
-    let message_bytes = match message_bytes_receiver.try_recv() {
-        Ok(message_bytes) => Some(message_bytes),
-        Err(mpsc::TryRecvError::Empty) => None,
-        _ => return Err(PeerComunicatorError::ErrorSendingMessage),
-    };
+    let mut messages = HashSet::new();
+    let mut keep_receiving = true;
+    while keep_receiving{
+        match message_bytes_receiver.try_recv() {
+            Ok(message_bytes) => {messages.insert(message_bytes);},
+            Err(mpsc::TryRecvError::Empty) => keep_receiving=false,
+            _ => return Err(PeerComunicatorError::ErrorSendingMessage),
+        };
+    }
 
     let mut i = 0;
     let mut message_sent = false;
@@ -150,15 +154,15 @@ fn process_existing_workers(workers: &mut Vec<Worker>, message_bytes_receiver: &
                 logger.log_error(&error);
             }
         } else {
-            if let Some(bytes) = &message_bytes{
-                if workers[i].send_message_bytes(bytes.clone()).is_ok(){
+            for message_bytes in &messages{
+                if workers[i].send_message_bytes(message_bytes.clone()).is_ok(){
                     message_sent = true;
                 };
             }
             i += 1;
         }
     }
-    if message_bytes.is_some() && !message_sent{
+    if !messages.is_empty() && !message_sent{
         return Err(PeerComunicatorError::ErrorSendingMessage);
     }
     Ok(())
