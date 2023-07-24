@@ -297,19 +297,46 @@ fn propagate_messages(
     safe_block_chain: &SafeBlockChain,
     safe_pending_tx: &SafePendingTx,
 ) -> Result<(), PeerComunicatorError> {
-    if let Message::Inv(inv_msg) = msg {
-        let propagate_block = propagate_block(inv_msg, safe_block_chain)?;
-        let propagate_tx = propagate_tx(inv_msg, safe_pending_tx)?;
-        if propagate_block || propagate_tx {
-            let mut msg_bytes = inv_msg
-                .get_header_message()
-                .map_err(|_| PeerComunicatorError::ErrorPropagating)?
-                .to_bytes();
-            msg_bytes.extend(inv_msg.to_bytes());
-            propagation_channel
-                .send(msg_bytes)
-                .map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+    match msg{
+        Message::Inv(inv_msg) => {
+            let propagate_block = propagate_block(inv_msg, safe_block_chain)?;
+            let propagate_tx = propagate_tx(inv_msg, safe_pending_tx)?;
+            if propagate_block || propagate_tx {
+                let mut msg_bytes = inv_msg
+                    .get_header_message()
+                    .map_err(|_| PeerComunicatorError::ErrorPropagating)?
+                    .to_bytes();
+                msg_bytes.extend(inv_msg.to_bytes());
+                propagation_channel
+                    .send(msg_bytes)
+                    .map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+            }
         }
+        Message::Block(block_msg) => {
+            let hash = block_msg.block.header_hash();
+            let new_block = match safe_block_chain.lock(){
+                Ok(block_chain) => !block_chain.contains_key(&hash),
+                Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
+            };  
+            if new_block{
+                let mut msg_bytes = block_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
+                msg_bytes.extend(block_msg.to_bytes());
+                propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+            }
+        },
+        Message::Tx(tx_msg) => {
+            let hash = tx_msg.tx.hash();
+            let new_tx = match safe_pending_tx.lock(){
+                Ok(pending_tx) => !pending_tx.contains_key(&hash),
+                Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
+            };
+            if new_tx{
+                let mut msg_bytes = tx_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
+                msg_bytes.extend(tx_msg.to_bytes());
+                propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+            }
+        },
+        _ => {},
     }
     Ok(())
 }
