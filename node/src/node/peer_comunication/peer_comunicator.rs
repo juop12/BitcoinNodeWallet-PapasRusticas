@@ -186,9 +186,9 @@ pub fn peer_comunicator_worker_thread_loop(
 
     match receive_message(stream, logger){
         Ok((msg,_command_name)) => {
-            if propagate_messages(&msg, propagation_channel, &safe_node_info.safe_blockchain, &safe_node_info.safe_pending_tx).is_err(){
-                return Stops::UngracefullStop;
-            };
+            //if propagate_messages(&msg, propagation_channel, &safe_node_info.safe_blockchain, &safe_node_info.safe_pending_tx).is_err(){
+            //    return Stops::UngracefullStop;
+            //};
             
             if handle_message(msg, stream, safe_node_info, logger, false).is_err(){
                 return Stops::UngracefullStop;

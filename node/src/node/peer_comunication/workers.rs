@@ -48,6 +48,7 @@ impl Worker {
         mut stream: TcpStream,
         safe_node_info: NodeSharedInformation,
         missed_bundles_sender: mpsc::Sender<Bundle>,
+        downloading_headers: FinishedIndicator,
         logger: Logger,
     ) -> Worker {
 
@@ -62,6 +63,7 @@ impl Worker {
                 &mut stream,
                 &safe_node_info,
                 &missed_bundles_sender,
+                &downloading_headers,
                 &logger,
             );
 

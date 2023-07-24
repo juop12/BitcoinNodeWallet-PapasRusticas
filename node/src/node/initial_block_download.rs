@@ -4,6 +4,8 @@ use std::{time::{Duration, Instant}, thread::JoinHandle};
 use std::thread;
 use crate::utils::ui_communication_protocol::UIResponse;
 
+use super::peer_comunication::workers::FinishedIndicator;
+
 pub const HASHEDGENESISBLOCK: [u8; 32] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68, 0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
     0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1, 0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
@@ -12,7 +14,7 @@ const MAX_BLOCK_BUNDLE: usize = 16;
 const MAXIMUM_PEER_TIME_OUT: u64 = 10;
 const REFRESH_BLOCK_DOWNLOAD_PROGRESS_FOR_UI: Duration = Duration::from_secs(1);
 
-fn send_ibd_information_to_ui(sender_to_ui: GlibSender<UIResponse>, blockchain: Arc<Mutex<HashMap<[u8;32], Block>>>, total_blocks: usize, starting_block_count: usize) -> Result<JoinHandle<()>, NodeError>{
+fn send_ibd_information_to_ui(sender_to_ui: GlibSender<UIResponse>, blockchain: Arc<Mutex<HashMap<[u8;32], Block>>>, total_blocks: usize, starting_block_count: usize, finish:FinishedIndicator) -> Result<JoinHandle<()>, NodeError>{
     let message_to_ui = LoadingScreenInfo::StartedBlockDownload(total_blocks);
     let started_downloading = "Started downloading blocks";
     sender_to_ui.send(UIResponse::LoadingScreenUpdate(message_to_ui)).expect("Error sending to UI thread");
@@ -20,16 +22,19 @@ fn send_ibd_information_to_ui(sender_to_ui: GlibSender<UIResponse>, blockchain: 
     let sender_clone = sender_to_ui.clone();
 
     let join_handle = thread::spawn(move || { loop {
+        match finish.lock(){
+            Ok(finish) => if *finish{
+                sender_to_ui.send(UIResponse::LoadingScreenUpdate(LoadingScreenInfo::FinishedBlockDownload)).expect("Error sending to UI thread");
+                return;
+            },
+            Err(_) => return,
+        }
         thread::sleep(REFRESH_BLOCK_DOWNLOAD_PROGRESS_FOR_UI);
         match blockchain.lock() {
             Ok(blockchain) => {
                 let current_block_count = blockchain.len() - starting_block_count;
                 let message_to_ui = LoadingScreenInfo::DownloadedBlocks(current_block_count);
                 sender_clone.send(UIResponse::LoadingScreenUpdate(message_to_ui)).expect("Error sending to UI thread");
-                if current_block_count == total_blocks {
-                    sender_to_ui.send(UIResponse::LoadingScreenUpdate(LoadingScreenInfo::FinishedBlockDownload)).expect("Error sending to UI thread");
-                    break;
-                }
             },
             Err(_) => {},
         }   
@@ -118,6 +123,7 @@ impl Node {
         peer_timeout: u64,
         first_downloaded_block_index: &mut i32,
         starting_block_count: usize,
+        finish: &FinishedIndicator,
     ) -> Result<JoinHandle<()>, NodeError> {
         let mut headers_received = self.get_block_headers()?.len();
         let mut last_hash = HASHEDGENESISBLOCK;
@@ -155,16 +161,16 @@ impl Node {
             );
             self.log_and_send_to_ui(&headers_amount_string);
         }
-        let total_blocks = self.get_block_headers()?.len();
+        let total_block_headers = self.get_block_headers()?.len();
         let mut amount_of_blocks_to_download = 0;
         if *first_downloaded_block_index != -1 {
-            amount_of_blocks_to_download = total_blocks - ((*first_downloaded_block_index) as usize); // the block in the position 0 is the genesis block so we dont add 1
+            amount_of_blocks_to_download = total_block_headers - ((*first_downloaded_block_index) as usize); // the block in the position 0 is the genesis block so we dont add 1
         }
         self.logger.log(format!(
             "Total amount of blocks to download = {}",
             amount_of_blocks_to_download
         ));
-        let thread_join = send_ibd_information_to_ui(self.sender_to_ui.clone(), self.blockchain.clone(), amount_of_blocks_to_download, starting_block_count)?;
+        let thread_join = send_ibd_information_to_ui(self.sender_to_ui.clone(), self.blockchain.clone(), amount_of_blocks_to_download, starting_block_count, finish.clone())?;
 
         if !request_block_hashes_bundle.is_empty()
             && block_downloader
@@ -175,7 +181,7 @@ impl Node {
         }
         Ok(thread_join)
     }
-
+    
     /// Writes the necessary headers into disk, to be able to continue the IBD from the last point.
     /// On error returns NodeError. Written starting from the given positions.
     pub fn store_headers_in_disk(&mut self) -> Result<(), NodeError> {
@@ -186,7 +192,7 @@ impl Node {
 
     /// Writes the necessary blocks into disk, to be able to continue the IBD from the last point.
     /// On error returns NodeError. Written starting from the given positions.
-    pub fn store_blocks_in_disk(&mut self) -> Result<(), NodeError> {
+    pub fn store_blocks_in_disk(&mut self) -> Result<usize, NodeError> {
         self.data_handler
             .save_blocks_to_disk(&self.blockchain, &self.block_headers, self.headers_in_disk)
             .map_err(|_| NodeError::ErrorSavingDataToDisk)
@@ -216,7 +222,7 @@ impl Node {
     }
 
     /// Downloads block and headers from a given peer.If a problem occurs while downloading headers it continues asking to another peer.
-    fn start_downloading(&mut self, starting_block_count: usize) -> Result<(BlockDownloader, Option<JoinHandle<()>>), NodeError> {
+    fn start_downloading(&mut self, starting_block_count: usize, finish: &FinishedIndicator) -> Result<(BlockDownloader, Option<JoinHandle<()>>), NodeError> {
         let mut i = 0;
         let mut block_downloader = self.create_block_downloader(i)?;
         let mut first_downloaded_block_index: i32 = -1;
@@ -224,7 +230,7 @@ impl Node {
         let mut thread_join: Option<JoinHandle<()>> = None;
         while peer_time_out < MAXIMUM_PEER_TIME_OUT {
             println!("\n{i}\n");
-            match self.download_headers_and_blocks(&block_downloader, i, peer_time_out, &mut first_downloaded_block_index, starting_block_count) {
+            match self.download_headers_and_blocks(&block_downloader, i, peer_time_out, &mut first_downloaded_block_index, starting_block_count, finish) {
                 Ok(join) => {thread_join = Some(join);
                     break;
                 }
@@ -269,11 +275,21 @@ impl Node {
         progress_str = "Started downloading headers";
         self.log_and_send_to_ui(progress_str);
 
-        let (mut block_downloader, thread_join) = self.start_downloading(starting_block_count)?;
+        let finish =  Arc::new(Mutex::from(false));
+
+        let (mut block_downloader, thread_join) = self.start_downloading(starting_block_count, &finish)?;
+
+        if let Ok(mut downloading_headers) = block_downloader.downloading_headers.lock(){
+            *downloading_headers = false;
+        }
 
         block_downloader
             .finish_downloading()
             .map_err(|_| NodeError::ErrorDownloadingBlockBundle)?;
+
+        if let Ok(mut finished) = finish.lock() {
+            *finished = true;
+        }
 
         if let Some(join) = thread_join {
             join.join().map_err(|_| NodeError::ErrorJoiningThread)?;
@@ -282,7 +298,7 @@ impl Node {
         progress_str = "Started storing headers to disk";
         self.log_and_send_to_ui(progress_str);
         
-        self.store_headers_in_disk()?;
+        self.headers_in_disk = self.store_blocks_in_disk()?;
         progress_str = "Finished storing headers to disk";
         self.log_and_send_to_ui(progress_str);
 
@@ -296,18 +312,7 @@ impl Node {
         ));
         self.sender_to_ui.send(UIResponse::LoadingScreenUpdate(LoadingScreenInfo::FinishedBlockDownload)).map_err(|_| NodeError::ErrorSendingThroughChannel)?;
 
-        progress_str = "Started storing blocks to disk";
-        self.log_and_send_to_ui(progress_str);
-
-        self.store_blocks_in_disk()?;
-
-        progress_str = "Finished storing blocks to disk";
-        self.log_and_send_to_ui(progress_str);
-
-        aux_len = self.get_block_headers()?.len();
-        self.headers_in_disk = aux_len;
-
-        self.last_proccesed_block = aux_len;
+        self.last_proccesed_block = self.headers_in_disk;
         Ok(())
     }
 }

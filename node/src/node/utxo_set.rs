@@ -20,7 +20,7 @@ impl Node {
                 Some(block) => block,
                 None => {
                     self.logger.log(format!(
-                        "Colud not find block number {} in create_utxo_set",
+                        "Could not find block number {} in create_utxo_set",
                         index + starting_position
                     ));
                     continue;

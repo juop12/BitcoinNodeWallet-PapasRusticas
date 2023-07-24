@@ -10,20 +10,20 @@ pub fn handle_message(
     stream: &mut TcpStream,
     safe_node_info: &NodeSharedInformation,
     logger: &Logger,
-    ibd: bool)->Result<(), NodeError>{
+    downloading_headers: bool)->Result<(), NodeError>{
         match message{
-            Message::BlockHeaders(msg) => if ibd {
+            Message::BlockHeaders(msg) => if downloading_headers {
                 handle_block_headers_message(msg, &safe_node_info.safe_block_headers, &safe_node_info.safe_headers_index)?;
             },
-            Message::Block(msg) => handle_block_message(msg, safe_node_info, logger, ibd)?,
-            Message::GetBlockHeaders(msg) => if !ibd{
+            Message::Block(msg) => handle_block_message(msg, safe_node_info, logger, downloading_headers)?,
+            Message::GetBlockHeaders(msg) => if !downloading_headers{
                 handle_get_headers_message(stream, msg, &safe_node_info.safe_block_headers, &safe_node_info.safe_headers_index, logger)?;
             },
-            Message::GetData(msg) => if !ibd{
+            Message::GetData(msg) => if !downloading_headers{
                 handle_get_data(stream, msg, &safe_node_info.safe_blockchain)?;
             },
             Message::Header(_) => return Err(NodeError::DoubleHeader),
-            Message::Inv(msg) => if !ibd{
+            Message::Inv(msg) => if !downloading_headers{
                 handle_inv_message(stream, msg, &safe_node_info.safe_blockchain, &safe_node_info.safe_pending_tx)?;
             },
             Message::Tx(msg) => handle_tx_message(msg, &safe_node_info.safe_pending_tx)?,
@@ -52,21 +52,17 @@ pub fn handle_block_message(
     block_msg: BlockMessage,
     safe_node_info: &NodeSharedInformation,
     logger: &Logger,
-    ibd: bool,
+    downloading_headers: bool,
 ) -> Result<(), NodeError> {
     let block = block_msg.block;
 
-    let block_header = match safe_node_info.lock_blockchain(){
-        Ok(blockchain) => {
-            let block_header = block.get_header();
+    let mut blockchain = safe_node_info.lock_blockchain()?;
+        
+    let block_header = block.get_header();
 
-            if blockchain.contains_key(&block_header.hash()) {
-                return Ok(());
-            }
-            block_header
-        },
-        Err(error) => return Err(error),
-    };
+    if blockchain.contains_key(&block_header.hash()) {
+        return Ok(());
+    }
 
     if !validate_proof_of_work(&block_header) {
         logger.log(String::from("Proof of work failed for a block"));
@@ -88,11 +84,11 @@ pub fn handle_block_message(
         Err(_) => return Err(NodeError::ErrorSharingReference),
     }
     
-    if !ibd {
+    if !downloading_headers && !safe_node_info.lock_headers_index()?.contains_key(&block_header.hash()){
         insert_new_headers(vec![block_header], &safe_node_info.safe_block_headers, &safe_node_info.safe_headers_index)?;
     }
 
-    safe_node_info.lock_blockchain()?.insert(block.header_hash(), block);
+    blockchain.insert(block.header_hash(), block);
 
     Ok(())
 }

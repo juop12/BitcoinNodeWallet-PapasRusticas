@@ -213,14 +213,14 @@ impl Node {
     }
 
     /// Actual receive_message wrapper. Encapsulates node's parameteres.
-    fn receive_message(&mut self, stream_index: usize, ibd: bool) -> Result<String, NodeError> {
+    fn receive_message(&mut self, stream_index: usize, downloading_headers: bool) -> Result<String, NodeError> {
         let safe_node_info = self.get_safe_node_info();
         let stream = &mut self.initial_peers[stream_index];
         recieve_and_handle(
             stream,
             &safe_node_info,
             &self.logger,
-            ibd,
+            downloading_headers,
         )
     }
 
@@ -241,10 +241,11 @@ impl Drop for Node {
 
         //Saving data.
         self.logger.log("Saving received data".to_string());
-
+        /*
         if self.store_headers_in_disk().is_err() {
             return self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
         };
+        */
 
         if self.store_blocks_in_disk().is_err() {
             return self.logger.log_error(&NodeError::ErrorSavingDataToDisk);
@@ -295,10 +296,10 @@ fn receive_message(stream: &mut TcpStream, logger: &Logger,)->Result<(Message,St
     Ok((msg, block_headers_msg_h.get_command_name()))
 }
 
-pub fn recieve_and_handle(stream: &mut TcpStream, safe_node_info: &NodeSharedInformation, logger: &Logger, ibd: bool)-> Result<String, NodeError>{
+pub fn recieve_and_handle(stream: &mut TcpStream, safe_node_info: &NodeSharedInformation, logger: &Logger, downloading_headers: bool)-> Result<String, NodeError>{
 
     let (msg, command_name) = receive_message(stream, logger)?;
-    handle_message(msg, stream, safe_node_info, logger, ibd)?;
+    handle_message(msg, stream, safe_node_info, logger, downloading_headers)?;
     Ok(command_name)
 }
 
