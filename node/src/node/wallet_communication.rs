@@ -122,18 +122,7 @@ impl Node {
         transaction: Transaction,
     ) -> Result<(), NodeError> {
         let message = TxMessage::new(transaction);
-        /*let mut sent = false;
 
-        for (i, stream) in self.tcp_streams.iter_mut().enumerate() {
-            self.logger.log(format!("mandando al peer{i}"));
-            if message.send_to(stream).is_ok() {
-                sent = true;
-            }
-        }
-
-        if !sent {
-            return Err(NodeError::ErrorSendingTransaction);
-        }*/
         match &self.peer_comunicator {
             Some(peer_comunicator) => peer_comunicator
                 .send_message(&message)

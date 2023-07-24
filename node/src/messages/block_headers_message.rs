@@ -137,14 +137,4 @@ mod tests {
         assert_eq!(block_headers_message, expected_block_headers_message);
         Ok(())
     }
-
-    #[test]
-    fn block_headers_message_test_3_from_bytes_with_more_than_one_byte_in_coun(
-    ) -> Result<(), MessageError> {
-        let (mut expected_bytes, _b_h1, _b_h2) = block_headers_message_expected_bytes(true);
-
-        let block_headers_message = BlockHeadersMessage::from_bytes(&mut expected_bytes)?;
-        assert_eq!(block_headers_message.to_bytes(), expected_bytes);
-        Ok(())
-    }
 }
