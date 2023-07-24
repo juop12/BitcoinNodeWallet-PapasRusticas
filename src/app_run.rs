@@ -34,7 +34,6 @@ fn ui_response_to_message(builder: Builder,
         UIResponse::FinishedInitializingNode => {
             if let Err(error) = start_window(&app, &builder, sender, node_status) {
                 handle_ui_error(&builder, error);
-                glib::Continue(false);
             }    
         }
         UIResponse::WalletFinished => handle_app_finished(&builder, &app, node_status),
@@ -42,7 +41,6 @@ fn ui_response_to_message(builder: Builder,
         UIResponse::WalletError(error) => handle_wallet_error(&builder, error, node_status),
         UIResponse::ErrorInitializingNode => {
             handle_initialization_error(&builder, node_status);
-            glib::Continue(false);
         }
         UIResponse::LoadingScreenUpdate(progress) => handle_loading_screen_update(&builder, progress),
     }

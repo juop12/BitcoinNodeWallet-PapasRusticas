@@ -30,13 +30,10 @@ fn send_ibd_information_to_ui(sender_to_ui: GlibSender<UIResponse>, blockchain: 
             Err(_) => return,
         }
         thread::sleep(REFRESH_BLOCK_DOWNLOAD_PROGRESS_FOR_UI);
-        match blockchain.lock() {
-            Ok(blockchain) => {
-                let current_block_count = blockchain.len() - starting_block_count;
-                let message_to_ui = LoadingScreenInfo::DownloadedBlocks(current_block_count);
-                sender_clone.send(UIResponse::LoadingScreenUpdate(message_to_ui)).expect("Error sending to UI thread");
-            },
-            Err(_) => {},
+        if let Ok(blockchain) = blockchain.lock() {
+            let current_block_count = blockchain.len() - starting_block_count;
+            let message_to_ui = LoadingScreenInfo::DownloadedBlocks(current_block_count);
+            sender_clone.send(UIResponse::LoadingScreenUpdate(message_to_ui)).expect("Error sending to UI thread");
         }   
     }
     });
