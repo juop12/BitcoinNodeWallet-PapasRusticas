@@ -1,6 +1,6 @@
 use crate::{
     blocks::{proof_of_transaction_included_in, HashPair, Transaction},
-    messages::TxMessage,
+    messages::{TxMessage, message_trait::inv_message::InvMessage},
     node::Node,
     utils::{btc_errors::NodeError, ui_communication_protocol::TxInfo, BlockInfo},
     wallet::Wallet,
@@ -121,7 +121,7 @@ impl Node {
         wallet: &mut Wallet,
         transaction: Transaction,
     ) -> Result<(), NodeError> {
-        let message = TxMessage::new(transaction);
+        let message = InvMessage::create_message_inventory_transaction_type(vec![transaction.hash()]);
 
         match &self.peer_comunicator {
             Some(peer_comunicator) => peer_comunicator
@@ -130,7 +130,7 @@ impl Node {
             None => return Err(NodeError::ErrorSendingTransaction),
         };
 
-        let transaction = message.tx;
+        let transaction = transaction;
         let transaction_hash = transaction.hash();
         let mut used_outpoints = Vec::new();
         match self.get_pending_tx() {
