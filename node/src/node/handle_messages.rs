@@ -20,7 +20,7 @@ pub fn handle_message(
                 handle_get_headers_message(stream, msg, &safe_node_info.safe_block_headers, &safe_node_info.safe_headers_index, logger)?;
             },
             Message::GetData(msg) => if !downloading_headers{
-                handle_get_data(stream, msg, &safe_node_info.safe_blockchain)?;
+                handle_get_data(stream, msg, &safe_node_info.safe_blockchain, &safe_node_info.safe_pending_tx)?;
             },
             Message::Header(_) => return Err(NodeError::DoubleHeader),
             Message::Inv(msg) => if !downloading_headers{
@@ -232,14 +232,15 @@ fn get_starting_header_position(get_headers_msg: &GetBlockHeadersMessage, safe_h
 
 /// Handles get data message. If it receives block hashes it looks for them in the block chain and responds 
 /// with Block messages, each block hash not found in the blocks is then returned through a NotFoundMessage 
-pub fn handle_get_data(stream: &mut TcpStream, get_data_msg: GetDataMessage, safe_blockchain: &SafeBlockChain) -> Result<(), NodeError>{
-    let hashes = get_data_msg.get_block_hashes();
+pub fn handle_get_data(stream: &mut TcpStream, get_data_msg: GetDataMessage, safe_blockchain: &SafeBlockChain, safe_pending: &SafePendingTx) -> Result<(), NodeError>{
+    let block_hashes = get_data_msg.get_block_hashes();
+    let tx_hashes = get_data_msg.get_block_hashes();
 
     let mut block_messages = Vec::new();
     let mut not_found_blocks = Vec::new();
     match safe_blockchain.lock(){
         Ok(blockchain) => {
-            for hash in hashes{
+            for hash in block_hashes{
                 match blockchain.get(&hash){
                     Some(block) => block_messages.push(BlockMessage::from(block).map_err(|_| NodeError::ErrorMessage(MessageError::ErrorCreatingGetDataMessage))?),
                     None => {
@@ -251,6 +252,18 @@ pub fn handle_get_data(stream: &mut TcpStream, get_data_msg: GetDataMessage, saf
         Err(_) => return Err(NodeError::ErrorSharingReference),
     }
     
+    let mut tx_messages = Vec::new();
+    match safe_pending.lock(){
+        Ok(safe_pending) => {
+            for hash in tx_hashes{
+                if let Some(tx) = safe_pending.get(&hash){
+                    tx_messages.push(TxMessage::from_bytes(&tx.to_bytes()).map_err(NodeError::ErrorMessage)?);
+                };
+            }
+        },
+        Err(_) => return Err(NodeError::ErrorSharingReference),
+    }
+
     for message in block_messages{
         message.send_to(stream).map_err(NodeError::ErrorMessage)?;
     }

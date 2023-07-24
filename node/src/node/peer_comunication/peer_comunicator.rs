@@ -186,9 +186,9 @@ pub fn peer_comunicator_worker_thread_loop(
 
     match receive_message(stream, logger){
         Ok((msg,_command_name)) => {
-            //if propagate_messages(&msg, propagation_channel, &safe_node_info.safe_blockchain, &safe_node_info.safe_pending_tx).is_err(){
-            //    return Stops::UngracefullStop;
-            //};
+            if propagate_messages(&msg, propagation_channel, &safe_node_info.safe_blockchain, &safe_node_info.safe_pending_tx).is_err(){
+                return Stops::UngracefullStop;
+            };
             
             if handle_message(msg, stream, safe_node_info, logger, false).is_err(){
                 return Stops::UngracefullStop;
@@ -227,33 +227,37 @@ fn try_to_send_message(message_bytes_receiver: &mpsc::Receiver<Vec<u8>>, stream:
     Ok(true)
 }
 
+fn propagate_block(inv_msg: &InvMessage, safe_block_chain: &SafeBlockChain) -> Result<bool, PeerComunicatorError> {
+    let blockchain = safe_block_chain.lock().map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+    for hash in inv_msg.get_block_hashes(){
+        if !blockchain.contains_key(&hash){
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+
+fn propagate_tx(inv_msg: &InvMessage, safe_pending_tx: &SafePendingTx) -> Result<bool, PeerComunicatorError>{
+    let pending_tx = safe_pending_tx.lock().map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+    for hash in inv_msg.get_transaction_hashes(){
+        if !pending_tx.contains_key(&hash){
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 fn propagate_messages(msg: &Message, propagation_channel: &mpsc::Sender<Vec<u8>>, safe_block_chain: &SafeBlockChain, safe_pending_tx: &SafePendingTx)->Result<(), PeerComunicatorError>{
-    match msg{
-        Message::Block(block_msg) => {
-            let hash = block_msg.block.header_hash();
-            let new_block = match safe_block_chain.lock(){
-                Ok(block_chain) => !block_chain.contains_key(&hash),
-                Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
-            };  
-            if new_block{
-                let mut msg_bytes = block_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
-                msg_bytes.extend(block_msg.to_bytes());
-                propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
-            }
-        },
-        Message::Tx(tx_msg) => {
-            let hash = tx_msg.tx.hash();
-            let new_tx = match safe_pending_tx.lock(){
-                Ok(pending_tx) => !pending_tx.contains_key(&hash),
-                Err(_) => return Err(PeerComunicatorError::ErrorPropagating),
-            };
-            if new_tx{
-                let mut msg_bytes = tx_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
-                msg_bytes.extend(tx_msg.to_bytes());
-                propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
-            }
-        },
-        _ => {},
+    
+    if let Message::Inv(inv_msg) = msg {
+        let propagate_block = propagate_block(inv_msg, safe_block_chain)?;
+        let propagate_tx = propagate_tx(inv_msg, safe_pending_tx)?;
+        if propagate_block || propagate_tx{
+            let mut msg_bytes = inv_msg.get_header_message().map_err(|_| PeerComunicatorError::ErrorPropagating)?.to_bytes();
+            msg_bytes.extend(inv_msg.to_bytes());
+            propagation_channel.send(msg_bytes).map_err(|_| PeerComunicatorError::ErrorPropagating)?;
+        }
     }
     Ok(())
 }
