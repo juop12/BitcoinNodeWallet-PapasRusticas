@@ -25,7 +25,7 @@ pub fn draw_merkle_proof_of_inclusion_tree(hash_pairs: &mut Vec<HashPair>) -> St
     if hash_pairs.is_empty() {
         return String::from(MERKLE_ROOT_REPRESENTATION);
     }
-    matrix[0][(hash_pairs.len() + 2)] = String::from(MERKLE_ROOT_REPRESENTATION);
+    matrix[0][hash_pairs.len() + 2] = String::from(MERKLE_ROOT_REPRESENTATION);
     let mut left_hash = hash_pairs_for_merkle_tree(hash_pairs[0].left, hash_pairs[0].right);
 
     for (i, pair) in hash_pairs.iter().enumerate() {
